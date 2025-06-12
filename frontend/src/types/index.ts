@@ -112,10 +112,22 @@ export interface Book {
 }
 
 // New interface for program-specific book details
+
 export interface ProgramBook {
-  bookId: string;
-  price: number; // Program-specific price
-  initialStock: number; // Initial stock for this program
+  id: number;
+  program_id: number;
+  program_name: string;
+  book_id: number;
+  book_title: string;
+  book_author: string | null;
+  book_category: string;
+  book_image_url: string | null;
+  program_price: string;
+  original_price: string;
+  initial_stock: number;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface InventoryMovement {

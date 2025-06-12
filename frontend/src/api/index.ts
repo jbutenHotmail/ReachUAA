@@ -131,32 +131,48 @@ export const apiRequest = async <T>(
   }
 };
 
-// Convenience methods for common HTTP methods
+// Define a custom interface for options that includes params
+interface ApiRequestOptions extends Omit<RequestInit, 'method'> {
+  params?: Record<string, string | number | boolean | undefined>;
+}
+
+// Update the api object
 export const api = {
-  get: <T>(endpoint: string, options?: Omit<RequestInit, 'method'>) => 
-    apiRequest<T>(endpoint, { ...options, method: 'GET' }),
-    
+  get: <T>(endpoint: string, options?: ApiRequestOptions) => {
+    // Append query parameters if params exists
+    let url = endpoint;
+    if (options?.params) {
+      const queryString = new URLSearchParams(
+        Object.entries(options.params)
+          .filter(([_, value]) => value != null) // Remove undefined/null values
+          .map(([key, value]) => [key, String(value)]) // Convert values to strings
+      ).toString();
+      url = queryString ? `${endpoint}?${queryString}` : endpoint;
+    }
+    return apiRequest<T>(url, { ...options, method: 'GET' });
+  },
+
   post: <T>(endpoint: string, data?: any, options?: Omit<RequestInit, 'method' | 'body'>) => 
     apiRequest<T>(endpoint, { 
       ...options, 
       method: 'POST', 
       body: data ? JSON.stringify(data) : undefined 
     }),
-    
+
   put: <T>(endpoint: string, data?: any, options?: Omit<RequestInit, 'method' | 'body'>) => 
     apiRequest<T>(endpoint, { 
       ...options, 
       method: 'PUT', 
       body: data ? JSON.stringify(data) : undefined 
     }),
-    
+
   patch: <T>(endpoint: string, data?: any, options?: Omit<RequestInit, 'method' | 'body'>) => 
     apiRequest<T>(endpoint, { 
       ...options, 
       method: 'PATCH', 
       body: data ? JSON.stringify(data) : undefined 
     }),
-    
+
   delete: <T>(endpoint: string, options?: Omit<RequestInit, 'method'>) => 
     apiRequest<T>(endpoint, { ...options, method: 'DELETE' }),
 };

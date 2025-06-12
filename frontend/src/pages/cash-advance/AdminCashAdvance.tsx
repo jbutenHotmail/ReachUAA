@@ -13,7 +13,7 @@ import Spinner from '../../components/ui/Spinner';
 
 const AdminCashAdvance: React.FC = () => {
   const { t } = useTranslation();
-  const { people, fetchPeople, getLeaders, getColporters } = useUserStore();
+  const { people, fetchPeople} = useUserStore();
   const { program, fetchProgram } = useProgramStore();
   const { 
     weeklySales,
@@ -52,8 +52,8 @@ const AdminCashAdvance: React.FC = () => {
       
       // Set default percentage based on person type
       const defaultPercentage = selectedPerson.personType === 'COLPORTER' 
-        ? program?.colporterCashAdvancePercentage || 20
-        : program?.leaderCashAdvancePercentage || 25;
+        ? program?.financialConfig.colporter_cash_advance_percentage || 20
+        : program?.financialConfig.leader_cash_advance_percentage || 25;
       setCustomPercentage(defaultPercentage);
       setIsEditingPercentage(false);
     }
@@ -343,7 +343,7 @@ const AdminCashAdvance: React.FC = () => {
                         colSpan={Object.keys(currentWeekSales.dailySales).length} 
                         className="px-4 py-3 text-right text-sm font-medium text-gray-900"
                       >
-                        Total: ${currentWeekSales.totalSales.toFixed(2)}
+                        Total: ${Number(currentWeekSales.totalSales).toLocaleString()}
                       </td>
                     </tr>
                   </tfoot>
@@ -396,15 +396,14 @@ const AdminCashAdvance: React.FC = () => {
                     <p className="text-xs text-primary-600">Maximum available</p>
                   </div>
                 </div>
-                
                 {customPercentage !== (selectedPerson.personType === 'COLPORTER' 
-                  ? (program?.colporterCashAdvancePercentage || 20) 
-                  : (program?.leaderCashAdvancePercentage || 25)) && (
+                  ? (program?.financialConfig.colporter_cash_advance_percentage || 20) 
+                  : (program?.financialConfig.leader_cash_advance_percentage || 25)) && (
                   <div className="p-3 bg-warning-50 border border-warning-200 rounded-lg">
                     <p className="text-sm text-warning-700">
                       <strong>Custom Percentage:</strong> You've modified the default {selectedPerson.personType === 'COLPORTER' 
-                        ? (program?.colporterCashAdvancePercentage || 20) 
-                        : (program?.leaderCashAdvancePercentage || 25)}% limit to {customPercentage}% for this advance.
+                        ? (program?.financialConfig.colporter_cash_advance_percentage || 20) 
+                        : (program?.financialConfig.leader_cash_advance_percentage || 25)}% limit to {customPercentage}% for this advance.
                     </p>
                   </div>
                 )}

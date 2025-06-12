@@ -291,7 +291,7 @@ export const getWeeklySales = async (req, res) => {
   try {
     const { personId } = req.params;
     const { weekStartDate, weekEndDate } = req.query;
-    
+    console.log(weekStartDate, weekEndDate)
     if (!weekStartDate || !weekEndDate) {
       return res.status(400).json({ message: 'Week start date and end date are required' });
     }

@@ -186,13 +186,25 @@ export const getProgram = async (req, res) => {
       [program.id]
     );
     
-    res.json({
-      program,
-      financialConfig,
-      workingDays,
-      customDays,
-      books
-    });
+    // Create consolidated program object
+    const programResponse = {
+      ...program,
+      financialConfig: {
+        ...financialConfig
+      },
+      workingDays: workingDays.map(day => ({
+        ...day
+      })),
+      customDays: customDays.map(day => ({
+        ...day
+      })),
+      books: books.map(book => ({
+        ...book
+      }))
+    };
+    
+    console.log(programResponse);
+    res.json({program: programResponse});
   } catch (error) {
     console.error('Error getting program:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
