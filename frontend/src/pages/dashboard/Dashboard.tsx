@@ -4,6 +4,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useFinancialStore } from '../../stores/financialStore';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useDashboardStore } from '../../stores/dashboardStore';
+import { useCashAdvanceStore } from '../../stores/cashAdvanceStore';
 
 import StatsGrid from '../../components/dashboard/StatsGrid';
 import SalesChart from '../../components/dashboard/SalesChart';
@@ -37,6 +38,11 @@ const Dashboard: React.FC = () => {
     isLoading: isDashboardLoading,
     fetchDashboardStats
   } = useDashboardStore();
+
+  const {
+    advances,
+    fetchAdvances
+  } = useCashAdvanceStore();
   
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
   
@@ -46,14 +52,18 @@ const Dashboard: React.FC = () => {
       fetchSalesHistory(user.id, selectedPeriod);
       fetchGoals(user.id);
       fetchDashboardStats();
+      fetchAdvances();
       
       // Fetch today's transactions
       const today = new Date().toISOString().split('T')[0];
       fetchTransactions(today);
     }
-  }, [user, fetchSummary, fetchSalesHistory, fetchGoals, fetchTransactions, fetchDashboardStats, selectedPeriod]);
+  }, [user, fetchSummary, fetchSalesHistory, fetchGoals, fetchTransactions, fetchDashboardStats, fetchAdvances, selectedPeriod]);
 
   const isLoading = isFinancialLoading || isTransactionsLoading || isDashboardLoading;
+
+  // Filter out rejected transactions
+  const validTransactions = transactions.filter(t => t.status !== 'REJECTED');
 
   // Calculate change percentages by comparing to previous periods
   const calculateChanges = () => {
@@ -63,26 +73,59 @@ const Dashboard: React.FC = () => {
       monthlyChange: { value: 0, type: 'increase' as const }
     };
     
-    // These would normally come from comparing current vs previous periods
-    // For now, we'll use random values between -15 and +20
-    const getRandomChange = () => {
-      const value = Math.floor(Math.random() * 35) - 15;
-      return {
-        value: Math.abs(value),
-        type: value >= 0 ? 'increase' as const : 'decrease' as const
-      };
-    };
+    // Calculate daily change
+    // In a real implementation, we would compare today's sales with yesterday's
+    // For now, we'll compare with the average of the previous 7 days
+    const dailySales = stats.today.sales;
+    const previousDaysSales = stats.salesChart.slice(-8, -1); // Last 7 days excluding today
+    const previousDaysAverage = previousDaysSales.length > 0 
+      ? previousDaysSales.reduce((sum, day) => sum + day.amount, 0) / previousDaysSales.length
+      : dailySales;
+    
+    const dailyChangeValue = previousDaysAverage === 0 
+      ? 0 
+      : Math.round(((dailySales - previousDaysAverage) / previousDaysAverage) * 100);
+    
+    // Calculate weekly change
+    // Compare this week with previous week
+    const weeklySales = stats.week.sales;
+    const previousWeekSales = stats.salesChart.slice(-14, -7).reduce((sum, day) => sum + day.amount, 0);
+    
+    const weeklyChangeValue = previousWeekSales === 0 
+      ? 0 
+      : Math.round(((weeklySales - previousWeekSales) / previousWeekSales) * 100);
+    
+    // Calculate monthly change
+    // Compare this month with previous month (approximated)
+    const monthlySales = stats.month.sales;
+    // Assuming we have at least 60 days of data
+    const previousMonthSales = stats.salesChart.length >= 60 
+      ? stats.salesChart.slice(-60, -30).reduce((sum, day) => sum + day.amount, 0)
+      : monthlySales * 0.9; // Fallback: assume 10% growth
+    
+    const monthlyChangeValue = previousMonthSales === 0 
+      ? 0 
+      : Math.round(((monthlySales - previousMonthSales) / previousMonthSales) * 100);
     
     return {
-      dailyChange: getRandomChange(),
-      weeklyChange: getRandomChange(),
-      monthlyChange: getRandomChange()
+      dailyChange: { 
+        value: Math.abs(dailyChangeValue), 
+        type: dailyChangeValue >= 0 ? 'increase' as const : 'decrease' as const 
+      },
+      weeklyChange: { 
+        value: Math.abs(weeklyChangeValue), 
+        type: weeklyChangeValue >= 0 ? 'increase' as const : 'decrease' as const 
+      },
+      monthlyChange: { 
+        value: Math.abs(monthlyChangeValue), 
+        type: monthlyChangeValue >= 0 ? 'increase' as const : 'decrease' as const 
+      }
     };
   };
 
   const { dailyChange, weeklyChange, monthlyChange } = calculateChanges();
 
-  if (isLoading && (!summary || !salesHistory.length || !goals.length)) {
+  if (isLoading && (!stats)) {
     return (
       <div className="flex items-center justify-center h-64">
         <Spinner size="lg" />
@@ -117,19 +160,21 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <StatsGrid 
-        dailySales={summary?.dailySales || 0}
-        weeklySales={summary?.weeklySales || 0}
-        monthlySales={summary?.monthlySales || 0}
-        goalPercentage={summary ? Math.round((summary.achieved / summary.goal) * 100) : 0}
-        dailyChange={dailyChange}
-        weeklyChange={weeklyChange}
-        monthlyChange={monthlyChange}
-      />
+      {stats && (
+        <StatsGrid 
+          dailySales={stats.today.sales}
+          weeklySales={stats.week.sales}
+          monthlySales={stats.month.sales}
+          goalPercentage={Math.round(stats.program.percentageAchieved)}
+          dailyChange={dailyChange}
+          weeklyChange={weeklyChange}
+          monthlyChange={monthlyChange}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2">
-          <SalesChart data={salesHistory} />
+          {stats?.salesChart && <SalesChart data={stats.salesChart} />}
         </div>
         
         <div>
@@ -142,7 +187,7 @@ const Dashboard: React.FC = () => {
         <FinancialBreakdown />
       </div>
       
-      <DailyTransactions transactions={transactions} />
+      <DailyTransactions transactions={validTransactions} />
     </div>
   );
 };

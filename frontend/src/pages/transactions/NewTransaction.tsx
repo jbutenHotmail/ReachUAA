@@ -14,7 +14,7 @@ import Badge from '../../components/ui/Badge';
 const NewTransaction: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { fetchUsers, getLeaders, getColporters } = useUserStore();
+  const { fetchUsers, fetchPeople, getLeaders, getColporters, people } = useUserStore();
   const { createTransaction } = useTransactionStore();
   const { books, fetchBooks } = useInventoryStore();
 
@@ -38,6 +38,7 @@ const NewTransaction: React.FC = () => {
   React.useEffect(() => {
     fetchUsers();
     fetchBooks();
+    people && people.length === 0 && fetchPeople();
   }, [fetchUsers, fetchBooks]);
 
   useEffect(() => {

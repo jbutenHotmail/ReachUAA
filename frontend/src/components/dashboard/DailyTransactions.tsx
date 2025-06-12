@@ -21,12 +21,15 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
   const navigate = useNavigate();
   const { updateTransaction } = useTransactionStore();
   
-  const totals = transactions.reduce((acc, curr) => ({
-    cash: acc.cash + curr.cash,
-    checks: acc.checks + curr.checks,
-    atmMobile: acc.atmMobile + curr.atmMobile,
-    paypal: acc.paypal + curr.paypal,
-    total: acc.total + curr.total
+  // Filter out rejected transactions for totals
+  const validTransactions = transactions.filter(t => t.status !== 'REJECTED');
+  
+  const totals = validTransactions.reduce((acc, curr) => ({
+    cash: Number(acc.cash) + Number(curr.cash),
+    checks: Number(acc.checks) + Number(curr.checks),
+    atmMobile: Number(acc.atmMobile) + Number(curr.atmMobile),
+    paypal: Number(acc.paypal) + Number(curr.paypal),
+    total: Number(acc.total) + Number(curr.total)
   }), {
     cash: 0,
     checks: 0,
@@ -46,7 +49,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
   const getStatusBadge = (status: Transaction['status']) => {
     switch (status) {
       case 'PENDING':
-        return <Badge variant="warning\" leftIcon={<Clock size={14} />}>{t('transactions.pending')}</Badge>;
+        return <Badge variant="warning" leftIcon={<Clock size={14} />}>{t('transactions.pending')}</Badge>;
       case 'APPROVED':
         return <Badge variant="success" leftIcon={<CheckCircle size={14} />}>{t('transactions.approved')}</Badge>;
       case 'REJECTED':
@@ -64,14 +67,14 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
         {/* Mobile-first table */}
         <div className="block sm:hidden space-y-3">
           {transactions.map((transaction) => (
-            <div key={transaction.id} className={`p-4 rounded-lg border ${transaction.status === 'PENDING' ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200'}`}>
+            <div key={transaction.id} className={`p-4 rounded-lg border ${transaction.status === 'PENDING' ? 'bg-yellow-50 border-yellow-200' : transaction.status === 'REJECTED' ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <p className="font-medium text-gray-900">{transaction.studentName}</p>
                   <p className="text-sm text-gray-500">{transaction.leaderName}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-lg">${transaction.total.toFixed(2)}</p>
+                  <p className="font-bold text-lg">${Number(transaction.total).toFixed(2)}</p>
                   {getStatusBadge(transaction.status)}
                 </div>
               </div>
@@ -79,19 +82,20 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
               <div className="grid grid-cols-2 gap-2 text-sm mb-3">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Cash:</span>
-                  <span>${transaction.cash.toFixed(2)}</span>
+                  <span>${Number(transaction.cash).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Checks:</span>
-                  <span>${transaction.checks.toFixed(2)}</span>
+                  <span>${Number(transaction.checks).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">ATM/Mobile:</span>
-                  <span>${transaction.atmMobile.toFixed(2)}</span>
+                  
+                  <span>${Number(transaction.atmMobile).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">PayPal:</span>
-                  <span>${transaction.paypal.toFixed(2)}</span>
+                  <span>${Number(transaction.paypal).toFixed(2)}</span>
                 </div>
               </div>
               
@@ -170,7 +174,13 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {transactions.map((transaction) => (
-                <tr key={transaction.id} className={transaction.status === 'PENDING' ? 'bg-yellow-50/50' : ''}>
+                <tr key={transaction.id} className={
+                  transaction.status === 'PENDING' 
+                    ? 'bg-yellow-50/50' 
+                    : transaction.status === 'REJECTED'
+                      ? 'bg-red-50/50'
+                      : ''
+                }>
                   <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                     {transaction.studentName}
                   </td>
@@ -178,19 +188,19 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                     {transaction.leaderName}
                   </td>
                   <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                    ${transaction.cash.toFixed(2)}
+                    ${Number(transaction.cash).toFixed(2)}
                   </td>
                   <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                    ${transaction.checks.toFixed(2)}
+                    ${Number(transaction.checks).toFixed(2)}
                   </td>
                   <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                    ${transaction.atmMobile.toFixed(2)}
+                    ${Number(transaction.atmMobile).toFixed(2)}
                   </td>
                   <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                    ${transaction.paypal.toFixed(2)}
+                    ${Number(transaction.paypal).toFixed(2)}
                   </td>
                   <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                    ${transaction.total.toFixed(2)}
+                    ${Number(transaction.total).toFixed(2)}
                   </td>
                   <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center">
                     <Badge variant="primary">
@@ -236,20 +246,21 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                 <td colSpan={2} className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                   {t('common.totals')}
                 </td>
+                
                 <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                  ${totals.cash.toFixed(2)}
+                  ${Number(totals.cash).toFixed(2)}
                 </td>
                 <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                  ${totals.checks.toFixed(2)}
+                  ${Number(totals.checks).toFixed(2)}
                 </td>
                 <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                  ${totals.atmMobile.toFixed(2)}
+                  ${Number(totals.atmMobile).toFixed(2)}
                 </td>
                 <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                  ${totals.paypal.toFixed(2)}
+                  ${Number(totals.paypal).toFixed(2)}
                 </td>
                 <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                  ${totals.total.toFixed(2)}
+                  ${Number(totals.total).toFixed(2)}
                 </td>
                 <td colSpan={3}></td>
               </tr>
@@ -265,7 +276,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm text-green-600 truncate">{t('transactions.cash')}</p>
                 <p className="text-sm sm:text-lg font-semibold text-green-700 truncate">
-                  ${totals.cash.toFixed(2)}
+                  ${Number(totals.cash).toFixed(2)}
                 </p>
               </div>
             </div>
@@ -277,7 +288,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm text-blue-600 truncate">{t('transactions.checks')}</p>
                 <p className="text-sm sm:text-lg font-semibold text-blue-700 truncate">
-                  ${totals.checks.toFixed(2)}
+                  ${Number(totals.checks).toFixed(2)}
                 </p>
               </div>
             </div>
@@ -289,7 +300,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm text-primary-600 truncate">{t('transactions.atmMobile')}</p>
                 <p className="text-sm sm:text-lg font-semibold text-primary-700 truncate">
-                  ${totals.atmMobile.toFixed(2)}
+                  ${Number(totals.atmMobile).toFixed(2)}
                 </p>
               </div>
             </div>
@@ -301,7 +312,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm text-cta-600 truncate">{t('transactions.paypal')}</p>
                 <p className="text-sm sm:text-lg font-semibold text-cta-700 truncate">
-                  ${totals.paypal.toFixed(2)}
+                  ${Number(totals.paypal).toFixed(2)}
                 </p>
               </div>
             </div>

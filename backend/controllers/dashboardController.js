@@ -23,91 +23,100 @@ export const getDashboardStats = async (req, res) => {
       return res.status(404).json({ message: 'No active program found' });
     }
     
-    // Get today's sales
+    // Get today's sales - only PENDING and APPROVED transactions
     const todaySales = await db.getOne(
       `SELECT COALESCE(SUM(total), 0) as total
        FROM transactions
        WHERE transaction_date = ?
-       AND status = 'APPROVED'`,
+       AND status IN ('PENDING', 'APPROVED')`,
       [today]
     );
     
-    // Get today's books
+    // Get today's books - only PENDING and APPROVED transactions
+    // Fix the GROUP BY clause to avoid SQL error
     const todayBooks = await db.query(
-      `SELECT b.price, SUM(tb.quantity) as quantity
+      `SELECT 
+         CASE WHEN b.price >= 20 THEN 'large' ELSE 'small' END as book_size, 
+         SUM(tb.quantity) as quantity
        FROM transaction_books tb
        JOIN books b ON tb.book_id = b.id
        JOIN transactions t ON tb.transaction_id = t.id
        WHERE t.transaction_date = ?
-       AND t.status = 'APPROVED'
-       GROUP BY b.price >= 20`,
+       AND t.status IN ('PENDING', 'APPROVED')
+       GROUP BY CASE WHEN b.price >= 20 THEN 'large' ELSE 'small' END`,
       [today]
     );
     
     // Calculate large and small books
-    const todayLargeBooks = todayBooks.find(b => b.price >= 20)?.quantity || 0;
-    const todaySmallBooks = todayBooks.find(b => b.price < 20)?.quantity || 0;
+    const todayLargeBooks = todayBooks.find(b => b.book_size === 'large')?.quantity || 0;
+    const todaySmallBooks = todayBooks.find(b => b.book_size === 'small')?.quantity || 0;
     
-    // Get weekly sales
+    // Get weekly sales - only PENDING and APPROVED transactions
     const weeklySales = await db.getOne(
       `SELECT COALESCE(SUM(total), 0) as total
        FROM transactions
        WHERE transaction_date BETWEEN ? AND ?
-       AND status = 'APPROVED'`,
+       AND status IN ('PENDING', 'APPROVED')`,
       [weekStartStr, today]
     );
     
-    // Get weekly books
+    // Get weekly books - only PENDING and APPROVED transactions
+    // Fix the GROUP BY clause to avoid SQL error
     const weeklyBooks = await db.query(
-      `SELECT b.price >= 20 as isLarge, SUM(tb.quantity) as quantity
+      `SELECT 
+         CASE WHEN b.price >= 20 THEN 'large' ELSE 'small' END as book_size, 
+         SUM(tb.quantity) as quantity
        FROM transaction_books tb
        JOIN books b ON tb.book_id = b.id
        JOIN transactions t ON tb.transaction_id = t.id
        WHERE t.transaction_date BETWEEN ? AND ?
-       AND t.status = 'APPROVED'
-       GROUP BY b.price >= 20`,
+       AND t.status IN ('PENDING', 'APPROVED')
+       GROUP BY CASE WHEN b.price >= 20 THEN 'large' ELSE 'small' END`,
       [weekStartStr, today]
     );
     
     // Calculate large and small books for week
-    const weeklyLargeBooks = weeklyBooks.find(b => b.isLarge)?.quantity || 0;
-    const weeklySmallBooks = weeklyBooks.find(b => !b.isLarge)?.quantity || 0;
+    const weeklyLargeBooks = weeklyBooks.find(b => b.book_size === 'large')?.quantity || 0;
+    const weeklySmallBooks = weeklyBooks.find(b => b.book_size === 'small')?.quantity || 0;
     
-    // Get monthly sales
+    // Get monthly sales - only PENDING and APPROVED transactions
     const monthlySales = await db.getOne(
       `SELECT COALESCE(SUM(total), 0) as total
        FROM transactions
        WHERE transaction_date BETWEEN ? AND ?
-       AND status = 'APPROVED'`,
+       AND status IN ('PENDING', 'APPROVED')`,
       [monthStartStr, today]
     );
     
-    // Get monthly books
+    // Get monthly books - only PENDING and APPROVED transactions
+    // Fix the GROUP BY clause to avoid SQL error
     const monthlyBooks = await db.query(
-      `SELECT b.price >= 20 as isLarge, SUM(tb.quantity) as quantity
+      `SELECT 
+         CASE WHEN b.price >= 20 THEN 'large' ELSE 'small' END as book_size, 
+         SUM(tb.quantity) as quantity
        FROM transaction_books tb
        JOIN books b ON tb.book_id = b.id
        JOIN transactions t ON tb.transaction_id = t.id
        WHERE t.transaction_date BETWEEN ? AND ?
-       AND t.status = 'APPROVED'
-       GROUP BY b.price >= 20`,
+       AND t.status IN ('PENDING', 'APPROVED')
+       GROUP BY CASE WHEN b.price >= 20 THEN 'large' ELSE 'small' END`,
       [monthStartStr, today]
     );
     
     // Calculate large and small books for month
-    const monthlyLargeBooks = monthlyBooks.find(b => b.isLarge)?.quantity || 0;
-    const monthlySmallBooks = monthlyBooks.find(b => !b.isLarge)?.quantity || 0;
+    const monthlyLargeBooks = monthlyBooks.find(b => b.book_size === 'large')?.quantity || 0;
+    const monthlySmallBooks = monthlyBooks.find(b => b.book_size === 'small')?.quantity || 0;
     
-    // Get program total sales
+    // Get program total sales - only PENDING and APPROVED transactions
     const programSales = await db.getOne(
       `SELECT COALESCE(SUM(total), 0) as total
        FROM transactions
        WHERE transaction_date BETWEEN ? AND ?
-       AND status = 'APPROVED'`,
+       AND status IN ('PENDING', 'APPROVED')`,
       [program.start_date, today]
     );
     
-    // Get sales chart data (last 30 days)
+    // Get sales chart data (last 30 days) - only PENDING and APPROVED transactions
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
@@ -116,14 +125,14 @@ export const getDashboardStats = async (req, res) => {
       `SELECT transaction_date as date, COALESCE(SUM(total), 0) as amount
        FROM transactions
        WHERE transaction_date BETWEEN ? AND ?
-       AND status = 'APPROVED'
+       AND status IN ('PENDING', 'APPROVED')
        GROUP BY transaction_date
        ORDER BY transaction_date`,
       [thirtyDaysAgoStr, today]
     );
     
     // Calculate program stats
-    const programGoal = program.financial_goal;
+    const programGoal = parseFloat(program.financial_goal);
     const programAchieved = programSales.total;
     const programRemaining = programGoal - programAchieved;
     const programPercentage = (programAchieved / programGoal) * 100;

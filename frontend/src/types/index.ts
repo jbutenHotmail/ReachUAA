@@ -130,6 +130,47 @@ export interface ProgramBook {
   updated_at: string;
 }
 
+export interface WorkingDay {
+  id: number;
+  program_id: number;
+  day_of_week: string;
+  is_working_day: number;
+}
+
+export interface CustomDay {
+  // Add properties if customDays has data in the future
+  id?: number;
+  program_id?: number;
+  // Add other relevant fields based on future data
+}
+
+
+export interface ProgramConfig {
+  id: number;
+  name: string;
+  motto: string;
+  start_date: string;
+  end_date: string;
+  financial_goal: string;
+  logo_url: string | null;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+  financialConfig: {
+    id: number;
+    program_id: number;
+    colporter_percentage: string;
+    leader_percentage: string;
+    colporter_cash_advance_percentage: string;
+    leader_cash_advance_percentage: string;
+    created_at: string;
+    updated_at: string;
+  };
+  workingDays: WorkingDay[];
+  customDays: CustomDay[];
+  books: ProgramBook[];
+}
+
 export interface InventoryMovement {
   id: string;
   bookId: string;

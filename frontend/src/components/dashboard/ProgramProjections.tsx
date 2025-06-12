@@ -15,20 +15,23 @@ const ProgramProjections: React.FC = () => {
     dailyAverage: 0,
     endOfProgramProjection: 0,
     breakdown: {
-      bookPayment35: 0,
       students50: 0,
-      leaders15: 0
+      leaders15: 0,
+      programProfit: 0
     }
   });
 
   useEffect(() => {
-    if (program && transactions.length > 0) {
+    if (transactions.length > 0 && program) {
+      // Filter out rejected transactions
+      const validTransactions = transactions.filter(t => t.status !== 'REJECTED');
+      
       // Calculate total sales from transactions
-      const totalSales = transactions.reduce((sum, t) => sum + t.total, 0);
+      const totalSales = validTransactions.reduce((sum, t) => sum + t.total, 0);
       
       // Calculate working days
-      const startDate = new Date(program.startDate);
-      const endDate = new Date(program.endDate);
+      const startDate = new Date(program.start_date);
+      const endDate = new Date(program.end_date);
       const today = new Date();
       
       // Calculate days elapsed so far
@@ -43,23 +46,32 @@ const ProgramProjections: React.FC = () => {
       // Calculate end of program projection
       const endOfProgramProjection = dailyAverage * totalProgramDays;
       
+      // Get financial percentages from program
+      const studentPercentage = program.financialConfig?.colporter_percentage 
+        ? parseFloat(program.financialConfig.colporter_percentage) 
+        : 50;
+      const leaderPercentage = program.financialConfig?.leader_percentage 
+        ? parseFloat(program.financialConfig.leader_percentage) 
+        : 15;
+      const programPercentage = 100 - studentPercentage - leaderPercentage;
+      
       // Calculate breakdown
-      const bookPayment35 = endOfProgramProjection * 0.35;
-      const students50 = endOfProgramProjection * 0.5;
-      const leaders15 = endOfProgramProjection * 0.15;
+      const students50 = endOfProgramProjection * (studentPercentage / 100);
+      const leaders15 = endOfProgramProjection * (leaderPercentage / 100);
+      const programProfit = endOfProgramProjection * (programPercentage / 100);
       
       setProjectionData({
         totalMayJuneJuly: totalSales,
         dailyAverage,
         endOfProgramProjection,
         breakdown: {
-          bookPayment35,
           students50,
-          leaders15
+          leaders15,
+          programProfit
         }
       });
     }
-  }, [program, transactions]);
+  }, [transactions, program]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -73,8 +85,8 @@ const ProgramProjections: React.FC = () => {
   const calculateProgramProgress = () => {
     if (!program) return 0;
     
-    const startDate = new Date(program.startDate);
-    const endDate = new Date(program.endDate);
+    const startDate = new Date(program.start_date);
+    const endDate = new Date(program.end_date);
     const today = new Date();
     
     const totalDuration = endDate.getTime() - startDate.getTime();
@@ -149,37 +161,58 @@ const ProgramProjections: React.FC = () => {
         {/* Breakdown */}
         <div className="space-y-3">
           <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-            End of Program Projection - Income
+            End of Program Projection - Distribution
           </h4>
           
           <div className="space-y-2">
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" size="sm">35%</Badge>
-                <span className="text-sm font-medium text-gray-700">Book Payment</span>
+            <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+              <div>
+                <span className="text-sm font-medium text-blue-700">
+                  Students ({program?.financialConfig?.colporter_percentage || 50}%)
+                </span>
+                <div className="w-full bg-blue-200 rounded-full h-1.5 mt-1">
+                  <div 
+                    className="bg-blue-600 h-1.5 rounded-full" 
+                    style={{ width: `${program?.financialConfig?.colporter_percentage || 50}%` }}
+                  ></div>
+                </div>
               </div>
-              <span className="text-sm font-bold text-gray-900">
-                {formatCurrency(projectionData.breakdown.bookPayment35)}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center p-3 bg-primary-50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <Badge variant="primary" size="sm">50%</Badge>
-                <span className="text-sm font-medium text-primary-700">Students</span>
-              </div>
-              <span className="text-sm font-bold text-primary-900">
+              <span className="text-sm font-bold text-blue-900">
                 {formatCurrency(projectionData.breakdown.students50)}
               </span>
             </div>
 
-            <div className="flex justify-between items-center p-3 bg-success-50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <Badge variant="success" size="sm">15%</Badge>
-                <span className="text-sm font-medium text-success-700">Leaders</span>
+            <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
+              <div>
+                <span className="text-sm font-medium text-purple-700">
+                  Leaders ({program?.financialConfig?.leader_percentage || 15}%)
+                </span>
+                <div className="w-full bg-purple-200 rounded-full h-1.5 mt-1">
+                  <div 
+                    className="bg-purple-600 h-1.5 rounded-full" 
+                    style={{ width: `${program?.financialConfig?.leader_percentage || 15}%` }}
+                  ></div>
+                </div>
               </div>
-              <span className="text-sm font-bold text-success-900">
+              <span className="text-sm font-bold text-purple-900">
                 {formatCurrency(projectionData.breakdown.leaders15)}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <div>
+                <span className="text-sm font-medium text-gray-700">
+                  Program ({100 - (program?.financialConfig?.colporter_percentage ? parseFloat(program.financialConfig.colporter_percentage) : 50) - (program?.financialConfig?.leader_percentage ? parseFloat(program.financialConfig.leader_percentage) : 15)}%)
+                </span>
+                <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                  <div 
+                    className="bg-gray-600 h-1.5 rounded-full" 
+                    style={{ width: `${100 - (program?.financialConfig?.colporter_percentage ? parseFloat(program.financialConfig.colporter_percentage) : 50) - (program?.financialConfig?.leader_percentage ? parseFloat(program.financialConfig.leader_percentage) : 15)}%` }}
+                  ></div>
+                </div>
+              </div>
+              <span className="text-sm font-bold text-gray-900">
+                {formatCurrency(projectionData.breakdown.programProfit)}
               </span>
             </div>
           </div>

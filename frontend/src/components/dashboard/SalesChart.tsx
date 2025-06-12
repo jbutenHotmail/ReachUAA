@@ -1,19 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  Legend
-} from 'recharts';
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
 import Card from '../ui/Card';
 import { SalesData } from '../../types';
 import { format, subDays, isAfter } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 interface SalesChartProps {
   data: SalesData[];
@@ -38,10 +52,92 @@ const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
     });
   };
   
-  const chartData = filterData().map(item => ({
-    ...item,
-    formattedDate: format(new Date(item.date), 'MMM dd', { locale }),
-  }));
+  const chartData = filterData();
+  
+  // Prepare data for Chart.js
+  const labels = chartData.map(item => format(new Date(item.date), 'MMM dd', { locale }));
+  const amounts = chartData.map(item => item.amount);
+  
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          font: {
+            size: 12,
+          },
+        },
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: any) => `${t('dashboard.sales')}: $${context.parsed.y}`,
+        },
+        titleFont: {
+          size: 14,
+        },
+        bodyFont: {
+          size: 14,
+        },
+        padding: 10,
+        backgroundColor: 'white',
+        titleColor: '#1e293b',
+        bodyColor: '#1e293b',
+        borderColor: '#e2e8f0',
+        borderWidth: 1,
+        cornerRadius: 6,
+        displayColors: false,
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          font: {
+            size: 12,
+          },
+        },
+      },
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: '#e5e7eb',
+        },
+        ticks: {
+          font: {
+            size: 12,
+          },
+          callback: (value: number) => `$${value}`,
+        },
+      },
+    },
+    elements: {
+      line: {
+        tension: 0.4,
+      },
+      point: {
+        radius: 3,
+        hoverRadius: 6,
+      },
+    },
+  };
+  
+  const chartDataConfig = {
+    labels,
+    datasets: [
+      {
+        label: t('dashboard.sales'),
+        data: amounts,
+        borderColor: '#1e40af',
+        backgroundColor: 'rgba(30, 64, 175, 0.1)',
+        fill: true,
+        pointBackgroundColor: '#1e40af',
+      },
+    ],
+  };
   
   return (
     <Card
@@ -83,50 +179,13 @@ const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
       className="h-96"
     >
       <div className="h-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart
-            data={chartData}
-            margin={{
-              top: 10,
-              right: 30,
-              left: 0,
-              bottom: 0,
-            }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis 
-              dataKey="formattedDate" 
-              stroke="#6b7280" 
-              tick={{ fontSize: 12 }}
-              tickMargin={10}
-            />
-            <YAxis 
-              stroke="#6b7280" 
-              tick={{ fontSize: 12 }}
-              tickMargin={10}
-              tickFormatter={(value) => `$${value}`}
-            />
-            <Tooltip 
-              formatter={(value) => [`$${value}`, t('dashboard.sales')]}
-              labelFormatter={(label) => label}
-              contentStyle={{ 
-                backgroundColor: 'white', 
-                borderRadius: '0.375rem',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                border: 'none'
-              }}
-            />
-            <Legend />
-            <Area 
-              type="monotone" 
-              dataKey="amount" 
-              name={t('dashboard.sales')}
-              stroke="#1e40af" 
-              fill="rgba(30, 64, 175, 0.2)" 
-              activeDot={{ r: 6 }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        {chartData.length > 0 ? (
+          <Line options={chartOptions} data={chartDataConfig} />
+        ) : (
+          <div className="h-full flex items-center justify-center">
+            <p className="text-gray-500">No sales data available</p>
+          </div>
+        )}
       </div>
     </Card>
   );

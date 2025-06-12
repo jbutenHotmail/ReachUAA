@@ -9,11 +9,13 @@ import Spinner from '../../components/ui/Spinner';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import { clsx } from 'clsx';
+import { useUserStore } from '../../stores/userStore';
 
 const Transactions: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const { people, fetchPeople } = useUserStore();
   const { transactions, isLoading, fetchTransactions } = useTransactionStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedLeader, setSelectedLeader] = useState<string>('');
@@ -40,7 +42,13 @@ const Transactions: React.FC = () => {
 
   useEffect(() => {
     fetchTransactions(selectedDate.toISOString().split('T')[0]);
+    
   }, [fetchTransactions, selectedDate]);
+
+  useEffect(() => {
+    people && people.length > 0 && fetchPeople();
+
+  }, [fetchPeople]);
 
   const navigateDate = (days: number) => {
     const newDate = new Date(selectedDate);
@@ -52,10 +60,13 @@ const Transactions: React.FC = () => {
     setSelectedDate(new Date());
   };
 
+  // Filter out rejected transactions for leader totals and book counts
+  const validTransactions = transactions.filter(t => t.status !== 'REJECTED');
+
   const leaderTotals = React.useMemo(() => {
     const totals = new Map();
     
-    transactions.forEach(t => {
+    validTransactions.forEach(t => {
       const current = totals.get(t.leaderId) || {
         id: t.leaderId,
         name: t.leaderName,
@@ -69,20 +80,20 @@ const Transactions: React.FC = () => {
     });
     
     return Array.from(totals.values());
-  }, [transactions]);
+  }, [validTransactions]);
 
   const dayTotal = React.useMemo(() => {
-    return transactions.reduce((sum, t) => sum + t.total, 0);
-  }, [transactions]);
+    return validTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0);
+  }, [validTransactions]);
 
   const filteredTransactions = React.useMemo(() => {
     if (!selectedLeader) return transactions;
-    return transactions.filter(t => t.leaderId === selectedLeader);
+    return transactions.filter(t => Number(t.leaderId) === Number(selectedLeader));
   }, [transactions, selectedLeader]);
 
-  // Calculate book totals from transactions
+  // Calculate book totals from valid transactions
   const bookTotals = React.useMemo(() => {
-    return transactions.reduce((acc, transaction) => {
+    return validTransactions.reduce((acc, transaction) => {
       transaction.books?.forEach(book => {
         // Assuming books with price >= 20 are large books
         if (book.price >= 20) {
@@ -93,7 +104,7 @@ const Transactions: React.FC = () => {
       });
       return acc;
     }, { large: 0, small: 0 });
-  }, [transactions]);
+  }, [validTransactions]);
 
   const tabs = [
     { id: 'finances', label: 'Finances', icon: <DollarSign size={18} />, path: '/transactions/finances' },
@@ -230,7 +241,7 @@ const Transactions: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {transactions.map((transaction, index) => {
+                      {validTransactions.map((transaction, index) => {
                         // Calculate book counts for this transaction
                         const largeBooks = transaction.books?.reduce((sum, book) => 
                           sum + (book.price >= 20 ? book.quantity : 0), 0) || 0;
@@ -302,7 +313,7 @@ const Transactions: React.FC = () => {
                           </span>
                         </div>
                         <Badge variant="primary" size="lg" className="ml-2 flex-shrink-0">
-                          ${leader.total.toFixed(2)}
+                          ${Number(leader.total).toFixed(2)}
                         </Badge>
                       </div>
                     ))}
@@ -310,7 +321,7 @@ const Transactions: React.FC = () => {
                     <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg border-t-2 border-blue-100 mt-4">
                       <span className="text-sm font-medium text-blue-700">{t('common.total')}</span>
                       <Badge variant="primary" size="lg">
-                        ${dayTotal.toFixed(2)}
+                        ${Number(dayTotal).toFixed(2)}
                       </Badge>
                     </div>
                   </>

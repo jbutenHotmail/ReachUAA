@@ -1,47 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ProgramBook } from '../types';
+import { ProgramBook, ProgramConfig } from '../types';
 import { api } from '../api';
-
-interface WorkingDay {
-  id: number;
-  program_id: number;
-  day_of_week: string;
-  is_working_day: number;
-}
-
-interface CustomDay {
-  // Add properties if customDays has data in the future
-  id?: number;
-  program_id?: number;
-  // Add other relevant fields based on future data
-}
-
-interface ProgramConfig {
-  id: number;
-  name: string;
-  motto: string;
-  start_date: string;
-  end_date: string;
-  financial_goal: string;
-  logo_url: string | null;
-  is_active: number;
-  created_at: string;
-  updated_at: string;
-  financialConfig: {
-    id: number;
-    program_id: number;
-    colporter_percentage: string;
-    leader_percentage: string;
-    colporter_cash_advance_percentage: string;
-    leader_cash_advance_percentage: string;
-    created_at: string;
-    updated_at: string;
-  };
-  workingDays: WorkingDay[];
-  customDays: CustomDay[];
-  books: ProgramBook[];
-}
 
 interface ProgramState {
   program: ProgramConfig | null;

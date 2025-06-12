@@ -537,7 +537,7 @@ const IndividualReports: React.FC = () => {
                           }, 0);
                         return (
                           <td key={dayName} className="border border-gray-400 px-3 py-2 text-center text-sm font-bold">
-                            {dayTotal > 0 ? dayTotal.toFixed(2) : ''}
+                            {dayTotal > 0 ? Number(dayTotal).toFixed(2) : ''}
                           </td>
                         );
                       })}

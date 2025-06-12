@@ -13,7 +13,8 @@ const TransactionDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { transactions, updateTransaction } = useTransactionStore();
 
-  const transaction = transactions.find(t => t.id === id);
+  console.log(transactions)
+  const transaction = transactions.find(t => Number(t.id) === Number(id));
 
   if (!transaction) {
     return (
@@ -125,13 +126,13 @@ const TransactionDetails: React.FC = () => {
                 <div className="p-3 bg-green-50 rounded-lg">
                   <p className="text-sm text-green-600">{t('transactions.cash')}</p>
                   <p className="text-lg font-semibold text-green-700">
-                    ${transaction.cash.toFixed(2)}
+                    ${Number(transaction.cash).toFixed(2)}
                   </p>
                 </div>
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <p className="text-sm text-blue-600">{t('transactions.checks')}</p>
                   <p className="text-lg font-semibold text-blue-700">
-                    ${transaction.checks.toFixed(2)}
+                    ${Number(transaction.checks).toFixed(2)}
                   </p>
                 </div>
                 <div className="p-3 bg-purple-50 rounded-lg">
@@ -151,7 +152,7 @@ const TransactionDetails: React.FC = () => {
               <div className="flex justify-between items-center pt-4 border-t border-gray-200">
                 <span className="font-medium text-gray-700">{t('common.total')}:</span>
                 <Badge variant="primary" size="lg">
-                  ${transaction.total.toFixed(2)}
+                  ${Number(transaction.total).toFixed(2)}
                 </Badge>
               </div>
             </div>

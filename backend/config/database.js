@@ -13,6 +13,71 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+// Helper function to check if a value is a valid date
+const isValidDate = (value) => {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return true; // Valid Date object
+  }
+  if (typeof value !== 'string') {
+    return false; // Not a string, so not a date string
+  }
+  const date = new Date(value);
+  return !isNaN(date.getTime()); // Valid date string
+};
+
+// Helper function to convert string numbers to actual numbers
+const convertStringToNumber = (obj) => {
+  if (obj === null || obj === undefined) return obj;
+
+  if (Array.isArray(obj)) {
+    return obj.map(convertStringToNumber);
+  }
+
+  if (typeof obj === 'object') {
+    // Handle empty objects or invalid date-like objects
+    if (Object.keys(obj).length === 0) {
+      return obj; // Preserve empty objects (e.g., {})
+    }
+
+    const result = {};
+    for (const key in obj) {
+      // Skip Date objects and fields that are likely dates or valid date strings
+      if (
+        obj[key] instanceof Date ||
+        (typeof obj[key] === 'string' &&
+          (key.toLowerCase().includes('date') ||
+           key.toLowerCase().includes('time') ||
+           isValidDate(obj[key])))
+      ) {
+        result[key] = obj[key]; // Keep as-is (Date or string)
+      }
+      // Convert numeric strings to numbers for specific fields
+      else if (
+        (typeof obj[key] === 'string' && !isNaN(obj[key]) && obj[key].trim() !== '') ||
+        typeof obj[key] === 'number'
+      ) {
+        if (
+          key === 'total' || key === 'cash' || key === 'checks' ||
+          key === 'atmMobile' || key === 'paypal' || key === 'amount' ||
+          key === 'price' || key === 'quantity' || key === 'stock' ||
+          key === 'sold' || key === 'totalSales' || key === 'advanceAmount' ||
+          key === 'transactionCount' || key === 'discrepancy' ||
+          key === 'system_count' || key === 'manual_count'
+        ) {
+          result[key] = Number(obj[key]); // Convert to number
+        } else {
+          result[key] = obj[key]; // Keep as-is
+        }
+      } else {
+        result[key] = convertStringToNumber(obj[key]); // Recurse for nested objects
+      }
+    }
+    return result;
+  }
+
+  return obj;
+};
+
 // Test database connection
 export async function testConnection() {
   try {
@@ -30,7 +95,7 @@ export async function testConnection() {
 export async function query(sql, params) {
   try {
     const [results] = await pool.execute(sql, params);
-    return results;
+    return convertStringToNumber(results);
   } catch (error) {
     console.error('Database query error:', error.message);
     throw error;
@@ -41,7 +106,7 @@ export async function query(sql, params) {
 export async function getOne(sql, params) {
   try {
     const results = await query(sql, params);
-    return results[0];
+    return results[0] ? convertStringToNumber(results[0]) : null;
   } catch (error) {
     throw error;
   }

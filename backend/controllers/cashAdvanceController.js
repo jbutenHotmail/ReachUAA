@@ -119,9 +119,9 @@ export const createCashAdvance = async (req, res) => {
     
     // Check if advance already exists for this week
     const existingAdvance = await db.getOne(
-      'SELECT * FROM cash_advances WHERE person_id = ? AND week_start_date = ? AND week_end_date = ?',
-      [personId, weekStartDate, weekEndDate]
-    );
+  'SELECT * FROM cash_advances WHERE person_id = ? AND week_start_date = ? AND week_end_date = ? AND (status = ? OR status = ?)',
+  [personId, weekStartDate, weekEndDate, 'APPROVED', 'PENDING']
+);
     
     if (existingAdvance) {
       return res.status(400).json({ 
@@ -291,7 +291,7 @@ export const getWeeklySales = async (req, res) => {
   try {
     const { personId } = req.params;
     const { weekStartDate, weekEndDate } = req.query;
-    console.log(weekStartDate, weekEndDate)
+    
     if (!weekStartDate || !weekEndDate) {
       return res.status(400).json({ message: 'Week start date and end date are required' });
     }
@@ -306,37 +306,93 @@ export const getWeeklySales = async (req, res) => {
       return res.status(404).json({ message: 'Person not found' });
     }
     
-    // Call stored procedure to get weekly sales
-    await db.query('CALL get_weekly_sales(?, ?, ?)', [personId, weekStartDate, weekEndDate]);
+    // Instead of using temporary tables with the stored procedure, we'll directly query the data
+    // This avoids the issue with MySQL's sql_require_primary_key setting
     
-    // Get weekly sales result
-    const weeklySales = await db.getOne(
-      `SELECT colporter_id as colporterId, colporter_name as colporterName,
-       week_start_date as weekStartDate, week_end_date as weekEndDate,
-       total_sales as totalSales, transaction_count as transactionCount
-       FROM weekly_sales_result
-       WHERE colporter_id = ?`,
-      [personId]
-    );
+    // Get the person type
+    const personType = person.person_type;
     
-    if (!weeklySales) {
-      return res.status(404).json({ message: 'No weekly sales data found' });
+    // Initialize result object
+    let weeklySales = {
+      colporterId: parseInt(personId),
+      colporterName: `${person.first_name} ${person.last_name}`,
+      weekStartDate,
+      weekEndDate,
+      totalSales: 0,
+      transactionCount: 0,
+      dailySales: {}
+    };
+    
+    // Query transactions based on person type
+    if (personType === 'COLPORTER') {
+      // For colporters, get their own transactions
+      const salesResult = await db.getOne(
+        `SELECT 
+          COALESCE(SUM(t.total), 0) as total_sales,
+          COUNT(t.id) as transaction_count
+        FROM transactions t
+        WHERE t.student_id = ?
+          AND t.transaction_date BETWEEN ? AND ?
+          AND t.status IN ('PENDING', 'APPROVED')`,
+        [personId, weekStartDate, weekEndDate]
+      );
+      
+      // Get daily sales
+      const dailySalesResult = await db.query(
+        `SELECT 
+          t.transaction_date as date,
+          COALESCE(SUM(t.total), 0) as amount
+        FROM transactions t
+        WHERE t.student_id = ?
+          AND t.transaction_date BETWEEN ? AND ?
+          AND t.status IN ('PENDING', 'APPROVED')
+        GROUP BY t.transaction_date
+        ORDER BY t.transaction_date`,
+        [personId, weekStartDate, weekEndDate]
+      );
+      
+      weeklySales.totalSales = salesResult.total_sales;
+      weeklySales.transactionCount = salesResult.transaction_count;
+      
+      // Format daily sales as object
+      dailySalesResult.forEach(day => {
+        weeklySales.dailySales[day.date] = day.amount;
+      });
+    } else {
+      // For leaders, get transactions from their team
+      const salesResult = await db.getOne(
+        `SELECT 
+          COALESCE(SUM(t.total), 0) as total_sales,
+          COUNT(t.id) as transaction_count
+        FROM transactions t
+        WHERE t.leader_id = ?
+          AND t.transaction_date BETWEEN ? AND ?
+          AND t.status IN ('PENDING', 'APPROVED')`,
+        [personId, weekStartDate, weekEndDate]
+      );
+      
+      // Get daily sales
+      const dailySalesResult = await db.query(
+        `SELECT 
+          t.transaction_date as date,
+          COALESCE(SUM(t.total), 0) as amount
+        FROM transactions t
+        WHERE t.leader_id = ?
+          AND t.transaction_date BETWEEN ? AND ?
+          AND t.status IN ('PENDING', 'APPROVED')
+        GROUP BY t.transaction_date
+        ORDER BY t.transaction_date`,
+        [personId, weekStartDate, weekEndDate]
+      );
+      
+      weeklySales.totalSales = salesResult.total_sales;
+      weeklySales.transactionCount = salesResult.transaction_count;
+      
+      // Format daily sales as object
+      dailySalesResult.forEach(day => {
+        weeklySales.dailySales[day.date] = day.amount;
+      });
     }
-    
-    // Get daily sales
-    const dailySales = await db.query(
-      'SELECT date, amount FROM daily_sales WHERE colporter_id = ? ORDER BY date',
-      [personId]
-    );
-    
-    // Format daily sales as object
-    const dailySalesObj = dailySales.reduce((acc, day) => {
-      acc[day.date] = day.amount;
-      return acc;
-    }, {});
-    
-    // Add daily sales to weekly sales
-    weeklySales.dailySales = dailySalesObj;
     
     // Get financial configuration
     const financialConfig = await db.getOne(
@@ -345,8 +401,8 @@ export const getWeeklySales = async (req, res) => {
     
     // Calculate maximum advance amount
     const maxPercentage = person.person_type === 'COLPORTER' 
-      ? financialConfig?.colporter_cash_advance_percentage || 20
-      : financialConfig?.leader_cash_advance_percentage || 25;
+      ? parseFloat(financialConfig?.colporter_cash_advance_percentage) || 20
+      : parseFloat(financialConfig?.leader_cash_advance_percentage) || 25;
     
     const maxAdvanceAmount = weeklySales.totalSales * (maxPercentage / 100);
     

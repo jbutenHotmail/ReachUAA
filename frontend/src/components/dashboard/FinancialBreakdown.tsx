@@ -16,7 +16,6 @@ interface FinancialData {
   distribution: {
     students: number;
     leaders: number;
-    bookPayment: number;
   };
   netProfit: number;
 }
@@ -35,26 +34,30 @@ const FinancialBreakdown: React.FC = () => {
     },
     distribution: {
       students: 0,
-      leaders: 0,
-      bookPayment: 0
+      leaders: 0
     },
     netProfit: 0
   });
 
   useEffect(() => {
     if (transactions.length > 0 && program) {
+      // Filter out rejected transactions
+      const validTransactions = transactions.filter(t => t.status !== 'REJECTED');
+      
       // Calculate total revenue from transactions
-      const totalRevenue = transactions.reduce((sum, t) => sum + t.total, 0);
+      const totalRevenue = validTransactions.reduce((sum, t) => sum + t.total, 0);
       
       // Get financial percentages from program
-      const studentPercentage = program.colporterPercentage || 50;
-      const leaderPercentage = program.leaderPercentage || 15;
-      const bookPaymentPercentage = 100 - studentPercentage - leaderPercentage;
+      const studentPercentage = program.financialConfig?.colporter_percentage 
+        ? parseFloat(program.financialConfig.colporter_percentage) 
+        : 50;
+      const leaderPercentage = program.financialConfig?.leader_percentage 
+        ? parseFloat(program.financialConfig.leader_percentage) 
+        : 15;
       
       // Calculate distribution amounts
       const studentsAmount = totalRevenue * (studentPercentage / 100);
       const leadersAmount = totalRevenue * (leaderPercentage / 100);
-      const bookPaymentAmount = totalRevenue * (bookPaymentPercentage / 100);
       
       // Calculate expenses
       const advancesAmount = advances.reduce((sum, a) => 
@@ -67,8 +70,7 @@ const FinancialBreakdown: React.FC = () => {
       const totalExpenses = advancesAmount + programCostsAmount;
       
       // Calculate net profit
-      const netProfit = totalRevenue - totalExpenses - 
-        (studentsAmount + leadersAmount + bookPaymentAmount);
+      const netProfit = totalRevenue - totalExpenses - (studentsAmount + leadersAmount);
       
       setFinancialData({
         totalRevenue,
@@ -79,8 +81,7 @@ const FinancialBreakdown: React.FC = () => {
         },
         distribution: {
           students: studentsAmount,
-          leaders: leadersAmount,
-          bookPayment: bookPaymentAmount
+          leaders: leadersAmount
         },
         netProfit
       });
@@ -93,10 +94,6 @@ const FinancialBreakdown: React.FC = () => {
       currency: 'USD',
       minimumFractionDigits: 2,
     }).format(amount);
-  };
-
-  const getPercentage = (amount: number, total: number) => {
-    return ((amount / total) * 100).toFixed(1);
   };
 
   return (
@@ -133,12 +130,12 @@ const FinancialBreakdown: React.FC = () => {
             <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
               <div>
                 <span className="text-sm font-medium text-blue-700">
-                  Students ({program?.colporterPercentage || 50}%)
+                  Students ({program?.financialConfig?.colporter_percentage || 50}%)
                 </span>
                 <div className="w-full bg-blue-200 rounded-full h-1.5 mt-1">
                   <div 
                     className="bg-blue-600 h-1.5 rounded-full" 
-                    style={{ width: `${program?.colporterPercentage || 50}%` }}
+                    style={{ width: `${program?.financialConfig?.colporter_percentage || 50}%` }}
                   ></div>
                 </div>
               </div>
@@ -147,37 +144,37 @@ const FinancialBreakdown: React.FC = () => {
               </span>
             </div>
 
-            <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-              <div>
-                <span className="text-sm font-medium text-green-700">
-                  Book Payment ({100 - (program?.colporterPercentage || 50) - (program?.leaderPercentage || 15)}%)
-                </span>
-                <div className="w-full bg-green-200 rounded-full h-1.5 mt-1">
-                  <div 
-                    className="bg-green-600 h-1.5 rounded-full" 
-                    style={{ width: `${100 - (program?.colporterPercentage || 50) - (program?.leaderPercentage || 15)}%` }}
-                  ></div>
-                </div>
-              </div>
-              <span className="text-sm font-bold text-green-900">
-                {formatCurrency(financialData.distribution.bookPayment)}
-              </span>
-            </div>
-
             <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
               <div>
                 <span className="text-sm font-medium text-purple-700">
-                  Leaders ({program?.leaderPercentage || 15}%)
+                  Leaders ({program?.financialConfig?.leader_percentage || 15}%)
                 </span>
                 <div className="w-full bg-purple-200 rounded-full h-1.5 mt-1">
                   <div 
                     className="bg-purple-600 h-1.5 rounded-full" 
-                    style={{ width: `${program?.leaderPercentage || 15}%` }}
+                    style={{ width: `${program?.financialConfig?.leader_percentage || 15}%` }}
                   ></div>
                 </div>
               </div>
               <span className="text-sm font-bold text-purple-900">
                 {formatCurrency(financialData.distribution.leaders)}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <div>
+                <span className="text-sm font-medium text-gray-700">
+                  Program ({100 - (program?.financialConfig?.colporter_percentage ? parseFloat(program.financialConfig.colporter_percentage) : 50) - (program?.financialConfig?.leader_percentage ? parseFloat(program.financialConfig.leader_percentage) : 15)}%)
+                </span>
+                <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                  <div 
+                    className="bg-gray-600 h-1.5 rounded-full" 
+                    style={{ width: `${100 - (program?.financialConfig?.colporter_percentage ? parseFloat(program.financialConfig.colporter_percentage) : 50) - (program?.financialConfig?.leader_percentage ? parseFloat(program.financialConfig.leader_percentage) : 15)}%` }}
+                  ></div>
+                </div>
+              </div>
+              <span className="text-sm font-bold text-gray-900">
+                {formatCurrency(financialData.netProfit)}
               </span>
             </div>
           </div>
