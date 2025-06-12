@@ -1,0 +1,62 @@
+import { Book } from '../types';
+
+/**
+ * Default books that will be available when creating a new program
+ */
+export const defaultBooks: Omit<Book, 'id' | 'programId' | 'stock' | 'sold'>[] = [
+  {
+    isbn: '',
+    title: 'En busqueda de la Paz',
+    author: 'Elena G. White',
+    publisher: '',
+    price: 12,
+    category: 'Devotional',
+    description: 'La gente en todas partes busca la paz. Necesitan poder para enfrentar las tormentas de la vida. En Búsqueda de la Paz es la respuesta a los problemas que las personas enfrentan en nuestros días. Este gran éxito de librería, impreso en más de 100 idiomas, ya ha traído consuelo e inspiración a millones de lectores.',
+    imageUrl: 'https://reachimages.nyc3.cdn.digitaloceanspaces.com/en_busqueda.webp',
+    is_active: true,
+  },
+  {
+    isbn: '',
+    title: 'Respuestas de Dios a tus preguntas',
+    author: '',
+    publisher: '',
+    price: 12,
+    category: 'Devotional',
+    description: 'Violencia, violaciones sexuales, tornados, inundaciones, asesinatos, incendios, tiroteos en las escuelas. ¿Hay esperanza? ¿Tiene usted un futero? ¿Puede usted sobrevivir sin la respuesta de Dios a los grandes desafíos de la vida?',
+    imageUrl: '',
+    is_active: true,
+  },
+  {
+    isbn: '',
+    title: 'Sanidad Por Los Alimentos',
+    author: '',
+    publisher: '',
+    price: 15,
+    category: 'Health',
+    description: 'Sanidad por los alimentos lo ayudará a descubrir cuán fácil es ser proactivo en la restauración de su salud mediante el uso de alimentos sencillos y naturales que están a su alcance.',
+    imageUrl: 'https://reachimages.nyc3.cdn.digitaloceanspaces.com/fighting_disease.webp',
+    is_active: true,
+  },
+  {
+    isbn: '',
+    title: 'La Historia de la Libertad',
+    author: '',
+    publisher: '',
+    price: 12,
+    category: 'Devotional',
+    description: '"El último gran engano se desplegara pronto ante nostotros. El Anticristo va a efectuar ante nuestra vista obras maravillosas. La falsificación se asemejará tanto a la realidad, que sera imposible distinguirlos sin el auxilio de las Santas Escrituras"',
+    imageUrl: 'https://reachimages.nyc3.cdn.digitaloceanspaces.com/historia_de_la_libertad.webp',
+    is_active: true,
+  },
+  {
+    isbn: '',
+    title: 'Aventuras Biblicas del Nuevo Testamento',
+    author: '',
+    publisher: '',
+    price: 12,
+    category: 'Devotional',
+    description: 'La historia de Jesús capturará el corazon de sus hijos y revelará los maravillosos planes que Dios tiene para su vida. Descubrirán a Jesús como su mejor amigo, cuyo amor y poder siguen siendo los mismos hoy dia. Este libro transformara la vida de sus hijos, para bien y para siempre.',
+    imageUrl: 'https://reachimages.nyc3.cdn.digitaloceanspaces.com/aventuras_nuevo.webp',
+    is_active: true,
+  },
+];

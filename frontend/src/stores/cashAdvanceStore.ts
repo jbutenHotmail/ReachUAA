@@ -1,0 +1,135 @@
+import { create } from 'zustand';
+import { CashAdvance, WeeklySales } from '../types';
+import { api } from '../api';
+
+interface CashAdvanceState {
+  advances: CashAdvance[];
+  weeklySales: WeeklySales[];
+  isLoading: boolean;
+  error: string | null;
+}
+
+interface CashAdvanceStore extends CashAdvanceState {
+  fetchAdvances: (colporterId?: string) => Promise<void>;
+  approveAdvance: (id: string) => Promise<void>;
+  rejectAdvance: (id: string) => Promise<void>;
+  fetchWeeklySales: (colporterId: string, weekStartDate?: string, weekEndDate?: string) => Promise<void>;
+  createCashAdvance: (advanceData: Omit<CashAdvance, 'id' | 'status' | 'requestDate' | 'approvedDate' | 'approvedBy' | 'approvedByName'>) => Promise<void>;
+}
+
+export const useCashAdvanceStore = create<CashAdvanceStore>((set) => ({
+  advances: [],
+  weeklySales: [],
+  isLoading: false,
+  error: null,
+
+  fetchAdvances: async (colporterId) => {
+    set({ isLoading: true, error: null });
+    try {
+      const params: Record<string, string> = {};
+      if (colporterId) {
+        params.personId = colporterId;
+      }
+      
+      const advances = await api.get<CashAdvance[]>('/cash-advance', { params });
+      set({ advances, isLoading: false });
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        isLoading: false 
+      });
+    }
+  },
+
+  createCashAdvance: async (advanceData) => {
+    set({ isLoading: true, error: null });
+    try {
+      const newAdvance = await api.post<CashAdvance>('/cash-advance', advanceData);
+      set(state => ({
+        advances: [...state.advances, newAdvance],
+        isLoading: false,
+      }));
+      return newAdvance;
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        isLoading: false 
+      });
+      throw error;
+    }
+  },
+
+  approveAdvance: async (id) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { advance } = await api.patch<{ message: string; advance: CashAdvance }>(`/cash-advance/${id}/approve`);
+      
+      set(state => ({
+        advances: state.advances.map(a => a.id === id ? advance : a),
+        isLoading: false,
+      }));
+      
+      return advance;
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        isLoading: false 
+      });
+      throw error;
+    }
+  },
+
+  rejectAdvance: async (id) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { advance } = await api.patch<{ message: string; advance: CashAdvance }>(`/cash-advance/${id}/reject`);
+      set(state => ({
+        advances: state.advances.map(a => 
+          a.id === id ? advance : a
+        ),
+        isLoading: false,
+      }));
+      return advance;
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        isLoading: false 
+      });
+      throw error;
+    }
+  },
+
+  fetchWeeklySales: async (colporterId, weekStartDate, weekEndDate) => {
+    set({ isLoading: true, error: null });
+    try {
+      // If dates aren't provided, calculate current week dates
+      if (!weekStartDate || !weekEndDate) {
+        const today = new Date();
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay() + 1); // Monday of current week
+        
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6); // Sunday of current week
+        
+        weekStartDate = weekStart.toISOString().split('T')[0];
+        weekEndDate = weekEnd.toISOString().split('T')[0];
+      }
+      
+      const params = {
+        weekStartDate,
+        weekEndDate
+      };
+      
+      const weeklySales = await api.get<WeeklySales>(`/cash-advance/weekly-sales/${colporterId}`, { params });
+      
+      set({ weeklySales: [weeklySales], isLoading: false });
+      return weeklySales;
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        isLoading: false 
+      });
+      throw error;
+    }
+  },
+}));

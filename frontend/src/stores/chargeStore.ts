@@ -1,0 +1,132 @@
+import { create } from 'zustand';
+import { Charge } from '../types';
+import { api } from '../api';
+
+interface ChargeState {
+  charges: Charge[];
+  isLoading: boolean;
+  error: string | null;
+}
+
+interface ChargeStore extends ChargeState {
+  fetchCharges: () => Promise<void>;
+  createCharge: (charge: Omit<Charge, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateCharge: (id: string, charge: Partial<Charge>) => Promise<void>;
+  deleteCharge: (id: string) => Promise<void>;
+  applyCharge: (id: string) => Promise<void>;
+  cancelCharge: (id: string) => Promise<void>;
+}
+
+export const useChargeStore = create<ChargeStore>((set) => ({
+  charges: [],
+  isLoading: false,
+  error: null,
+
+  fetchCharges: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const charges = await api.get<Charge[]>('/charges');
+      set({ charges, isLoading: false });
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        isLoading: false 
+      });
+    }
+  },
+
+  createCharge: async (chargeData) => {
+    set({ isLoading: true, error: null });
+    try {
+      const newCharge = await api.post<Charge>('/charges', chargeData);
+      set(state => ({
+        charges: [...state.charges, newCharge],
+        isLoading: false,
+      }));
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        isLoading: false 
+      });
+      throw error;
+    }
+  },
+
+  updateCharge: async (id, chargeData) => {
+    set({ isLoading: true, error: null });
+    try {
+      const updatedCharge = await api.put<Charge>(`/charges/${id}`, chargeData);
+      set(state => ({
+        charges: state.charges.map(c => 
+          c.id === id 
+            ? updatedCharge
+            : c
+        ),
+        isLoading: false,
+      }));
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        isLoading: false 
+      });
+      throw error;
+    }
+  },
+
+  deleteCharge: async (id) => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.delete(`/charges/${id}`);
+      set(state => ({
+        charges: state.charges.filter(c => c.id !== id),
+        isLoading: false,
+      }));
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        isLoading: false 
+      });
+      throw error;
+    }
+  },
+
+  applyCharge: async (id) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { charge } = await api.patch<{ message: string; charge: Charge }>(`/charges/${id}/apply`);
+      set(state => ({
+        charges: state.charges.map(c => 
+          c.id === id 
+            ? charge
+            : c
+        ),
+        isLoading: false,
+      }));
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        isLoading: false 
+      });
+    }
+  },
+
+  cancelCharge: async (id) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { charge } = await api.patch<{ message: string; charge: Charge }>(`/charges/${id}/cancel`);
+      set(state => ({
+        charges: state.charges.map(c => 
+          c.id === id 
+            ? charge
+            : c
+        ),
+        isLoading: false,
+      }));
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        isLoading: false 
+      });
+    }
+  },
+}));

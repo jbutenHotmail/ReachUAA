@@ -1,0 +1,389 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { X, ChevronDown, AlertCircle, CheckCircle, Lock } from 'lucide-react';
+import { clsx } from 'clsx';
+import Card from '../../../components/ui/Card';
+import Button from '../../../components/ui/Button';
+import Input from '../../../components/ui/Input';
+import Badge from '../../../components/ui/Badge';
+import { UserRole } from '../../../types';
+
+interface AddUserFormProps {
+  onClose: () => void;
+  onSubmit: (data: any) => void;
+  initialData?: any;
+}
+
+const AddUserForm: React.FC<AddUserFormProps> = ({ 
+  onClose, 
+  onSubmit,
+  initialData 
+}) => {
+  const { t } = useTranslation();
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    personId: initialData?.personId || '',
+    personName: initialData?.personName || '',
+    personType: initialData?.personType || 'COLPORTER',
+    email: initialData?.email || '',
+    role: initialData?.role || UserRole.VIEWER,
+    status: initialData?.status || 'ACTIVE',
+  });
+
+  // Person selection state
+  const [personSearch, setPersonSearch] = useState('');
+  const [selectedPerson, setSelectedPerson] = useState<{ id: string; name: string; email: string; type: string } | null>(
+    initialData?.personId && initialData?.personName 
+      ? { id: initialData.personId, name: initialData.personName, email: initialData.email || '', type: initialData.personType }
+      : null
+  );
+  const [isPersonDropdownOpen, setIsPersonDropdownOpen] = useState(false);
+  const personDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Mock people data - in a real app, this would come from an API
+  const mockPeople = [
+    { id: 'c1', name: 'Amy Buten', email: 'amy.buten@example.com', type: 'COLPORTER', hasUser: false },
+    { id: 'c2', name: 'Carlo Bravo', email: 'carlo.bravo@example.com', type: 'COLPORTER', hasUser: true },
+    { id: 'c3', name: 'Ambar de Jesus', email: 'ambar.dejesus@example.com', type: 'COLPORTER', hasUser: false },
+    { id: 'l1', name: 'Odrie Aponte', email: 'odrie.aponte@example.com', type: 'LEADER', hasUser: true },
+    { id: 'l2', name: 'Moises Amador', email: 'moises.amador@example.com', type: 'LEADER', hasUser: true },
+  ];
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (personDropdownRef.current && !personDropdownRef.current.contains(event.target as Node)) {
+        setIsPersonDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Filter people based on search and type
+  const filteredPeople = mockPeople
+    .filter(person => 
+      person.name.toLowerCase().includes(personSearch.toLowerCase()) &&
+      person.type === formData.personType &&
+      !person.hasUser // Only show people without users if creating new
+    );
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Prepare data for submission
+    const submitData = {
+      ...formData,
+      personId: selectedPerson?.id,
+      personName: selectedPerson?.name,
+      email: selectedPerson?.email,
+    };
+    
+    onSubmit(submitData);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    // Reset person selection when type changes
+    if (name === 'personType') {
+      setSelectedPerson(null);
+      setPersonSearch('');
+    }
+  };
+
+  // Generate default password based on name
+  const getDefaultPassword = (name: string) => {
+    if (!name) return '';
+    
+    const nameParts = name.split(' ');
+    if (nameParts.length < 2) return name.toLowerCase();
+    
+    const firstName = nameParts[0].toLowerCase();
+    const lastName = nameParts[1].toLowerCase();
+    
+    return `${firstName}.${lastName}`;
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
+        <Card>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {initialData ? 'Edit User' : 'Create New User'}
+              </h2>
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Person Type Selection */}
+              {!initialData && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Person Type
+                  </label>
+                  <select
+                    name="personType"
+                    value={formData.personType}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    required
+                  >
+                    <option value="COLPORTER">Colporter</option>
+                    <option value="LEADER">Leader</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Person Selection Dropdown */}
+              {!initialData && (
+                <div className="relative" ref={personDropdownRef}>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Select {formData.personType === 'COLPORTER' ? 'Colporter' : 'Leader'}
+                  </label>
+                  <div
+                    className={clsx(
+                      'relative border border-gray-300 rounded-md shadow-sm',
+                      isPersonDropdownOpen && 'ring-2 ring-primary-500 ring-opacity-50'
+                    )}
+                  >
+                    <div className="flex items-center">
+                      <input
+                        type="text"
+                        placeholder={`Search ${formData.personType.toLowerCase()}...`}
+                        value={personSearch}
+                        onChange={(e) => {
+                          setPersonSearch(e.target.value);
+                          setIsPersonDropdownOpen(true);
+                          setSelectedPerson(null);
+                        }}
+                        onFocus={() => setIsPersonDropdownOpen(true)}
+                        className="w-full px-3 py-2 rounded-md border-0 focus:outline-none text-sm"
+                      />
+                      <button
+                        type="button"
+                        className="pr-2 flex items-center"
+                        onClick={() => setIsPersonDropdownOpen(!isPersonDropdownOpen)}
+                      >
+                        <ChevronDown
+                          className={clsx(
+                            'w-5 h-5 text-gray-400 transition-transform duration-200',
+                            isPersonDropdownOpen && 'transform rotate-180'
+                          )}
+                        />
+                      </button>
+                    </div>
+                    {selectedPerson && (
+                      <div className="px-3 py-2 border-t border-gray-200 bg-primary-50">
+                        <div className="flex items-center justify-between">
+                          <div className="font-medium text-primary-900 text-sm">
+                            {selectedPerson.name}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedPerson(null);
+                              setPersonSearch('');
+                            }}
+                            className="p-1 hover:bg-primary-100 rounded-full"
+                          >
+                            <X className="w-4 h-4 text-primary-600" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {isPersonDropdownOpen && !selectedPerson && (
+                    <div className="absolute z-50 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200">
+                      <div className="max-h-60 overflow-y-auto py-1">
+                        {filteredPeople.length > 0 ? (
+                          filteredPeople.map((person) => (
+                            <button
+                              key={person.id}
+                              type="button"
+                              className="w-full text-left px-4 py-2 hover:bg-gray-50 focus:outline-none focus:bg-gray-50"
+                              onClick={() => {
+                                setSelectedPerson({ 
+                                  id: person.id, 
+                                  name: person.name, 
+                                  email: person.email,
+                                  type: person.type
+                                });
+                                setPersonSearch('');
+                                setIsPersonDropdownOpen(false);
+                              }}
+                            >
+                              <div className="font-medium text-sm">{person.name}</div>
+                              <div className="text-xs text-gray-500">{person.email}</div>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-4 py-2 text-sm text-gray-500">
+                            No {formData.personType.toLowerCase()}s found without user accounts
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Display selected person info for editing */}
+              {initialData && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">{initialData.personName}</p>
+                      <p className="text-xs text-gray-500">{initialData.email}</p>
+                    </div>
+                    <Badge 
+                      variant={initialData.personType === 'COLPORTER' ? 'primary' : 'success'}
+                      size="sm"
+                    >
+                      {initialData.personType}
+                    </Badge>
+                  </div>
+                </div>
+              )}
+
+              {/* Role Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  User Role
+                </label>
+                <select
+                  name="role"
+                  value={formData.role}
+                  onChange={handleChange}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  required
+                >
+                  <option value={UserRole.ADMIN}>Administrator</option>
+                  <option value={UserRole.SUPERVISOR}>Supervisor</option>
+                  <option value={UserRole.VIEWER}>Viewer</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  {formData.role === UserRole.ADMIN && 'Full access to all system features and settings'}
+                  {formData.role === UserRole.SUPERVISOR && 'Can manage colporters and view reports'}
+                  {formData.role === UserRole.VIEWER && 'Basic access to view their own data'}
+                </p>
+              </div>
+
+              {/* Status Selection - Only for editing */}
+              {initialData && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Account Status
+                  </label>
+                  <select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    required
+                  >
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {formData.status === 'ACTIVE' 
+                      ? 'User can log in and access the system' 
+                      : 'User cannot log in but their data is preserved'}
+                  </p>
+                </div>
+              )}
+
+              {/* Password Information - Only for new users */}
+              {!initialData && selectedPerson && (
+                <div className="p-4 bg-primary-50 rounded-lg border border-primary-100">
+                  <div className="flex items-start gap-3">
+                    <Lock size={20} className="text-primary-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-primary-700">Default Password</p>
+                      <p className="text-xs text-primary-600 mt-1">
+                        A user account will be created with the following credentials:
+                      </p>
+                      <div className="mt-2 p-2 bg-white rounded border border-primary-200">
+                        <p className="text-xs">
+                          <span className="font-medium">Username/Email:</span> {selectedPerson.email}
+                        </p>
+                        <p className="text-xs">
+                          <span className="font-medium">Password:</span> {getDefaultPassword(selectedPerson.name)}
+                        </p>
+                      </div>
+                      <p className="text-xs text-primary-600 mt-2">
+                        The user will be prompted to change their password on first login.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Reset Password Option - Only for editing */}
+              {initialData && (
+                <div className="p-4 bg-warning-50 rounded-lg border border-warning-100">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle size={20} className="text-warning-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-warning-700">Reset Password</p>
+                      <p className="text-xs text-warning-600 mt-1">
+                        You can reset this user's password to the default: {getDefaultPassword(initialData.personName)}
+                      </p>
+                      <div className="mt-2">
+                        <Button
+                          type="button"
+                          variant="warning"
+                          size="sm"
+                          onClick={() => {
+                            // In a real app, this would call an API to reset the password
+                            alert(`Password reset to: ${getDefaultPassword(initialData.personName)}`);
+                          }}
+                        >
+                          Reset Password
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={!initialData && !selectedPerson}
+              >
+                {initialData ? 'Save Changes' : 'Create User'}
+              </Button>
+            </div>
+          </form>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default AddUserForm;

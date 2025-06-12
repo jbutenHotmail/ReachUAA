@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+/* Add safe area padding for mobile devices */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Improve scrolling experience on mobile */
+@media (max-width: 768px) {
+  .overflow-y-auto, .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Improve form elements on mobile */
+@media (max-width: 640px) {
+  input, select, textarea {
+    font-size: 16px !important; /* Prevents iOS zoom on focus */
+  }
+}
+
+/* Fix for mobile hover states */
+@media (hover: none) {
+  .hover\:bg-gray-50:hover,
+  .hover\:bg-gray-100:hover,
+  .hover\:text-gray-900:hover {
+    background-color: inherit !important;
+    color: inherit !important;
+  }
+}
