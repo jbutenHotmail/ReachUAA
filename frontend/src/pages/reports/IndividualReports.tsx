@@ -4,15 +4,14 @@ import {
   FileText, 
   ChevronDown, 
   X, 
-  Calendar, 
-  DollarSign, 
   AlertTriangle,
   Download,
   User,
   Users,
   Check,
   Printer,
-  ChevronRight
+  ChevronRight,
+  Wallet
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import Card from '../../components/ui/Card';
@@ -41,14 +40,23 @@ interface ReportData {
     category: string;
     status: string;
   }>;
+  advances: Array<{
+    id: string;
+    date: string;
+    amount: number;
+    weekStartDate: string;
+    weekEndDate: string;
+    status: string;
+  }>;
   totalEarnings: number;
   totalCharges: number;
+  totalAdvances: number;
   netAmount: number;
 }
 
 const IndividualReports: React.FC = () => {
   const { t } = useTranslation();
-  const { users, fetchUsers, getLeaders, getColporters, people, fetchPeople } = useUserStore();
+  const { fetchUsers, getLeaders, getColporters, fetchPeople } = useUserStore();
   const { transactions, fetchAllTransactions } = useTransactionStore();
   const { charges, fetchCharges } = useChargeStore();
   const { advances, fetchAdvances } = useCashAdvanceStore();
@@ -78,6 +86,7 @@ const IndividualReports: React.FC = () => {
           fetchUsers(),
           fetchPeople(),
           fetchCharges(),
+          fetchAdvances(),
           fetchProgram()
         ]);
       } catch (err) {
@@ -89,7 +98,7 @@ const IndividualReports: React.FC = () => {
     };
 
     loadInitialData();
-  }, [fetchUsers, fetchPeople, fetchCharges, fetchProgram]);
+  }, [fetchUsers, fetchPeople, fetchCharges, fetchAdvances, fetchProgram]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -119,126 +128,133 @@ const IndividualReports: React.FC = () => {
     setReportData(null);
   };
 
-const generateDateRange = (start, end) => {
-  const startDate = new Date(start);
-  const endDate = new Date(end);
-  const dateArray = [];
-  
-  for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
-    dateArray.push(date.toISOString().split('T')[0]);
-  }
-  
-  return dateArray;
-};
-
-const generateReport = async () => {
-  if (!selectedPerson || !startDate || !endDate) {
-    setError('Please select a person and date range');
-    return;
-  }
-
-  setIsGenerating(true);
-  setError(null);
-  setSuccess(null);
-  
-  try {
-    // Fetch all transactions (only approved ones)
-    await fetchAllTransactions('APPROVED');
-    await fetchCharges();
-    await fetchAdvances();
+  const generateDateRange = (start: string, end: string) => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const dateArray = [];
     
-    // Filter transactions for the selected person and date range
-    const dateRange = generateDateRange(startDate, endDate);
+    for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
+      dateArray.push(date.toISOString().split('T')[0]);
+    }
     
-    // Filter transactions for the selected person
-    const personTransactions = transactions.filter(t => {
-      const isInDateRange = new Date(t.date) >= new Date(startDate) && new Date(t.date) <= new Date(endDate);
-      const isForPerson = personType === 'COLPORTER' 
-        ? t.studentId === selectedPerson.id 
-        : t.leaderId === selectedPerson.id;
+    return dateArray;
+  };
+
+  const generateReport = async () => {
+    if (!selectedPerson || !startDate || !endDate) {
+      setError('Please select a person and date range');
+      return;
+    }
+
+    setIsGenerating(true);
+    setError(null);
+    setSuccess(null);
+    
+    try {
+      await fetchAllTransactions('APPROVED');
+      await fetchCharges();
+      await fetchAdvances();
       
-      return isInDateRange && isForPerson;
-    });
-    
-    console.log('Filtered transactions:', personTransactions.length);
-    
-    // Filter charges for the selected person and date range
-    const personCharges = charges.filter(c => 
-      c.personId === selectedPerson.id &&
-      new Date(c.date) >= new Date(startDate) &&
-      new Date(c.date) <= new Date(endDate) &&
-      c.status === 'APPLIED'
-    );
-    
-    // Get the appropriate percentage from program config
-    const percentage = personType === 'COLPORTER'
-      ? (program?.financialConfig?.colporter_percentage 
-          ? parseFloat(program.financialConfig.colporter_percentage) 
-          : 50)
-      : (program?.financialConfig?.leader_percentage 
-          ? parseFloat(program.financialConfig.leader_percentage) 
-          : 15);
-    
-    // Calculate daily earnings
-    const dailyEarnings = {};
-    dateRange.forEach(date => {
-      // Convertir la fecha de la transacción a formato YYYY-MM-DD para la comparación
-      const dayTransactions = personTransactions.filter(t => {
-        const transactionDate = new Date(t.date).toISOString().split('T')[0];
-        return transactionDate === date;
+      const dateRange = generateDateRange(startDate, endDate);
+      
+      const personTransactions = transactions.filter(t => {
+        const isInDateRange = new Date(t.date) >= new Date(startDate) && new Date(t.date) <= new Date(endDate);
+        const isForPerson = personType === 'COLPORTER' 
+          ? t.studentId === selectedPerson.id 
+          : t.leaderId === selectedPerson.id;
+        
+        return isInDateRange && isForPerson;
       });
-      const dayTotal = dayTransactions.reduce((sum, t) => sum + t.total, 0);
       
-      // Store the actual daily amount (not multiplied by percentage)
-      dailyEarnings[date] = dayTotal;
-    });
+      console.log('Filtered transactions:', personTransactions.length);
+      
+      const personCharges = charges.filter(c => 
+        c.personId === selectedPerson.id &&
+        new Date(c.date) >= new Date(startDate) &&
+        new Date(c.date) <= new Date(endDate) &&
+        c.status === 'APPLIED'
+      );
+      
+      const personAdvances = advances.filter(a => 
+        a.personId === selectedPerson.id &&
+        new Date(a.weekStartDate) >= new Date(startDate) &&
+        new Date(a.weekEndDate) <= new Date(endDate) &&
+        a.status === 'APPROVED'
+      );
+      
+      const percentage = personType === 'COLPORTER'
+        ? (program?.financialConfig?.colporter_percentage 
+            ? parseFloat(program.financialConfig.colporter_percentage) 
+            : 50)
+        : (program?.financialConfig?.leader_percentage 
+            ? parseFloat(program.financialConfig.leader_percentage) 
+            : 15);
+      
+      const dailyEarnings: Record<string, number> = {};
+      dateRange.forEach(date => {
+        const dayTransactions = personTransactions.filter(t => {
+          const transactionDate = new Date(t.date).toISOString().split('T')[0];
+          return transactionDate === date;
+        });
+        const dayTotal = dayTransactions.reduce((sum, t) => sum + t.total, 0);
+        dailyEarnings[date] = dayTotal;
+      });
 
-    // Calculate totals
-    const totalEarnings = Object.values(dailyEarnings).reduce((sum, amount) => sum + amount, 0);
-    const totalCharges = personCharges.reduce((sum, charge) => sum + charge.amount, 0);
-    
-    // Apply percentage only to the net amount
-    const netAmount = (totalEarnings * (percentage / 100)) - totalCharges;
+      const totalEarnings = Object.values(dailyEarnings).reduce((sum, amount) => sum + amount, 0);
+      const totalCharges = personCharges.reduce((sum, charge) => sum + charge.amount, 0);
+      const totalAdvances = personAdvances.reduce((sum, advance) => sum + advance.advanceAmount, 0);
+      const netAmount = (totalEarnings * (percentage / 100)) - totalCharges - totalAdvances;
 
-    console.log('Report data:', {
-      totalEarnings,
-      totalCharges,
-      netAmount,
-      dailyEarningsCount: Object.keys(dailyEarnings).length,
-      chargesCount: personCharges.length,
-      percentage
-    });
+      console.log('Report data:', {
+        totalEarnings,
+        totalCharges,
+        totalAdvances,
+        netAmount,
+        dailyEarningsCount: Object.keys(dailyEarnings).length,
+        chargesCount: personCharges.length,
+        advancesCount: personAdvances.length,
+        percentage
+      });
 
-    const report = {
-      personId: selectedPerson.id,
-      personName: selectedPerson.name,
-      personType,
-      startDate,
-      endDate,
-      dailyEarnings,
-      charges: personCharges.map(charge => ({
-        id: charge.id,
-        date: charge.date,
-        amount: charge.amount,
-        reason: charge.reason,
-        category: charge.category,
-        status: charge.status,
-      })),
-      totalEarnings,
-      totalCharges,
-      netAmount,
-    };
+      const report: ReportData = {
+        personId: selectedPerson.id,
+        personName: selectedPerson.name,
+        personType,
+        startDate,
+        endDate,
+        dailyEarnings,
+        charges: personCharges.map(charge => ({
+          id: charge.id,
+          date: charge.date,
+          amount: charge.amount,
+          reason: charge.reason,
+          category: charge.category,
+          status: charge.status,
+        })),
+        advances: personAdvances.map(advance => ({
+          id: advance.id,
+          date: advance.requestDate,
+          amount: advance.advanceAmount,
+          weekStartDate: advance.weekStartDate,
+          weekEndDate: advance.weekEndDate,
+          status: advance.status,
+        })),
+        totalEarnings,
+        totalCharges,
+        totalAdvances,
+        netAmount,
+      };
 
-    setReportData(report);
-    setSuccess('Report generated successfully');
-    setTimeout(() => setSuccess(null), 3000);
-  } catch (error) {
-    console.error('Error generating report:', error);
-    setError('Failed to generate report. Please try again.');
-  } finally {
-    setIsGenerating(false);
-  }
-};
+      setReportData(report);
+      setSuccess('Report generated successfully');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (error) {
+      console.error('Error generating report:', error);
+      setError('Failed to generate report. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -259,7 +275,6 @@ const generateReport = async () => {
     return <Badge variant={variants[category as keyof typeof variants] || 'secondary'}>{category}</Badge>;
   };
 
-  // Group daily earnings by weeks
   const groupEarningsByWeeks = (dailyEarnings: Record<string, number>) => {
     const weeks: Array<{
       weekLabel: string;
@@ -275,10 +290,8 @@ const generateReport = async () => {
       const currentDate = new Date(date);
       const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'short' });
       
-      // Start a new week on Monday or if it's the first date
       if (currentDate.getDay() === 1 || index === 0) {
         if (currentWeek.length > 0) {
-          // Save the previous week
           const weekTotal = currentWeek.reduce((sum, day) => sum + day.amount, 0);
           const endDate = currentWeek[currentWeek.length - 1].date;
           weeks.push({
@@ -298,7 +311,6 @@ const generateReport = async () => {
       });
     });
 
-    // Add the last week
     if (currentWeek.length > 0) {
       const weekTotal = currentWeek.reduce((sum, day) => sum + day.amount, 0);
       const endDate = currentWeek[currentWeek.length - 1].date;
@@ -312,11 +324,9 @@ const generateReport = async () => {
     return weeks;
   };
 
-  // Function to print the report
   const printReport = () => {
     if (!reportData) return;
     
-    // Get the appropriate percentage from program config
     const percentage = reportData.personType === 'COLPORTER'
       ? (program?.financialConfig?.colporter_percentage 
           ? parseFloat(program.financialConfig.colporter_percentage) 
@@ -331,7 +341,6 @@ const generateReport = async () => {
       return;
     }
     
-    // Create print content
     const printContent = `
       <!DOCTYPE html>
       <html>
@@ -347,6 +356,7 @@ const generateReport = async () => {
           .total { font-weight: bold; background-color: #f0f0f0; }
           .summary { margin-top: 30px; border: 1px solid #ddd; padding: 15px; background-color: #f9f9f9; }
           .charges { color: #dc2626; }
+          .advances { color: #9333ea; }
           .earnings { color: #0052B4; }
           .net { color: #059669; font-weight: bold; }
         </style>
@@ -431,11 +441,40 @@ const generateReport = async () => {
           </table>
         ` : ''}
         
+        ${reportData.advances.length > 0 ? `
+          <h2>Cash Advances</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Week Period</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reportData.advances.map(advance => `
+                <tr>
+                  <td>${new Date(advance.date).toLocaleDateString()}</td>
+                  <td>${new Date(advance.weekStartDate).toLocaleDateString()} - ${new Date(advance.weekEndDate).toLocaleDateString()}</td>
+                  <td class="advances">-$${advance.amount.toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr class="total">
+                <td colspan="2">Total Advances</td>
+                <td class="advances">-$${reportData.totalAdvances.toFixed(2)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        ` : ''}
+        
         <div class="summary">
           <h2>Summary</h2>
           <p><span class="earnings">Total Sales: $${reportData.totalEarnings.toFixed(2)}</span></p>
           <p><span class="earnings">Earnings (${percentage}%): $${(reportData.totalEarnings * (percentage / 100)).toFixed(2)}</span></p>
           <p><span class="charges">Total Charges: -$${reportData.totalCharges.toFixed(2)}</span></p>
+          <p><span class="advances">Total Advances: -$${reportData.totalAdvances.toFixed(2)}</span></p>
           <p><span class="net">Net Amount: $${reportData.netAmount.toFixed(2)}</span></p>
         </div>
       </body>
@@ -449,11 +488,9 @@ const generateReport = async () => {
     };
   };
 
-  // Function to export report as CSV
   const exportReportCSV = () => {
     if (!reportData) return;
     
-    // Get the appropriate percentage from program config
     const percentage = reportData.personType === 'COLPORTER'
       ? (program?.financialConfig?.colporter_percentage 
           ? parseFloat(program.financialConfig.colporter_percentage) 
@@ -462,16 +499,13 @@ const generateReport = async () => {
           ? parseFloat(program.financialConfig.leader_percentage) 
           : 15);
     
-    // Create CSV content
     let csvContent = "data:text/csv;charset=utf-8,";
     
-    // Add header
     csvContent += "Individual Financial Report\r\n";
     csvContent += `Name,${reportData.personName}\r\n`;
     csvContent += `Type,${reportData.personType}\r\n`;
     csvContent += `Period,${new Date(reportData.startDate).toLocaleDateString()} - ${new Date(reportData.endDate).toLocaleDateString()}\r\n\r\n`;
     
-    // Add weekly earnings
     csvContent += "Weekly Earnings\r\n";
     csvContent += "Week,Mon,Tue,Wed,Thu,Fri,Sat,Total\r\n";
     
@@ -488,7 +522,6 @@ const generateReport = async () => {
     
     csvContent += "\r\n";
     
-    // Add charges if any
     if (reportData.charges.length > 0) {
       csvContent += "Charges\r\n";
       csvContent += "Date,Reason,Category,Amount\r\n";
@@ -500,14 +533,24 @@ const generateReport = async () => {
       csvContent += `Total Charges,,-,${reportData.totalCharges.toFixed(2)}\r\n\r\n`;
     }
     
-    // Add summary
+    if (reportData.advances.length > 0) {
+      csvContent += "Cash Advances\r\n";
+      csvContent += "Date,Week Period,Amount\r\n";
+      
+      reportData.advances.forEach(advance => {
+        csvContent += `${new Date(advance.date).toLocaleDateString()},${new Date(advance.weekStartDate).toLocaleDateString()} - ${new Date(advance.weekEndDate).toLocaleDateString()},-${advance.amount.toFixed(2)}\r\n`;
+      });
+      
+      csvContent += `Total Advances,,-${reportData.totalAdvances.toFixed(2)}\r\n\r\n`;
+    }
+    
     csvContent += "Summary\r\n";
     csvContent += `Total Sales,,${reportData.totalEarnings.toFixed(2)}\r\n`;
     csvContent += `Earnings (${percentage}%),,${(reportData.totalEarnings * (percentage / 100)).toFixed(2)}\r\n`;
     csvContent += `Total Charges,,-${reportData.totalCharges.toFixed(2)}\r\n`;
+    csvContent += `Total Advances,,-${reportData.totalAdvances.toFixed(2)}\r\n`;
     csvContent += `Net Amount,,${reportData.netAmount.toFixed(2)}\r\n`;
     
-    // Create download link
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -557,10 +600,8 @@ const generateReport = async () => {
         </div>
       )}
 
-      {/* Report Generation Form */}
       <Card title="Generate Report" icon={<FileText size={20} />}>
         <div className="space-y-6">
-          {/* Person Type Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Report Type
@@ -595,7 +636,6 @@ const generateReport = async () => {
             </div>
           </div>
 
-          {/* Person Selection */}
           <div className="relative" ref={personDropdownRef}>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Select {personType === 'COLPORTER' ? 'Colporter' : 'Leader'}
@@ -685,7 +725,6 @@ const generateReport = async () => {
             )}
           </div>
 
-          {/* Date Range */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Start Date"
@@ -703,7 +742,6 @@ const generateReport = async () => {
             />
           </div>
 
-          {/* Generate Button */}
           <div className="flex justify-end">
             <Button
               variant="primary"
@@ -718,10 +756,8 @@ const generateReport = async () => {
         </div>
       </Card>
 
-      {/* Report Results */}
       {reportData && (
         <div className="space-y-6">
-          {/* Report Actions */}
           <div className="flex justify-end gap-3">
             <Button
               variant="outline"
@@ -757,10 +793,8 @@ const generateReport = async () => {
             )}
           </div>
 
-          {/* Daily Earnings Table - Styled like the image */}
           <Card>
             <div className="bg-white border border-gray-300">
-              {/* Header */}
               <div className="bg-gray-100 border-b border-gray-300 p-4">
                 <div className="text-center">
                   <h2 className="text-xl font-bold text-gray-900 mb-2">
@@ -776,7 +810,6 @@ const generateReport = async () => {
                 </div>
               </div>
 
-              {/* Table */}
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
@@ -792,6 +825,9 @@ const generateReport = async () => {
                       </th>
                       <th colSpan={reportData.charges.length || 1} className="border border-gray-400 bg-red-600 px-3 py-2 text-center text-sm font-bold text-white">
                         Charges
+                      </th>
+                      <th colSpan={reportData.advances.length || 1} className="border border-gray-400 bg-purple-600 px-3 py-2 text-center text-sm font-bold text-white">
+                        Advances
                       </th>
                     </tr>
                     <tr>
@@ -816,6 +852,19 @@ const generateReport = async () => {
                           No Charges
                         </th>
                       )}
+                      {reportData.advances.map((advance, index) => (
+                        <th key={advance.id} className="border border-gray-400 bg-purple-600 px-3 py-2 text-center text-xs font-medium text-white min-w-[100px]">
+                          <div className="flex flex-col">
+                            <span className="text-[10px]">{new Date(advance.date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' })}</span>
+                            <span className="text-[9px] truncate">{`${new Date(advance.weekStartDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' })} - ${new Date(advance.weekEndDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' })}`}</span>
+                          </div>
+                        </th>
+                      ))}
+                      {reportData.advances.length === 0 && (
+                        <th className="border border-gray-400 bg-purple-600 px-3 py-2 text-center text-xs font-medium text-white">
+                          No Advances
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -824,7 +873,6 @@ const generateReport = async () => {
                         <td className="border border-gray-400 px-3 py-2 text-sm font-medium bg-gray-50">
                           {weekIndex + 1}) {week.weekLabel}
                         </td>
-                        {/* Days of the week */}
                         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dayName) => {
                           const dayData = week.days.find(d => d.dayName === dayName);
                           return (
@@ -836,7 +884,6 @@ const generateReport = async () => {
                         <td className="border border-gray-400 px-3 py-2 text-center text-sm font-bold bg-primary-100 text-primary-900">
                           {week.weekTotal.toFixed(2)}
                         </td>
-                        {/* Charges columns */}
                         {reportData.charges.map((charge) => (
                           <td key={charge.id} className="border border-gray-400 px-3 py-2 text-center text-sm bg-red-50">
                             -{charge.amount.toFixed(2)}
@@ -847,14 +894,22 @@ const generateReport = async () => {
                             -
                           </td>
                         )}
+                        {reportData.advances.map((advance) => (
+                          <td key={advance.id} className="border border-gray-400 px-3 py-2 text-center text-sm bg-purple-50">
+                            -{advance.amount.toFixed(2)}
+                          </td>
+                        ))}
+                        {reportData.advances.length === 0 && (
+                          <td className="border border-gray-400 px-3 py-2 text-center text-sm bg-purple-50">
+                            -
+                          </td>
+                        )}
                       </tr>
                     ))}
-                    {/* Total row */}
                     <tr className="bg-gray-100 font-bold">
                       <td className="border border-gray-400 px-3 py-2 text-sm font-bold">
                         {personType === 'COLPORTER' ? 'Student' : 'Leader'} Total
                       </td>
-                      {/* Calculate totals for each day */}
                       {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dayName) => {
                         const dayTotal = groupEarningsByWeeks(reportData.dailyEarnings)
                           .reduce((sum, week) => {
@@ -870,7 +925,6 @@ const generateReport = async () => {
                       <td className="border border-gray-400 px-3 py-2 text-center text-sm font-bold bg-primary-200 text-primary-900">
                         {reportData.totalEarnings.toFixed(2)}
                       </td>
-                      {/* Total charges */}
                       {reportData.charges.map((charge) => (
                         <td key={charge.id} className="border border-gray-400 px-3 py-2 text-center text-sm font-bold bg-red-100">
                           -{charge.amount.toFixed(2)}
@@ -881,17 +935,29 @@ const generateReport = async () => {
                           -
                         </td>
                       )}
+                      {reportData.advances.map((advance) => (
+                        <td key={advance.id} className="border border-gray-400 px-3 py-2 text-center text-sm font-bold bg-purple-100">
+                          -{advance.amount.toFixed(2)}
+                        </td>
+                      ))}
+                      {reportData.advances.length === 0 && (
+                        <td className="border border-gray-400 px-3 py-2 text-center text-sm font-bold bg-purple-100">
+                          -
+                        </td>
+                      )}
                     </tr>
-                    {/* Final Net Total Row */}
                     <tr className="bg-success-100 font-bold">
                       <td colSpan={7} className="border border-gray-400 px-3 py-2 text-sm font-bold text-success-800">
-                        NET TOTAL (After Charges)
+                        NET TOTAL (After Charges & Advances)
                       </td>
                       <td className="border border-gray-400 px-3 py-2 text-center text-sm font-bold bg-success-200 text-success-900">
                         {reportData.netAmount.toFixed(2)}
                       </td>
                       <td colSpan={reportData.charges.length || 1} className="border border-gray-400 px-3 py-2 text-center text-sm font-bold bg-success-200 text-success-900">
                         -{reportData.totalCharges.toFixed(2)}
+                      </td>
+                      <td colSpan={reportData.advances.length || 1} className="border border-gray-400 px-3 py-2 text-center text-sm font-bold bg-success-200 text-success-900">
+                        -{reportData.totalAdvances.toFixed(2)}
                       </td>
                     </tr>
                   </tbody>
@@ -900,7 +966,6 @@ const generateReport = async () => {
             </div>
           </Card>
 
-          {/* Charges Table */}
           {reportData.charges.length > 0 && (
             <Card title="Applied Charges" icon={<AlertTriangle size={20} />}>
               <div className="overflow-x-auto">
@@ -954,7 +1019,59 @@ const generateReport = async () => {
             </Card>
           )}
 
-          {/* Final Summary */}
+          {reportData.advances.length > 0 && (
+            <Card title="Cash Advances" icon={<Wallet size={20} />}>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Week Period
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Amount
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {reportData.advances.map((advance) => (
+                      <tr key={advance.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {new Date(advance.date).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {new Date(advance.weekStartDate).toLocaleDateString()} - {new Date(advance.weekEndDate).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                          <Badge variant="success">{advance.status}</Badge>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-purple-600">
+                          -{formatCurrency(advance.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-purple-50">
+                      <td colSpan={3} className="px-4 py-3 text-sm font-bold text-purple-900">
+                        TOTAL ADVANCES
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-purple-900">
+                        -{formatCurrency(reportData.totalAdvances)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </Card>
+          )}
+
           <Card title="Report Summary" icon={<FileText size={20} />}>
             <div className="bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg p-6 border border-primary-200">
               <div className="text-center">
@@ -965,7 +1082,7 @@ const generateReport = async () => {
                   Period: {new Date(reportData.startDate).toLocaleDateString()} - {new Date(reportData.endDate).toLocaleDateString()}
                 </p>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="bg-white rounded-lg p-4">
                     <p className="text-sm text-gray-600">Total Sales</p>
                     <p className="text-xl font-bold text-success-600">
@@ -1005,6 +1122,16 @@ const generateReport = async () => {
                       {reportData.charges.length} applied charges
                     </p>
                   </div>
+
+                  <div className="bg-white rounded-lg p-4">
+                    <p className="text-sm text-gray-600">Total Advances</p>
+                    <p className="text-xl font-bold text-purple-600">
+                      -{formatCurrency(reportData.totalAdvances)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {reportData.advances.length} approved advances
+                    </p>
+                  </div>
                 </div>
                 
                 <div className="mt-6 bg-white rounded-lg p-4 border-2 border-primary-200 max-w-md mx-auto">
@@ -1016,7 +1143,7 @@ const generateReport = async () => {
                     {formatCurrency(reportData.netAmount)}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    Final amount after percentage and charges
+                    Final amount after percentage, charges, and advances
                   </p>
                 </div>
               </div>
