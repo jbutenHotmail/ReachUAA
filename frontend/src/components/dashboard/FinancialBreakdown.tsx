@@ -5,6 +5,7 @@ import Card from '../ui/Card';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useProgramStore } from '../../stores/programStore';
 import { useCashAdvanceStore } from '../../stores/cashAdvanceStore';
+import { api } from '../../api';
 
 interface FinancialData {
   totalRevenue: number;
@@ -38,54 +39,73 @@ const FinancialBreakdown: React.FC = () => {
     },
     netProfit: 0
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (transactions.length > 0 && program) {
-      // Filter out rejected transactions
-      const validTransactions = transactions.filter(t => t.status !== 'REJECTED');
-      
-      // Calculate total revenue from transactions
-      const totalRevenue = validTransactions.reduce((sum, t) => sum + t.total, 0);
-      
-      // Get financial percentages from program
-      const studentPercentage = program.financialConfig?.colporter_percentage 
-        ? parseFloat(program.financialConfig.colporter_percentage) 
-        : 50;
-      const leaderPercentage = program.financialConfig?.leader_percentage 
-        ? parseFloat(program.financialConfig.leader_percentage) 
-        : 15;
-      
-      // Calculate distribution amounts
-      const studentsAmount = totalRevenue * (studentPercentage / 100);
-      const leadersAmount = totalRevenue * (leaderPercentage / 100);
-      
-      // Calculate expenses
-      const advancesAmount = advances.reduce((sum, a) => 
-        a.status === 'APPROVED' ? sum + a.advanceAmount : sum, 0);
-      
-      // Estimate program costs (in a real app, this would come from expenses)
-      const programCostsAmount = totalRevenue * 0.1; // 10% of revenue as a placeholder
-      
-      // Calculate total expenses
-      const totalExpenses = advancesAmount + programCostsAmount;
-      
-      // Calculate net profit
-      const netProfit = totalRevenue - totalExpenses - (studentsAmount + leadersAmount);
-      
-      setFinancialData({
-        totalRevenue,
-        expenses: {
-          advances: advancesAmount,
-          programCosts: programCostsAmount,
-          total: totalExpenses
-        },
-        distribution: {
-          students: studentsAmount,
-          leaders: leadersAmount
-        },
-        netProfit
-      });
-    }
+    const fetchExpenses = async () => {
+      try {
+        // Fetch program expenses (where leaderId is null)
+        const expenses = await api.get('/expenses', { params: { leaderId: 'program' } });
+        return expenses.reduce((sum: number, expense: any) => sum + expense.amount, 0);
+      } catch (error) {
+        console.error('Error fetching expenses:', error);
+        return 0;
+      }
+    };
+
+    const calculateFinancials = async () => {
+      if (transactions.length > 0 && program) {
+        setIsLoading(true);
+        
+        // Filter out rejected transactions
+        const validTransactions = transactions.filter(t => t.status !== 'REJECTED');
+        
+        // Calculate total revenue from transactions
+        const totalRevenue = validTransactions.reduce((sum, t) => sum + t.total, 0);
+        
+        // Get financial percentages from program
+        const studentPercentage = program.financialConfig?.colporter_percentage 
+          ? parseFloat(program.financialConfig.colporter_percentage) 
+          : 50;
+        const leaderPercentage = program.financialConfig?.leader_percentage 
+          ? parseFloat(program.financialConfig.leader_percentage) 
+          : 15;
+        
+        // Calculate distribution amounts
+        const studentsAmount = totalRevenue * (studentPercentage / 100);
+        const leadersAmount = totalRevenue * (leaderPercentage / 100);
+        
+        // Calculate expenses
+        const advancesAmount = advances.reduce((sum, a) => 
+          a.status === 'APPROVED' ? sum + a.advanceAmount : sum, 0);
+        
+        // Fetch real program costs from expenses API
+        const programCostsAmount = await fetchExpenses();
+        
+        // Calculate total expenses
+        const totalExpenses = advancesAmount + programCostsAmount;
+        
+        // Calculate net profit
+        const netProfit = totalRevenue - totalExpenses - (studentsAmount + leadersAmount);
+        
+        setFinancialData({
+          totalRevenue,
+          expenses: {
+            advances: advancesAmount,
+            programCosts: programCostsAmount,
+            total: totalExpenses
+          },
+          distribution: {
+            students: studentsAmount,
+            leaders: leadersAmount
+          },
+          netProfit
+        });
+        setIsLoading(false);
+      }
+    };
+
+    calculateFinancials();
   }, [transactions, program, advances]);
 
   const formatCurrency = (amount: number) => {

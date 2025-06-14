@@ -19,6 +19,7 @@ export const getTransactions = async (req, res) => {
     const conditions = [];
 
     if (date) {
+      console.log('Filtering transactions by date:', date);
       conditions.push("t.transaction_date = ?");
       params.push(date);
     }
@@ -37,8 +38,8 @@ export const getTransactions = async (req, res) => {
       conditions.push("t.status = ?");
       params.push(status);
     } else {
-      // If no status filter is provided, only include PENDING and APPROVED transactions
-      conditions.push("t.status IN ('PENDING', 'APPROVED')");
+      // If no status filter is provided, include all statuses
+      // We don't filter by default anymore to show all transactions including REJECTED
     }
 
     if (conditions.length > 0) {

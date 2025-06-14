@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Transaction } from '../types';
 import { api } from '../api';
+import { getCurrentDate } from '../utils/dateUtils';
 
 interface TransactionState {
   transactions: Transaction[];
@@ -10,6 +11,7 @@ interface TransactionState {
 
 interface TransactionStore extends TransactionState {
   fetchTransactions: (date?: string) => Promise<void>;
+  fetchAllTransactions: (status?: string) => Promise<void>;
   createTransaction: (transaction: any) => Promise<void>;
   updateTransaction: (id: string, transaction: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
@@ -25,10 +27,29 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
   fetchTransactions: async (date) => {
     set({ isLoading: true, error: null });
     try {
-      const params = date ? { date } : undefined;
+      // If no date is provided, use today's date in a consistent format
+      const queryDate = date || getCurrentDate();
+      console.log('Fetching transactions for date:', queryDate);
+      
+      const params = queryDate ? { date: queryDate } : undefined;
       const transactions = await api.get<Transaction[]>('/transactions', { 
         params: params as Record<string, string>
       });
+      set({ transactions, isLoading: false });
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred', 
+        isLoading: false 
+      });
+    }
+  },
+
+  fetchAllTransactions: async (status: string) => {
+    set({ isLoading: true, error: null });
+    try {
+
+      // Fetch all transactions without date filtering
+      const transactions = status ? await api.get<Transaction[]>(`/transactions?status=${status}`) : await api.get<Transaction[]>('/transactions');
       set({ transactions, isLoading: false });
     } catch (error) {
       set({ 

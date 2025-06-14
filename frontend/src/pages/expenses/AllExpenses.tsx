@@ -28,7 +28,9 @@ interface AllExpensesProps {
   defaultCategory?: string;
 }
 
-const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
+const AllExpenses: React.FC<AllExpensesProps> = ({ 
+  defaultCategory 
+}) => {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
@@ -68,14 +70,14 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
 
     fetchExpenses();
   }, [categoryFilter, leaderFilter, dateFilter]);
-
-  const filteredExpenses = expenses.filter(expense => {
-    return expense.motivo.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+ // motivi, responsable, categoria, data, amount, notes
+  const filteredExpenses = searchTerm
+    ? expenses.filter(expense => 
+        expense.motivo.toLowerCase().includes(searchTerm.toLowerCase()) || expense.leaderName.toLowerCase().includes(searchTerm.toLowerCase()))
+    : expenses;
 
   const totalAmount = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
   const averagePerDay = totalAmount / (filteredExpenses.length || 1);
-  const averagePerWeek = averagePerDay * 7;
 
   // Get unique leaders from expenses
   const uniqueLeaders = Array.from(new Set(expenses
@@ -162,7 +164,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <div className="text-center">
             <p className="text-sm font-medium text-gray-500">{t('expenses.amount')}</p>
@@ -176,14 +178,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
             <p className="text-sm font-medium text-gray-500">Daily Average</p>
             <p className="mt-2 text-3xl font-bold text-gray-900">${averagePerDay.toFixed(2)}</p>
             <p className="mt-1 text-sm text-gray-500">Per day</p>
-          </div>
-        </Card>
-        
-        <Card>
-          <div className="text-center">
-            <p className="text-sm font-medium text-gray-500">Weekly Average</p>
-            <p className="mt-2 text-3xl font-bold text-gray-900">${averagePerWeek.toFixed(2)}</p>
-            <p className="mt-1 text-sm text-gray-500">Per week</p>
           </div>
         </Card>
       </div>

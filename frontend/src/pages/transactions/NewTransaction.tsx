@@ -10,6 +10,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
+import { getCurrentDate } from '../../utils/dateUtils';
 
 const NewTransaction: React.FC = () => {
   const { t } = useTranslation();
@@ -85,6 +86,10 @@ const NewTransaction: React.FC = () => {
     setError(null);
 
     try {
+      // Use the consistent date format for today
+      const todayFormatted = getCurrentDate();
+      console.log('Creating transaction with date:', todayFormatted);
+      
       await createTransaction({
         leaderId: selectedLeader.id,
         leaderName: selectedLeader.name,
@@ -95,7 +100,7 @@ const NewTransaction: React.FC = () => {
         atmMobile,
         paypal,
         total,
-        date: today.toISOString().split('T')[0],
+        date: todayFormatted,
         books: Object.entries(bookQuantities)
           .filter(([_, quantity]) => quantity > 0)
           .map(([id, quantity]) => ({

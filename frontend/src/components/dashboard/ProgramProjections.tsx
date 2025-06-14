@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TrendingUp, Calendar, DollarSign, Target } from 'lucide-react';
 import Card from '../ui/Card';
-import Badge from '../ui/Badge';
 import { useProgramStore } from '../../stores/programStore';
 import { useTransactionStore } from '../../stores/transactionStore';
 

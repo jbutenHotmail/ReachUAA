@@ -1,147 +1,255 @@
-import React from 'react';
-import { useParams } from 'react-router-dom';
-import { ChevronLeft, Calendar, TrendingUp, BookOpen, DollarSign, Users } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ChevronLeft, Calendar, TrendingUp, BookOpen, DollarSign, Users, ChevronRight } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
-
-interface LeaderStats {
-  totalSales: number;
-  averageSales: number;
-  totalBooks: {
-    large: number;
-    small: number;
-  };
-  colporterCount: number;
-  workingDays: number;
-  bestDay: {
-    date: string;
-    amount: number;
-  };
-  worstDay: {
-    date: string;
-    amount: number;
-  };
-}
-
-interface ColporterSummary {
-  name: string;
-  totalSales: number;
-  averageSales: number;
-  books: {
-    large: number;
-    small: number;
-  };
-  bestDay: {
-    date: string;
-    amount: number;
-  };
-}
-
-// Helper function to generate all working days in the program
-const generateProgramDays = () => {
-  const startDate = new Date('2025-05-01');
-  const endDate = new Date('2025-08-31');
-  const days = [];
-  
-  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-    // Skip Sundays (day 0) as they are typically rest days
-    if (d.getDay() !== 0) {
-      days.push(d.toISOString().split('T')[0]);
-    }
-  }
-  
-  return days;
-};
+import { useTransactionStore } from '../../stores/transactionStore';
+import { useProgramStore } from '../../stores/programStore';
+import Spinner from '../../components/ui/Spinner';
+import { api } from '../../api';
 
 const LeaderDetailPage: React.FC = () => {
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
-
-  // Mock data for the leader
-  const leaderData = {
-    'Odrie Aponte': {
-      colporters: [
-        { name: 'Moises Amador', baseSales: 285, baseLarge: 2, baseSmall: 1 },
-        { name: 'Ambar de Jesus', baseSales: 305, baseLarge: 3, baseSmall: 2 },
-      ]
-    },
-    'Moises Amador': {
-      colporters: [
-        { name: 'Amy Wilmery Buten', baseSales: 335, baseLarge: 3, baseSmall: 1 },
-        { name: 'Carlo Bravo', baseSales: 295, baseLarge: 2, baseSmall: 2 },
-      ]
-    }
-  };
-
-  const data = leaderData[name as keyof typeof leaderData] || leaderData['Odrie Aponte'];
-  const workingDays = generateProgramDays().length;
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { program } = useProgramStore();
   
-  // Calculate statistics for each colporter
-  const colporterStats: ColporterSummary[] = data.colporters.map(colporter => {
-    const totalSales = colporter.baseSales * workingDays * (1 + (Math.random() * 0.2 - 0.1)); // Add some variation
-    const averageSales = totalSales / workingDays;
-    const totalLargeBooks = colporter.baseLarge * workingDays * (1 + (Math.random() * 0.2 - 0.1));
-    const totalSmallBooks = colporter.baseSmall * workingDays * (1 + (Math.random() * 0.2 - 0.1));
+  // State for leader data
+  const [leaderId, setLeaderId] = useState<string | null>(null);
+  const [leaderStats, setLeaderStats] = useState<any>(null);
+  const [colporterStats, setColporterStats] = useState<any[]>([]);
+  const [monthlyData, setMonthlyData] = useState<Record<string, { sales: number; days: number; books: { large: number; small: number } }>>({});
+  const [programTotalSales, setProgramTotalSales] = useState<number>(0);
+
+  // Fetch leader ID by name
+  useEffect(() => {
+    const getLeaderId = async () => {
+      try {
+        // In a real implementation, we would fetch the leader by name
+        const people = await api.get('/people/leaders');
+        const leader = people.find((p: any) => 
+          `${p.name} ${p.apellido}` === name || 
+          p.name === name
+        );
+        
+        if (leader) {
+          setLeaderId(leader.id);
+        } else {
+          setError('Leader not found');
+        }
+      } catch (err) {
+        console.error('Error fetching leader:', err);
+        setError('Failed to load leader data');
+      }
+    };
     
-    // Generate a random best day
-    const bestDayAmount = colporter.baseSales * 2;
-    const randomDayIndex = Math.floor(Math.random() * workingDays);
-    const bestDayDate = generateProgramDays()[randomDayIndex];
+    if (name) {
+      getLeaderId();
+    }
+  }, [name]);
+
+  // Fetch transactions for this leader's team and total program sales
+  useEffect(() => {
+    const loadTransactionData = async () => {
+      if (!leaderId) return;
+      
+      setIsLoading(true);
+      try {
+        // Get all transactions for this leader's team
+        const leaderTransactions = await api.get('/transactions', { 
+          params: { leaderId } 
+        });
+        
+        // Get all program transactions to calculate total program sales
+        const allTransactions = await api.get('/transactions');
+        
+        // Filter out rejected transactions
+        const validAllTransactions = allTransactions.filter((t: any) => t.status !== 'REJECTED');
+        
+        // Calculate total program sales
+        const totalProgramSales = validAllTransactions.reduce((sum: number, t: any) => sum + t.total, 0);
+        setProgramTotalSales(totalProgramSales);
+        
+        // Process the transactions to get statistics
+        processTransactionData(leaderTransactions, totalProgramSales);
+      } catch (err) {
+        console.error('Error fetching transaction data:', err);
+        setError('Failed to load transaction data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    return {
-      name: colporter.name,
+    if (leaderId) {
+      loadTransactionData();
+    }
+  }, [leaderId]);
+
+  // Process transaction data to get statistics
+  const processTransactionData = (leaderTransactions: any[], totalProgramSales: number) => {
+    if (!leaderTransactions.length) {
+      setLeaderStats(null);
+      setColporterStats([]);
+      setMonthlyData({});
+      return;
+    }
+    
+    // Filter out rejected transactions
+    const validTransactions = leaderTransactions.filter(t => t.status !== 'REJECTED');
+    
+    // Get the leader percentage from program config
+    const leaderPercentage = program?.financialConfig?.leader_percentage 
+      ? parseFloat(program.financialConfig.leader_percentage) 
+      : 15;
+    
+    // Calculate total sales and books
+    const totalSales = validTransactions.reduce((sum, t) => sum + t.total, 0);
+    const totalBooks = {
+      large: 0,
+      small: 0
+    };
+    
+    // Process books
+    validTransactions.forEach(transaction => {
+      if (transaction.books && transaction.books.length > 0) {
+        transaction.books.forEach((book: any) => {
+          if (book.price >= 20) {
+            totalBooks.large += book.quantity;
+          } else {
+            totalBooks.small += book.quantity;
+          }
+        });
+      }
+    });
+    
+    // Group transactions by colporter
+    const colporterMap = new Map();
+    
+    validTransactions.forEach(transaction => {
+      if (!colporterMap.has(transaction.studentId)) {
+        colporterMap.set(transaction.studentId, {
+          id: transaction.studentId,
+          name: transaction.studentName,
+          totalSales: 0,
+          transactions: [],
+          books: {
+            large: 0,
+            small: 0
+          },
+          bestDay: {
+            date: '',
+            amount: 0
+          }
+        });
+      }
+      
+      const colporter = colporterMap.get(transaction.studentId);
+      colporter.totalSales += transaction.total;
+      colporter.transactions.push(transaction);
+      
+      // Update best day if this transaction is better
+      if (transaction.total > colporter.bestDay.amount) {
+        colporter.bestDay = {
+          date: transaction.date,
+          amount: transaction.total
+        };
+      }
+      
+      // Process books for this transaction
+      if (transaction.books && transaction.books.length > 0) {
+        transaction.books.forEach((book: any) => {
+          if (book.price >= 20) {
+            colporter.books.large += book.quantity;
+          } else {
+            colporter.books.small += book.quantity;
+          }
+        });
+      }
+    });
+    
+    // Calculate colporter stats
+    const colporterStatsArray = Array.from(colporterMap.values()).map(colporter => ({
+      ...colporter,
+      averageSales: colporter.totalSales / colporter.transactions.length
+    }));
+    
+    // Group data by months
+    const monthlyDataObj: Record<string, { sales: number; days: number; books: { large: number; small: number } }> = {};
+    
+    validTransactions.forEach(transaction => {
+      const date = new Date(transaction.date);
+      const month = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      
+      if (!monthlyDataObj[month]) {
+        monthlyDataObj[month] = { 
+          sales: 0, 
+          days: 0, 
+          books: { large: 0, small: 0 } 
+        };
+      }
+      
+      // Check if this is a new day for this month
+      const dateStr = transaction.date;
+      const isNewDay = !validTransactions.some(t => 
+        t.date === dateStr && 
+        t.id !== transaction.id && 
+        new Date(t.date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) === month
+      );
+      
+      if (isNewDay) {
+        monthlyDataObj[month].days += 1;
+      }
+      
+      monthlyDataObj[month].sales += transaction.total;
+      
+      // Process books for this transaction
+      if (transaction.books && transaction.books.length > 0) {
+        transaction.books.forEach((book: any) => {
+          if (book.price >= 20) {
+            monthlyDataObj[month].books.large += book.quantity;
+          } else {
+            monthlyDataObj[month].books.small += book.quantity;
+          }
+        });
+      }
+    });
+    
+    // Find best and worst days
+    const salesByDay = validTransactions.reduce((acc: Record<string, number>, transaction) => {
+      const date = transaction.date;
+      acc[date] = (acc[date] || 0) + transaction.total;
+      return acc;
+    }, {});
+    
+    const salesEntries = Object.entries(salesByDay);
+    const bestDay = salesEntries.reduce((best, [date, amount]) => 
+      amount > best.amount ? { date, amount } : best, 
+      { date: '', amount: 0 }
+    );
+    const worstDay = salesEntries.reduce((worst, [date, amount]) => 
+      amount < worst.amount ? { date, amount } : worst, 
+      { date: '', amount: Infinity }
+    );
+    
+    // Calculate working days
+    const workingDays = Object.keys(salesByDay).length;
+    
+    // Set state with processed data
+    setLeaderStats({
       totalSales,
-      averageSales,
-      books: {
-        large: Math.round(totalLargeBooks),
-        small: Math.round(totalSmallBooks)
-      },
-      bestDay: {
-        date: bestDayDate,
-        amount: bestDayAmount
-      }
-    };
-  });
-  
-  // Calculate leader totals
-  const leaderStats: LeaderStats = {
-    totalSales: colporterStats.reduce((sum, c) => sum + c.totalSales, 0),
-    averageSales: colporterStats.reduce((sum, c) => sum + c.averageSales, 0) / colporterStats.length,
-    totalBooks: {
-      large: colporterStats.reduce((sum, c) => sum + c.books.large, 0),
-      small: colporterStats.reduce((sum, c) => sum + c.books.small, 0)
-    },
-    colporterCount: colporterStats.length,
-    workingDays,
-    bestDay: {
-      date: colporterStats[0].bestDay.date, // Just use the first colporter's best day for simplicity
-      amount: colporterStats.reduce((sum, c) => sum + c.bestDay.amount, 0) / 2 // Average of best days
-    },
-    worstDay: {
-      date: generateProgramDays()[Math.floor(Math.random() * workingDays)],
-      amount: colporterStats.reduce((sum, c) => sum + c.averageSales, 0) * 0.5 // Half of average
-    }
-  };
-
-  // Group data by months for better visualization
-  const months = ['May 2025', 'June 2025', 'July 2025', 'August 2025'];
-  const monthlyData = months.reduce((acc, month) => {
-    // Generate random data for each month
-    const daysInMonth = month === 'May 2025' || month === 'July 2025' ? 26 : 25; // Approximate working days per month
-    const salesFactor = month === 'July 2025' ? 1.2 : month === 'August 2025' ? 0.9 : 1; // Sales vary by month
+      averageSales: totalSales / workingDays,
+      totalBooks,
+      colporterCount: colporterStatsArray.length,
+      workingDays,
+      bestDay,
+      worstDay: worstDay.amount === Infinity ? { date: '', amount: 0 } : worstDay,
+    });
     
-    acc[month] = {
-      sales: Math.round(leaderStats.averageSales * daysInMonth * salesFactor * 100) / 100,
-      days: daysInMonth,
-      books: {
-        large: Math.round((leaderStats.totalBooks.large / workingDays) * daysInMonth * salesFactor),
-        small: Math.round((leaderStats.totalBooks.small / workingDays) * daysInMonth * salesFactor)
-      }
-    };
-    return acc;
-  }, {} as Record<string, { sales: number; days: number; books: { large: number; small: number } }>);
+    setColporterStats(colporterStatsArray);
+    setMonthlyData(monthlyDataObj);
+  };
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -152,12 +260,50 @@ const LeaderDetailPage: React.FC = () => {
     }).format(amount);
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
+        <p className="font-medium">Error</p>
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  if (!leaderStats || colporterStats.length === 0) {
+    return (
+      <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg text-warning-700">
+        <p className="font-medium">No Data Available</p>
+        <p>There is no transaction data available for this leader's team.</p>
+        <Button
+          variant="outline"
+          className="mt-4"
+          onClick={() => navigate('/reports/donations/finances')}
+        >
+          Go back
+        </Button>
+      </div>
+    );
+  }
+
+  // Calculate leader earnings based on total program sales
+  const leaderEarnings = programTotalSales * (program?.financialConfig?.leader_percentage 
+    ? parseFloat(program.financialConfig.leader_percentage) / 100 
+    : 0.15);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
-          onClick={() => navigate('/reports/summer/finances')}
+          onClick={() => navigate('/reports/donations/finances')}
         >
           <ChevronLeft size={20} />
         </Button>
@@ -168,7 +314,7 @@ const LeaderDetailPage: React.FC = () => {
           </h1>
           <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
             <Calendar size={16} />
-            Complete Summer Program (May 1 - August 31, 2025) • {leaderStats.workingDays} working days
+            Complete Program • {leaderStats.workingDays} working days
           </p>
         </div>
       </div>
@@ -228,6 +374,58 @@ const LeaderDetailPage: React.FC = () => {
         </Card>
       </div>
 
+      {/* Leader Earnings - Prominently displayed */}
+      <Card title="Leader Earnings (Based on Total Program Sales)" icon={<DollarSign size={20} />}>
+        <div className="space-y-4">
+          <div className="p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg border border-purple-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-700">Leader Commission ({program?.financialConfig?.leader_percentage || 15}%)</p>
+                <p className="text-2xl font-bold text-purple-800 mt-1">
+                  {formatCurrency(leaderEarnings)}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-purple-600">Based on total program sales of</p>
+                <p className="text-lg font-semibold text-purple-700">{formatCurrency(programTotalSales)}</p>
+              </div>
+            </div>
+            
+            <div className="mt-4 p-3 bg-white rounded-lg border border-purple-100">
+              <p className="text-sm text-purple-800">
+                <strong>Important:</strong> Leader earnings are calculated as {program?.financialConfig?.leader_percentage || 15}% of the <strong>total program sales</strong>. ({formatCurrency(programTotalSales)})
+              </p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-700">Team Contribution</p>
+              <p className="text-lg font-bold text-gray-900">
+                {((leaderStats.totalSales / programTotalSales) * 100).toFixed(1)}%
+              </p>
+              <p className="text-xs text-gray-500">
+                {formatCurrency(leaderStats.totalSales)} of {formatCurrency(programTotalSales)}
+              </p>
+            </div>
+            
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-700">Per Colporter</p>
+              <p className="text-lg font-bold text-gray-900">
+                {formatCurrency(leaderEarnings / leaderStats.colporterCount)}
+              </p>
+            </div>
+            
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-700">Per Working Day</p>
+              <p className="text-lg font-bold text-gray-900">
+                {formatCurrency(leaderEarnings / leaderStats.workingDays)}
+              </p>
+            </div>
+          </div>
+        </div>
+      </Card>
+
       {/* Colporter Performance Table */}
       <Card title="Colporter Performance" icon={<Users size={20} />}>
         <div className="overflow-x-auto">
@@ -259,7 +457,7 @@ const LeaderDetailPage: React.FC = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {colporterStats.map((colporter, index) => (
-                <tr key={colporter.name} className={index % 2 === 0 ? 'bg-yellow-50' : 'bg-white'}>
+                <tr key={colporter.id} className={index % 2 === 0 ? 'bg-yellow-50' : 'bg-white'}>
                   <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                     {colporter.name}
                   </td>
@@ -277,13 +475,13 @@ const LeaderDetailPage: React.FC = () => {
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                     <div className="text-xs text-gray-500">
-                      {new Date(colporter.bestDay.date).toLocaleDateString('en-US', {
+                      {colporter.bestDay.date ? new Date(colporter.bestDay.date).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric'
-                      })}
+                      }) : 'N/A'}
                     </div>
                     <div className="font-medium text-success-600">
-                      {formatCurrency(colporter.bestDay.amount)}
+                      {colporter.bestDay.date ? formatCurrency(colporter.bestDay.amount) : '-'}
                     </div>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
@@ -292,7 +490,7 @@ const LeaderDetailPage: React.FC = () => {
                       size="sm"
                       onClick={() => navigate(`/reports/summer-colporter/${colporter.name}`)}
                     >
-                      <ChevronLeft size={16} className="transform rotate-180" />
+                      <ChevronRight size={16} />
                     </Button>
                   </td>
                 </tr>
@@ -346,9 +544,6 @@ const LeaderDetailPage: React.FC = () => {
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Small Books
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Books Per Day
-                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -358,13 +553,13 @@ const LeaderDetailPage: React.FC = () => {
                     {month}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                    {formatCurrency(data.sales)}
+                    ${data.sales.toFixed(2)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-500">
                     {data.days}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                    {formatCurrency(data.sales / data.days)}
+                    ${(data.sales / data.days).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                     <Badge variant="primary">{data.books.large}</Badge>
@@ -372,34 +567,8 @@ const LeaderDetailPage: React.FC = () => {
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                     <Badge variant="success">{data.books.small}</Badge>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-900">
-                    {((data.books.large + data.books.small) / data.days).toFixed(1)}
-                  </td>
                 </tr>
               ))}
-              <tr className="bg-gray-100">
-                <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
-                  TOTAL
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
-                  {formatCurrency(leaderStats.totalSales)}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-center font-bold text-gray-900">
-                  {leaderStats.workingDays}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
-                  {formatCurrency(leaderStats.totalSales / leaderStats.workingDays)}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-center font-bold">
-                  <Badge variant="primary">{leaderStats.totalBooks.large}</Badge>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-center font-bold">
-                  <Badge variant="success">{leaderStats.totalBooks.small}</Badge>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-center font-bold text-gray-900">
-                  {((leaderStats.totalBooks.large + leaderStats.totalBooks.small) / leaderStats.workingDays).toFixed(1)}
-                </td>
-              </tr>
             </tbody>
           </table>
         </div>
@@ -426,7 +595,7 @@ const LeaderDetailPage: React.FC = () => {
               <div className="flex justify-between items-center p-3 bg-warning-50 rounded-lg">
                 <span className="text-sm font-medium text-warning-700">Best Team Day</span>
                 <span className="text-lg font-bold text-warning-700">
-                  {formatCurrency(leaderStats.bestDay.amount)}
+                  {leaderStats.bestDay.date ? formatCurrency(leaderStats.bestDay.amount) : '-'}
                 </span>
               </div>
             </div>
@@ -450,7 +619,9 @@ const LeaderDetailPage: React.FC = () => {
               <div className="flex justify-between items-center p-3 bg-warning-50 rounded-lg">
                 <span className="text-sm font-medium text-warning-700">Large/Small Ratio</span>
                 <span className="text-lg font-bold text-warning-700">
-                  {(leaderStats.totalBooks.large / leaderStats.totalBooks.small).toFixed(1)}:1
+                  {leaderStats.totalBooks.small > 0 
+                    ? (leaderStats.totalBooks.large / leaderStats.totalBooks.small).toFixed(1) 
+                    : leaderStats.totalBooks.large}:1
                 </span>
               </div>
             </div>

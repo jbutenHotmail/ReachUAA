@@ -26,6 +26,8 @@ interface SummerBooksReportProps {
   showLeaders?: boolean;
   onToggleView?: () => void;
   onToggleGrouping?: () => void;
+  timePeriod?: 'day' | 'week' | 'month' | 'all';
+  selectedDate?: Date;
 }
 
 type SortField = 'name' | 'large' | 'small' | 'total' | 'average';
@@ -36,7 +38,9 @@ const SummerBooksReport: React.FC<SummerBooksReportProps> = ({
   showColporters = true,
   showLeaders = false,
   onToggleView,
-  onToggleGrouping
+  onToggleGrouping,
+  timePeriod = 'all',
+  selectedDate = new Date()
 }) => {
   const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(0);
@@ -44,10 +48,55 @@ const SummerBooksReport: React.FC<SummerBooksReportProps> = ({
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const daysPerPage = 8; // Show 8 days at a time for books (need more space for large/small columns)
 
-  // Get all days from the data and sort them
-  const allDays = booksData.length > 0 
-    ? Object.keys(booksData[0].dailyBooks).sort()
-    : [];
+  // Filter days based on selected time period
+  const filteredDays = React.useMemo(() => {
+    if (booksData.length === 0) return [];
+    
+    const allDays = Object.keys(booksData[0].dailyBooks).sort();
+    
+    if (timePeriod === 'all') {
+      return allDays;
+    }
+    
+    const today = selectedDate;
+    today.setHours(0, 0, 0, 0);
+    
+    if (timePeriod === 'day') {
+      const dateStr = today.toISOString().split('T')[0];
+      return allDays.filter(day => day === dateStr);
+    }
+    
+    if (timePeriod === 'week') {
+      // Get start of week (Monday)
+      const startOfWeek = new Date(today);
+      const day = today.getDay();
+      const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+      startOfWeek.setDate(diff);
+      startOfWeek.setHours(0, 0, 0, 0);
+      
+      // Get end of week (Sunday)
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+      
+      return allDays.filter(day => {
+        const date = new Date(day);
+        return date >= startOfWeek && date <= endOfWeek;
+      });
+    }
+    
+    if (timePeriod === 'month') {
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      
+      return allDays.filter(day => {
+        const date = new Date(day);
+        return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+      });
+    }
+    
+    return allDays;
+  }, [booksData, timePeriod, selectedDate]);
 
   // Group books by leader if needed
   const groupedBooksData = React.useMemo(() => {
@@ -66,33 +115,46 @@ const SummerBooksReport: React.FC<SummerBooksReportProps> = ({
         });
         
         // Initialize all days with zero
-        allDays.forEach(day => {
+        filteredDays.forEach(day => {
           leaderMap.get(leaderName)!.dailyBooks[day] = { large: 0, small: 0 };
         });
       }
       
-      // Add books to leader totals
+      // Add books to leader totals, but only for filtered days
       const leaderData = leaderMap.get(leaderName)!;
-      leaderData.totalBooks.large += data.totalBooks.large;
-      leaderData.totalBooks.small += data.totalBooks.small;
       
-      // Add daily books
-      Object.entries(data.dailyBooks).forEach(([date, books]) => {
-        if (!leaderData.dailyBooks[date]) {
-          leaderData.dailyBooks[date] = { large: 0, small: 0 };
+      filteredDays.forEach(day => {
+        if (data.dailyBooks[day]) {
+          if (!leaderData.dailyBooks[day]) {
+            leaderData.dailyBooks[day] = { large: 0, small: 0 };
+          }
+          
+          leaderData.dailyBooks[day].large += data.dailyBooks[day]?.large || 0;
+          leaderData.dailyBooks[day].small += data.dailyBooks[day]?.small || 0;
+          
+          // Update total books for this leader
+          leaderData.totalBooks.large += data.dailyBooks[day]?.large || 0;
+          leaderData.totalBooks.small += data.dailyBooks[day]?.small || 0;
         }
-        leaderData.dailyBooks[date].large += books.large;
-        leaderData.dailyBooks[date].small += books.small;
       });
     });
     
     return Array.from(leaderMap.values());
-  }, [booksData, showLeaders, allDays]);
+  }, [booksData, showLeaders, filteredDays]);
 
   // Sort books data
   const sortedBooksData = [...groupedBooksData].sort((a, b) => {
     let aValue: string | number;
     let bValue: string | number;
+
+    // Recalculate totals based on filtered days only
+    const aTotalLarge = filteredDays.reduce((sum, day) => sum + (a.dailyBooks[day]?.large || 0), 0);
+    const aTotalSmall = filteredDays.reduce((sum, day) => sum + (a.dailyBooks[day]?.small || 0), 0);
+    const aTotal = aTotalLarge + aTotalSmall;
+    
+    const bTotalLarge = filteredDays.reduce((sum, day) => sum + (b.dailyBooks[day]?.large || 0), 0);
+    const bTotalSmall = filteredDays.reduce((sum, day) => sum + (b.dailyBooks[day]?.small || 0), 0);
+    const bTotal = bTotalLarge + bTotalSmall;
 
     switch (sortField) {
       case 'name':
@@ -100,20 +162,28 @@ const SummerBooksReport: React.FC<SummerBooksReportProps> = ({
         bValue = b.colporterName.toLowerCase();
         break;
       case 'large':
-        aValue = a.totalBooks.large;
-        bValue = b.totalBooks.large;
+        aValue = aTotalLarge;
+        bValue = bTotalLarge;
         break;
       case 'small':
-        aValue = a.totalBooks.small;
-        bValue = b.totalBooks.small;
+        aValue = aTotalSmall;
+        bValue = bTotalSmall;
         break;
       case 'total':
-        aValue = a.totalBooks.large + a.totalBooks.small;
-        bValue = b.totalBooks.large + b.totalBooks.small;
+        aValue = aTotal;
+        bValue = bTotal;
         break;
       case 'average':
-        aValue = (a.totalBooks.large + a.totalBooks.small) / allDays.length;
-        bValue = (b.totalBooks.large + b.totalBooks.small) / allDays.length;
+        const aDaysWithBooks = filteredDays.filter(day => 
+          (a.dailyBooks[day]?.large || 0) + (a.dailyBooks[day]?.small || 0) > 0
+        ).length;
+        
+        const bDaysWithBooks = filteredDays.filter(day => 
+          (b.dailyBooks[day]?.large || 0) + (b.dailyBooks[day]?.small || 0) > 0
+        ).length;
+        
+        aValue = aDaysWithBooks > 0 ? aTotal / aDaysWithBooks : 0;
+        bValue = bDaysWithBooks > 0 ? bTotal / bDaysWithBooks : 0;
         break;
       default:
         aValue = a.colporterName.toLowerCase();
@@ -130,21 +200,26 @@ const SummerBooksReport: React.FC<SummerBooksReportProps> = ({
   });
 
   // Paginate days
-  const totalPages = Math.ceil(allDays.length / daysPerPage);
+  const totalPages = Math.ceil(filteredDays.length / daysPerPage);
   const startIndex = currentPage * daysPerPage;
-  const endIndex = Math.min(startIndex + daysPerPage, allDays.length);
-  const currentDays = allDays.slice(startIndex, endIndex);
+  const endIndex = Math.min(startIndex + daysPerPage, filteredDays.length);
+  const currentDays = filteredDays.slice(startIndex, endIndex);
 
-  // Calculate totals
+  // Calculate totals based on filtered days
   const totals = sortedBooksData.reduce((acc, colporter) => {
-    allDays.forEach(date => {
-      const dayBooks = colporter.dailyBooks[date] || { large: 0, small: 0 };
+    filteredDays.forEach(date => {
       acc.dailyTotals[date] = acc.dailyTotals[date] || { large: 0, small: 0 };
-      acc.dailyTotals[date].large += dayBooks.large;
-      acc.dailyTotals[date].small += dayBooks.small;
+      acc.dailyTotals[date].large += colporter.dailyBooks[date]?.large || 0;
+      acc.dailyTotals[date].small += colporter.dailyBooks[date]?.small || 0;
     });
-    acc.totalLarge += colporter.totalBooks.large;
-    acc.totalSmall += colporter.totalBooks.small;
+    
+    // Calculate total books based on filtered days only
+    const colporterTotalLarge = filteredDays.reduce((sum, day) => sum + (colporter.dailyBooks[day]?.large || 0), 0);
+    const colporterTotalSmall = filteredDays.reduce((sum, day) => sum + (colporter.dailyBooks[day]?.small || 0), 0);
+    
+    acc.totalLarge += colporterTotalLarge;
+    acc.totalSmall += colporterTotalSmall;
+    
     return acc;
   }, {
     dailyTotals: {} as Record<string, BookDelivery>,
@@ -195,7 +270,11 @@ const SummerBooksReport: React.FC<SummerBooksReportProps> = ({
           <div className="text-center">
             <p className="text-sm font-medium text-gray-500">Total Books</p>
             <p className="mt-2 text-3xl font-bold text-primary-600">{totals.totalLarge + totals.totalSmall}</p>
-            <p className="text-xs text-gray-500">Complete program</p>
+            <p className="text-xs text-gray-500">
+              {timePeriod === 'all' ? 'Complete program' : 
+               timePeriod === 'month' ? 'Current month' :
+               timePeriod === 'week' ? 'Current week' : 'Today'}
+            </p>
           </div>
         </Card>
         
@@ -219,7 +298,9 @@ const SummerBooksReport: React.FC<SummerBooksReportProps> = ({
           <div className="text-center">
             <p className="text-sm font-medium text-gray-500">Daily Average</p>
             <p className="mt-2 text-3xl font-bold text-warning-600">
-              {Math.round((totals.totalLarge + totals.totalSmall) / allDays.length)}
+              {filteredDays.length > 0 
+                ? Math.round((totals.totalLarge + totals.totalSmall) / filteredDays.length) 
+                : 0}
             </p>
             <p className="text-xs text-gray-500">Books per day</p>
           </div>
@@ -267,7 +348,7 @@ const SummerBooksReport: React.FC<SummerBooksReportProps> = ({
               </Button>
               
               <span className="text-sm text-gray-600">
-                Days {startIndex + 1}-{endIndex} of {allDays.length}
+                Days {startIndex + 1}-{endIndex} of {filteredDays.length}
               </span>
               
               <Button
@@ -375,47 +456,53 @@ const SummerBooksReport: React.FC<SummerBooksReportProps> = ({
             <tbody className="divide-y divide-gray-200">
               {showColporters ? (
                 // Show individual colporters or leaders
-                sortedBooksData.map((colporter, index) => (
-                  <tr 
-                    key={colporter.colporterName}
-                    className={clsx(
-                      'hover:bg-gray-50 transition-colors',
-                      index % 2 === 0 ? 'bg-yellow-50' : 'bg-white'
-                    )}
-                  >
-                    <td className="px-4 py-3 text-sm font-medium text-white bg-[#0052B4] sticky left-0 z-10">
-                      {colporter.colporterName}
-                    </td>
-                    {currentDays.map((date) => {
-                      const dayBooks = colporter.dailyBooks[date] || { large: 0, small: 0 };
-                      return (
-                        <React.Fragment key={date}>
-                          <td className="px-1 py-3 text-xs text-center whitespace-nowrap">
-                            <Badge variant="primary" size="sm">{dayBooks.large}</Badge>
-                          </td>
-                          <td className="px-1 py-3 text-xs text-center whitespace-nowrap">
-                            <Badge variant="success" size="sm">{dayBooks.small}</Badge>
-                          </td>
-                        </React.Fragment>
-                      );
-                    })}
-                    <td className="px-2 py-3 text-sm text-center whitespace-nowrap">
-                      <Badge variant="primary">{colporter.totalBooks.large}</Badge>
-                    </td>
-                    <td className="px-2 py-3 text-sm text-center whitespace-nowrap">
-                      <Badge variant="success">{colporter.totalBooks.small}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center whitespace-nowrap">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`/reports/summer-colporter/${colporter.colporterName}`)}
-                      >
-                        <ChevronRight size={20} />
-                      </Button>
-                    </td>
-                  </tr>
-                ))
+                sortedBooksData.map((colporter, index) => {
+                  // Calculate totals for this colporter based on filtered days only
+                  const colporterTotalLarge = filteredDays.reduce((sum, day) => sum + (colporter.dailyBooks[day]?.large || 0), 0);
+                  const colporterTotalSmall = filteredDays.reduce((sum, day) => sum + (colporter.dailyBooks[day]?.small || 0), 0);
+                  
+                  return (
+                    <tr 
+                      key={colporter.colporterName}
+                      className={clsx(
+                        'hover:bg-gray-50 transition-colors',
+                        index % 2 === 0 ? 'bg-yellow-50' : 'bg-white'
+                      )}
+                    >
+                      <td className="px-4 py-3 text-sm font-medium text-white bg-[#0052B4] sticky left-0 z-10">
+                        {colporter.colporterName}
+                      </td>
+                      {currentDays.map((date) => {
+                        const dayBooks = colporter.dailyBooks[date] || { large: 0, small: 0 };
+                        return (
+                          <React.Fragment key={date}>
+                            <td className="px-1 py-3 text-xs text-center whitespace-nowrap">
+                              <Badge variant="primary" size="sm">{dayBooks.large}</Badge>
+                            </td>
+                            <td className="px-1 py-3 text-xs text-center whitespace-nowrap">
+                              <Badge variant="success" size="sm">{dayBooks.small}</Badge>
+                            </td>
+                          </React.Fragment>
+                        );
+                      })}
+                      <td className="px-2 py-3 text-sm text-center whitespace-nowrap">
+                        <Badge variant="primary">{colporterTotalLarge}</Badge>
+                      </td>
+                      <td className="px-2 py-3 text-sm text-center whitespace-nowrap">
+                        <Badge variant="success">{colporterTotalSmall}</Badge>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center whitespace-nowrap">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/reports/summer-colporter/${colporter.colporterName}`)}
+                        >
+                          <ChevronRight size={20} />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 // Show only totals
                 <tr className="bg-primary-50">

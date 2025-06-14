@@ -3,14 +3,19 @@ import * as db from '../config/database.js';
 // Get dashboard stats
 export const getDashboardStats = async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    // Log the current date for debugging
+    console.log('Backend today date:', new Date().toISOString().split('T')[0]);
+    
+    // Use the date from the request if provided, otherwise use server date
+    const today = req.query.date || new Date().toISOString().split('T')[0];
+    console.log('Using date for dashboard stats:', today);
     
     // Calculate start dates for week and month
-    const weekStart = new Date();
+    const weekStart = new Date(today);
     weekStart.setDate(weekStart.getDate() - 7);
     const weekStartStr = weekStart.toISOString().split('T')[0];
     
-    const monthStart = new Date();
+    const monthStart = new Date(today);
     monthStart.setMonth(monthStart.getMonth() - 1);
     const monthStartStr = monthStart.toISOString().split('T')[0];
     
@@ -117,7 +122,7 @@ export const getDashboardStats = async (req, res) => {
     );
     
     // Get sales chart data (last 30 days) - only PENDING and APPROVED transactions
-    const thirtyDaysAgo = new Date();
+    const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
     

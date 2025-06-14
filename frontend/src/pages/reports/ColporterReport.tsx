@@ -1,161 +1,241 @@
-import React from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
-
-interface ColporterStats {
-  bruto: {
-    total: number;
-    promedio: number;
-  };
-  neto: {
-    total: number;
-    promedio: number;
-  };
-  libros: {
-    grandes: number;
-    pequenos: number;
-  };
-}
+import { useTransactionStore } from '../../stores/transactionStore';
+import { useProgramStore } from '../../stores/programStore';
+import Spinner from '../../components/ui/Spinner';
+import { api } from '../../api';
 
 const ColporterReport: React.FC = () => {
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { transactions, fetchTransactions } = useTransactionStore();
+  const { program } = useProgramStore();
+  
+  // State for colporter data
+  const [colporterId, setColporterId] = useState<string | null>(null);
+  const [colporterData, setColporterData] = useState<any>(null);
+  const [weeklyData, setWeeklyData] = useState<any>(null);
 
-  // Mock data for the colporter
-  const stats: ColporterStats = {
-    bruto: {
-      total: 1568.66,
-      promedio: 313.73,
-    },
-    neto: {
-      total: 784.33,
-      promedio: 156.87,
-    },
-    libros: {
-      grandes: 216,
-      pequenos: 16,
-    },
-  };
-
-  // Mock data for the weekly report
-  const mockWeeklySales = [
-    {
-      colporterName: name || '',
-      sales: {
-        '2025-05-12': 386.69,
-        '2025-05-13': 464.98,
-        '2025-05-14': 375.36,
-        '2025-05-15': 349.64,
-        '2025-05-16': 298.70,
-      },
-      totalSales: 1875.37,
-      fines: 10.00,
-      advance5: 93.77,
-      books: {
-        '2025-05-12': {
-          large: {
-            'El Deseado de Todas las Gentes': 2,
-            'El Gran Conflicto': 1,
-            'Patriarcas y Profetas': 1
-          },
-          small: {
-            'El Camino a Cristo': 2,
-            'Consejos Sobre el Régimen Alimenticio': 1
-          }
-        },
-        '2025-05-13': {
-          large: {
-            'El Deseado de Todas las Gentes': 1,
-            'El Gran Conflicto': 2
-          },
-          small: {
-            'El Camino a Cristo': 1,
-            'Palabras de Vida del Gran Maestro': 1
-          }
-        },
-        '2025-05-14': {
-          large: {
-            'El Deseado de Todas las Gentes': 2,
-            'Patriarcas y Profetas': 2
-          },
-          small: {
-            'El Camino a Cristo': 2,
-            'Consejos Sobre el Régimen Alimenticio': 1
-          }
-        },
-        '2025-05-15': {
-          large: {
-            'El Gran Conflicto': 2,
-            'Patriarcas y Profetas': 1
-          },
-          small: {
-            'El Camino a Cristo': 1,
-            'Palabras de Vida del Gran Maestro': 1
-          }
-        },
-        '2025-05-16': {
-          large: {
-            'El Deseado de Todas las Gentes': 2,
-            'El Gran Conflicto': 1
-          },
-          small: {
-            'El Camino a Cristo': 2
-          }
+  // Fetch colporter ID by name
+  useEffect(() => {
+    const getColporterId = async () => {
+      try {
+        // In a real implementation, we would fetch the colporter by name
+        const people = await api.get('/people/colporters');
+        const colporter = people.find((p: any) => 
+          `${p.name} ${p.apellido}` === name || 
+          p.name === name
+        );
+        
+        if (colporter) {
+          setColporterId(colporter.id);
+        } else {
+          setError('Colporter not found');
         }
+      } catch (err) {
+        console.error('Error fetching colporter:', err);
+        setError('Failed to load colporter data');
       }
-    },
-  ];
+    };
+    
+    if (name) {
+      getColporterId();
+    }
+  }, [name]);
 
-  // Calculate totals
-  const totals = mockWeeklySales.reduce((acc, sale) => {
-    Object.entries(sale.sales).forEach(([date, amount]) => {
-      acc.dailyTotals[date] = (acc.dailyTotals[date] || 0) + amount;
+  // Fetch transactions for this colporter
+  useEffect(() => {
+    const loadTransactionData = async () => {
+      if (!colporterId) return;
+      
+      setIsLoading(true);
+      try {
+        // Get all transactions for this colporter
+        const colporterTransactions = await api.get('/transactions', { 
+          params: { studentId: colporterId } 
+        });
+        
+        // Process the transactions to get weekly data
+        processTransactionData(colporterTransactions);
+      } catch (err) {
+        console.error('Error fetching transaction data:', err);
+        setError('Failed to load transaction data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    if (colporterId) {
+      loadTransactionData();
+    }
+  }, [colporterId]);
+
+  // Process transaction data to get weekly stats
+  const processTransactionData = (colporterTransactions: any[]) => {
+    if (!colporterTransactions.length) {
+      setWeeklyData(null);
+      setColporterData(null);
+      return;
+    }
+    
+    // Filter out rejected transactions
+    const validTransactions = colporterTransactions.filter(t => t.status !== 'REJECTED');
+    
+    // Get the colporter percentage from program config
+    const colporterPercentage = program?.financialConfig?.colporter_percentage 
+      ? parseFloat(program.financialConfig.colporter_percentage) 
+      : 50;
+    
+    // Calculate total sales and books
+    const totalSales = validTransactions.reduce((sum, t) => sum + t.total, 0);
+    const totalBooks = {
+      grandes: 0,
+      pequenos: 0
+    };
+    
+    // Process books
+    validTransactions.forEach(transaction => {
+      if (transaction.books && transaction.books.length > 0) {
+        transaction.books.forEach((book: any) => {
+          if (book.price >= 20) {
+            totalBooks.grandes += book.quantity;
+          } else {
+            totalBooks.pequenos += book.quantity;
+          }
+        });
+      }
     });
-    acc.totalSales += sale.totalSales;
-    acc.totalFines += sale.fines;
-    acc.totalAdvance5 += sale.advance5;
-    return acc;
-  }, {
-    dailyTotals: {} as Record<string, number>,
-    totalSales: 0,
-    totalFines: 0,
-    totalAdvance5: 0,
-  });
-
-  // Get all unique book titles
-  const allBooks = {
-    large: new Set<string>(),
-    small: new Set<string>()
+    
+    // Group transactions by week
+    const weekMap = new Map();
+    
+    validTransactions.forEach(transaction => {
+      const date = new Date(transaction.date);
+      // Get the Monday of this week
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+      const monday = new Date(date);
+      monday.setDate(diff);
+      const mondayStr = monday.toISOString().split('T')[0];
+      
+      // Get the Sunday of this week
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      const sundayStr = sunday.toISOString().split('T')[0];
+      
+      // Create week key
+      const weekKey = `${mondayStr}_${sundayStr}`;
+      
+      if (!weekMap.has(weekKey)) {
+        weekMap.set(weekKey, {
+          startDate: mondayStr,
+          endDate: sundayStr,
+          transactions: [],
+          sales: {},
+          books: {}
+        });
+      }
+      
+      const weekData = weekMap.get(weekKey);
+      weekData.transactions.push(transaction);
+      
+      // Add sales for this day
+      weekData.sales[transaction.date] = (weekData.sales[transaction.date] || 0) + transaction.total;
+      
+      // Add books for this day
+      if (!weekData.books[transaction.date]) {
+        weekData.books[transaction.date] = {
+          large: {},
+          small: {}
+        };
+      }
+      
+      // Process books for this transaction
+      if (transaction.books && transaction.books.length > 0) {
+        transaction.books.forEach((book: any) => {
+          if (book.price >= 20) {
+            weekData.books[transaction.date].large[book.title] = 
+              (weekData.books[transaction.date].large[book.title] || 0) + book.quantity;
+          } else {
+            weekData.books[transaction.date].small[book.title] = 
+              (weekData.books[transaction.date].small[book.title] || 0) + book.quantity;
+          }
+        });
+      }
+    });
+    
+    // Get the most recent week
+    const weeks = Array.from(weekMap.values());
+    const mostRecentWeek = weeks.sort((a, b) => 
+      new Date(b.endDate).getTime() - new Date(a.endDate).getTime()
+    )[0];
+    
+    if (mostRecentWeek) {
+      // Calculate weekly totals
+      const weeklyTotal = Object.values(mostRecentWeek.sales).reduce((sum: number, amount: any) => sum + amount, 0);
+      
+      setWeeklyData(mostRecentWeek);
+      
+      // Set colporter data
+      setColporterData({
+        bruto: {
+          total: totalSales,
+          promedio: totalSales / validTransactions.length
+        },
+        neto: {
+          total: totalSales * (colporterPercentage / 100),
+          promedio: (totalSales * (colporterPercentage / 100)) / validTransactions.length
+        },
+        libros: totalBooks
+      });
+    }
   };
 
-  // Collect all unique book titles
-  mockWeeklySales.forEach(sale => {
-    Object.values(sale.books).forEach(dayBooks => {
-      Object.keys(dayBooks.large).forEach(book => allBooks.large.add(book));
-      Object.keys(dayBooks.small).forEach(book => allBooks.small.add(book));
-    });
-  });
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
-  // Calculate book totals
-  const bookTotals = {
-    large: {} as Record<string, number>,
-    small: {} as Record<string, number>
+  if (error) {
+    return (
+      <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
+        <p className="font-medium">Error</p>
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  if (!colporterData || !weeklyData) {
+    return (
+      <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg text-warning-700">
+        <p className="font-medium">No Data Available</p>
+        <p>There is no transaction data available for this colporter.</p>
+        <Button
+          variant="outline"
+          className="mt-4"
+          onClick={() => navigate('/reports/week/finances')}
+        >
+          Go back
+        </Button>
+      </div>
+    );
+  }
+
+  // Format date for display
+  const formatDateRange = (startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
   };
-
-  mockWeeklySales.forEach(sale => {
-    Object.values(sale.books).forEach(dayBooks => {
-      Object.entries(dayBooks.large).forEach(([book, qty]) => {
-        bookTotals.large[book] = (bookTotals.large[book] || 0) + qty;
-      });
-      Object.entries(dayBooks.small).forEach(([book, qty]) => {
-        bookTotals.small[book] = (bookTotals.small[book] || 0) + qty;
-      });
-    });
-  });
 
   return (
     <div className="space-y-6">
@@ -168,7 +248,9 @@ const ColporterReport: React.FC = () => {
         </Button>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{name}</h1>
-          <p className="text-sm text-gray-500">Semana 1 (12-16 de Mayo)</p>
+          <p className="text-sm text-gray-500">
+            {weeklyData && formatDateRange(weeklyData.startDate, weeklyData.endDate)}
+          </p>
         </div>
       </div>
 
@@ -181,17 +263,25 @@ const ColporterReport: React.FC = () => {
               <div className="space-y-2">
                 <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                   <span className="text-sm font-medium text-gray-600">Total</span>
-                  <span className="text-sm font-bold text-gray-900">${stats.bruto.total.toFixed(2)}</span>
+                  <span className="text-sm font-bold text-gray-900">${colporterData.bruto.total.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm font-medium text-gray-600">Promedio</span>
+                  <span className="text-sm font-bold text-gray-900">${colporterData.bruto.promedio.toFixed(2)}</span>
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">NETO (50%)</h3>
+              <h3 className="text-lg font-semibold text-gray-900">NETO ({program?.financialConfig?.colporter_percentage || 50}%)</h3>
               <div className="space-y-2">
                 <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                   <span className="text-sm font-medium text-gray-600">Total</span>
-                  <span className="text-sm font-bold text-gray-900">${stats.neto.total.toFixed(2)}</span>
+                  <span className="text-sm font-bold text-gray-900">${colporterData.neto.total.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm font-medium text-gray-600">Promedio</span>
+                  <span className="text-sm font-bold text-gray-900">${colporterData.neto.promedio.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -204,187 +294,190 @@ const ColporterReport: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div className="flex justify-between items-center p-3 bg-primary-50 rounded-lg">
               <span className="text-sm font-medium text-primary-600">Grandes</span>
-              <Badge variant="primary">{stats.libros.grandes}</Badge>
+              <Badge variant="primary">{colporterData.libros.grandes}</Badge>
             </div>
             <div className="flex justify-between items-center p-3 bg-success-50 rounded-lg">
               <span className="text-sm font-medium text-success-600">Pequeños</span>
-              <Badge variant="success">{stats.libros.pequenos}</Badge>
+              <Badge variant="success">{colporterData.libros.pequenos}</Badge>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg col-span-2">
+              <span className="text-sm font-medium text-gray-600">Total</span>
+              <Badge variant="secondary">{colporterData.libros.grandes + colporterData.libros.pequenos}</Badge>
             </div>
           </div>
         </Card>
       </div>
+      
       {/* Weekly Report Table */}
-
-      <div className="mt-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Detalle de Ventas</h2>
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0 z-10 border-b">
-                    Colportores
-                  </th>
-                  {Object.keys(mockWeeklySales[0].sales).map((date) => (
-                    <th key={date} className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                      {new Date(date).toLocaleDateString('en-US', { 
-                        weekday: 'short',
-                        month: '2-digit',
-                        day: '2-digit'
-                      })}
+      {weeklyData && (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Detalle de Ventas</h2>
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0 z-10 border-b">
+                      Colportores
                     </th>
-                  ))}
-                  <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                    Total
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-danger-600 border-b">
-                    Multas
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-warning-500 border-b">
-                    Avance 5%
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-success-600 border-b">
-                    Avance Entregado
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {mockWeeklySales.map((sale) => (
-                  <tr key={sale.colporterName} className="bg-yellow-50">
+                    {Object.keys(weeklyData.sales).sort().map((date) => (
+                      <th key={date} className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
+                        {new Date(date).toLocaleDateString('en-US', { 
+                          weekday: 'short',
+                          month: '2-digit',
+                          day: '2-digit'
+                        })}
+                      </th>
+                    ))}
+                    <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
+                      Total
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  <tr className="bg-yellow-50">
                     <td className="px-4 py-3 text-sm font-medium text-white bg-[#0052B4] sticky left-0 z-10">
-                      {sale.colporterName}
+                      {name}
                     </td>
-                    {Object.entries(sale.sales).map(([date, amount]) => (
+                    {Object.keys(weeklyData.sales).sort().map((date) => (
                       <td key={date} className="px-4 py-3 text-sm text-right whitespace-nowrap">
-                        ${amount.toFixed(2)}
+                        ${weeklyData.sales[date].toFixed(2)}
                       </td>
                     ))}
                     <td className="px-4 py-3 text-sm text-right font-medium whitespace-nowrap">
-                      ${sale.totalSales.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap bg-danger-50">
-                      ${sale.fines.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap bg-warning-50">
-                      ${sale.advance5.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap bg-success-50">
-                      -
+                      ${Object.values(weeklyData.sales).reduce((sum: number, amount: any) => sum + amount, 0).toFixed(2)}
                     </td>
                   </tr>
-                ))}
-                {/* Totals row */}
-                <tr className="bg-gray-100 font-semibold">
-                  <td className="px-4 py-3 text-sm font-bold text-white bg-[#0052B4] sticky left-0 z-10">
-                    TOTALES
-                  </td>
-                  {Object.entries(totals.dailyTotals).map(([date, amount]) => (
-                    <td key={date} className="px-4 py-3 text-sm text-right whitespace-nowrap">
-                      ${amount.toFixed(2)}
-                    </td>
-                  ))}
-                  <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
-                    ${totals.totalSales.toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-right whitespace-nowrap bg-danger-50">
-                    ${totals.totalFines.toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-right whitespace-nowrap bg-warning-50">
-                    ${totals.totalAdvance5.toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-right whitespace-nowrap bg-success-50">
-                    -
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
       
       {/* Books Table */}
-      <div className="mt-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Detalle de Libros</h2>
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0 z-10 border-b">
-                    Libro
-                  </th>
-                  {Object.keys(mockWeeklySales[0].books).map((date) => (
-                    <th key={date} className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                      {new Date(date).toLocaleDateString('en-US', { 
-                        weekday: 'short',
-                        month: '2-digit',
-                        day: '2-digit'
-                      })}
+      {weeklyData && (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Detalle de Libros</h2>
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0 z-10 border-b">
+                      Libro
                     </th>
-                  ))}
-                  <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                    Total
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {/* Large Books */}
-                <tr className="bg-primary-900 text-white">
-                  <td colSpan={7} className="px-4 py-2 text-sm font-semibold">
-                    Libros Grandes
-                  </td>
-                </tr>
-                {Array.from(allBooks.large).map(book => (
-                  <tr key={book} className="bg-primary-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 z-10 bg-primary-50">
-                      {book}
+                    {Object.keys(weeklyData.books).sort().map((date) => (
+                      <th key={date} className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
+                        {new Date(date).toLocaleDateString('en-US', { 
+                          weekday: 'short',
+                          month: '2-digit',
+                          day: '2-digit'
+                        })}
+                      </th>
+                    ))}
+                    <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
+                      Total
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {/* Large Books */}
+                  <tr className="bg-primary-900 text-white">
+                    <td colSpan={Object.keys(weeklyData.books).length + 2} className="px-4 py-2 text-sm font-semibold">
+                      Libros Grandes
                     </td>
-                    {Object.keys(mockWeeklySales[0].books).map(date => (
-                      <td key={date} className="px-4 py-3 text-sm text-center">
+                  </tr>
+                  
+                  {/* Get all unique large book titles */}
+                  {Array.from(new Set(
+                    Object.values(weeklyData.books).flatMap((dayBooks: any) => 
+                      Object.keys(dayBooks.large)
+                    )
+                  )).map((bookTitle: string) => (
+                    <tr key={`large-${bookTitle}`} className="bg-primary-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 z-10 bg-primary-50">
+                        {bookTitle}
+                      </td>
+                      {Object.keys(weeklyData.books).sort().map(date => (
+                        <td key={date} className="px-4 py-3 text-sm text-center">
+                          <Badge variant="primary">
+                            {weeklyData.books[date]?.large[bookTitle] || 0}
+                          </Badge>
+                        </td>
+                      ))}
+                      <td className="px-4 py-3 text-sm text-center font-medium">
                         <Badge variant="primary">
-                          {mockWeeklySales[0].books[date].large[book] || 0}
+                          {Object.values(weeklyData.books).reduce((sum: number, dayBooks: any) => 
+                            sum + (dayBooks.large[bookTitle] || 0), 0
+                          )}
                         </Badge>
                       </td>
-                    ))}
-                    <td className="px-4 py-3 text-sm text-center font-medium">
-                      <Badge variant="primary">
-                        {bookTotals.large[book] || 0}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
+                    </tr>
+                  ))}
 
-                {/* Small Books */}
-                <tr className="bg-success-900 text-white">
-                  <td colSpan={7} className="px-4 py-2 text-sm font-semibold">
-                    Libros Pequeños
-                  </td>
-                </tr>
-                {Array.from(allBooks.small).map(book => (
-                  <tr key={book} className="bg-success-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 z-10 bg-success-50">
-                      {book}
+                  {/* Small Books */}
+                  <tr className="bg-success-900 text-white">
+                    <td colSpan={Object.keys(weeklyData.books).length + 2} className="px-4 py-2 text-sm font-semibold">
+                      Libros Pequeños
                     </td>
-                    {Object.keys(mockWeeklySales[0].books).map(date => (
-                      <td key={date} className="px-4 py-3 text-sm text-center">
+                  </tr>
+                  
+                  {/* Get all unique small book titles */}
+                  {Array.from(new Set(
+                    Object.values(weeklyData.books).flatMap((dayBooks: any) => 
+                      Object.keys(dayBooks.small)
+                    )
+                  )).map((bookTitle: string) => (
+                    <tr key={`small-${bookTitle}`} className="bg-success-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 z-10 bg-success-50">
+                        {bookTitle}
+                      </td>
+                      {Object.keys(weeklyData.books).sort().map(date => (
+                        <td key={date} className="px-4 py-3 text-sm text-center">
+                          <Badge variant="success">
+                            {weeklyData.books[date]?.small[bookTitle] || 0}
+                          </Badge>
+                        </td>
+                      ))}
+                      <td className="px-4 py-3 text-sm text-center font-medium">
                         <Badge variant="success">
-                          {mockWeeklySales[0].books[date].small[book] || 0}
+                          {Object.values(weeklyData.books).reduce((sum: number, dayBooks: any) => 
+                            sum + (dayBooks.small[bookTitle] || 0), 0
+                          )}
                         </Badge>
                       </td>
-                    ))}
-                    <td className="px-4 py-3 text-sm text-center font-medium">
-                      <Badge variant="success">
-                        {bookTotals.small[book] || 0}
+                    </tr>
+                  ))}
+                  
+                  {/* Totals row */}
+                  <tr className="bg-gray-100 font-semibold">
+                    <td className="px-4 py-3 text-sm font-bold text-white bg-[#0052B4] sticky left-0 z-10">
+                      TOTALES
+                    </td>
+                    {Object.keys(weeklyData.books).sort().map(date => {
+                      const largeBooksCount = Object.values(weeklyData.books[date]?.large || {}).reduce((sum: number, qty: any) => sum + qty, 0);
+                      const smallBooksCount = Object.values(weeklyData.books[date]?.small || {}).reduce((sum: number, qty: any) => sum + qty, 0);
+                      return (
+                        <td key={date} className="px-4 py-3 text-sm text-center">
+                          <Badge variant="secondary">
+                            {largeBooksCount + smallBooksCount}
+                          </Badge>
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-3 text-sm text-center">
+                      <Badge variant="secondary">
+                        {colporterData.libros.grandes + colporterData.libros.pequenos}
                       </Badge>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
-      
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

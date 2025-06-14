@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, BookText, Heart, Calendar, UserCog, Users, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { BookText, Heart, Calendar, UserCog, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import SummerReport from '../../components/reports/SummerReport';
 import SummerBooksReport from '../../components/reports/SummerBooksReport';
@@ -18,23 +18,22 @@ const DonationsReport: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const location = useLocation();
   const navigate = useNavigate();
-  const { transactions, isLoading, error, fetchTransactions } = useTransactionStore();
+  const { transactions, isLoading, error, fetchAllTransactions } = useTransactionStore();
 
   const isFinancesRoute = location.pathname.includes('/finances');
 
   useEffect(() => {
     const loadTransactionData = async () => {
       try {
-        // For real implementation, we would fetch data based on the selected time period
-        // For now, just fetch the latest transactions
-        await fetchTransactions();
+        // Fetch all transactions without date filtering
+        await fetchAllTransactions('APPROVED');
       } catch (err) {
         console.error('Error fetching transaction data:', err);
       }
     };
 
     loadTransactionData();
-  }, [fetchTransactions]);
+  }, [fetchAllTransactions]);
 
   const handleToggleView = () => {
     setShowColporters(!showColporters);
@@ -65,12 +64,52 @@ const DonationsReport: React.FC = () => {
     { id: 'delivered-books', label: 'Delivered Books', icon: <BookText size={18} />, path: '/reports/donations/delivered-books' },
   ];
 
+  // Filter transactions based on selected time period
+  const getFilteredTransactions = () => {
+    if (timePeriod === 'all') {
+      return transactions;
+    }
+    
+    const today = new Date(selectedDate);
+    today.setHours(0, 0, 0, 0);
+    
+    return transactions.filter(transaction => {
+      const transactionDate = new Date(transaction.date);
+      transactionDate.setHours(0, 0, 0, 0);
+      
+      if (timePeriod === 'day') {
+        return transactionDate.getTime() === today.getTime();
+      } else if (timePeriod === 'week') {
+        // Get start of week (Monday)
+        const startOfWeek = new Date(today);
+        const day = today.getDay();
+        const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+        startOfWeek.setDate(diff);
+        startOfWeek.setHours(0, 0, 0, 0);
+        
+        // Get end of week (Sunday)
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+        
+        return transactionDate >= startOfWeek && transactionDate <= endOfWeek;
+      } else if (timePeriod === 'month') {
+        return transactionDate.getMonth() === today.getMonth() && 
+               transactionDate.getFullYear() === today.getFullYear();
+      }
+      
+      return true;
+    });
+  };
+
   // Transform transaction data into the format expected by the reports
   const transformTransactionsToSalesData = () => {
+    const filteredTransactions = getFilteredTransactions();
+    
     // Group transactions by colporter
     const colporterMap = new Map();
     
-    transactions.forEach(transaction => {
+    filteredTransactions.forEach(transaction => {
       if (!colporterMap.has(transaction.studentId)) {
         colporterMap.set(transaction.studentId, {
           colporterName: transaction.studentName,
@@ -89,10 +128,12 @@ const DonationsReport: React.FC = () => {
   };
 
   const transformTransactionsToBookData = () => {
+    const filteredTransactions = getFilteredTransactions();
+    
     // Group transactions by colporter
     const colporterMap = new Map();
     
-    transactions.forEach(transaction => {
+    filteredTransactions.forEach(transaction => {
       if (!colporterMap.has(transaction.studentId)) {
         colporterMap.set(transaction.studentId, {
           colporterName: transaction.studentName,
@@ -131,9 +172,7 @@ const DonationsReport: React.FC = () => {
       return 'Complete Program (May 1 - August 31, 2025)';
     }
     
-    const startDate = selectedDate;
-    let endDate = new Date(selectedDate);
-    
+    const startDate = selectedDate;    
     if (timePeriod === 'day') {
       return startDate.toLocaleDateString('en-US', {
         weekday: 'long',
@@ -142,8 +181,17 @@ const DonationsReport: React.FC = () => {
         day: 'numeric'
       });
     } else if (timePeriod === 'week') {
-      endDate.setDate(startDate.getDate() + 6);
-      return `${startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+      // Get start of week (Monday)
+      const day = startDate.getDay();
+      const diff = startDate.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+      const monday = new Date(startDate);
+      monday.setDate(diff);
+      
+      // Get end of week (Sunday)
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      
+      return `${monday.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${sunday.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
     } else if (timePeriod === 'month') {
       return startDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     }
@@ -281,6 +329,8 @@ const DonationsReport: React.FC = () => {
           showLeaders={showLeaders}
           onToggleView={handleToggleView}
           onToggleGrouping={handleToggleGrouping}
+          timePeriod={timePeriod}
+          selectedDate={selectedDate}
         />
       ) : (
         <SummerBooksReport
@@ -289,6 +339,8 @@ const DonationsReport: React.FC = () => {
           showLeaders={showLeaders}
           onToggleView={handleToggleView}
           onToggleGrouping={handleToggleGrouping}
+          timePeriod={timePeriod}
+          selectedDate={selectedDate}
         />
       )}
     </div>

@@ -5,6 +5,7 @@ import { useFinancialStore } from '../../stores/financialStore';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useDashboardStore } from '../../stores/dashboardStore';
 import { useCashAdvanceStore } from '../../stores/cashAdvanceStore';
+import { getCurrentDate } from '../../utils/dateUtils';
 
 import StatsGrid from '../../components/dashboard/StatsGrid';
 import SalesChart from '../../components/dashboard/SalesChart';
@@ -32,17 +33,17 @@ const Dashboard: React.FC = () => {
     isLoading: isTransactionsLoading,
     fetchTransactions
   } = useTransactionStore();
+
+  const {
+    advances,
+    fetchAdvances
+  } = useCashAdvanceStore();
   
   const {
     stats,
     isLoading: isDashboardLoading,
     fetchDashboardStats
   } = useDashboardStore();
-
-  const {
-    advances,
-    fetchAdvances
-  } = useCashAdvanceStore();
   
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
   
@@ -54,8 +55,9 @@ const Dashboard: React.FC = () => {
       fetchDashboardStats();
       fetchAdvances();
       
-      // Fetch today's transactions
-      const today = new Date().toISOString().split('T')[0];
+      // Fetch today's transactions using the consistent date format
+      const today = getCurrentDate();
+      console.log('Frontend today date:', today);
       fetchTransactions(today);
     }
   }, [user, fetchSummary, fetchSalesHistory, fetchGoals, fetchTransactions, fetchDashboardStats, fetchAdvances, selectedPeriod]);

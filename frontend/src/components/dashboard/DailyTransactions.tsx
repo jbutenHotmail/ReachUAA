@@ -60,14 +60,18 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
   return (
     <Card
       title={t('dashboard.dailyTransactions')}
-      subtitle={new Date(date).toLocaleDateString()}
+      subtitle={new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',timeZone:'UTC' })}
       icon={<DollarSign size={20} />}
     >
       <div className="space-y-4">
         {/* Mobile-first table */}
         <div className="block sm:hidden space-y-3">
           {transactions.map((transaction) => (
-            <div key={transaction.id} className={`p-4 rounded-lg border ${transaction.status === 'PENDING' ? 'bg-yellow-50 border-yellow-200' : transaction.status === 'REJECTED' ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
+            <div key={transaction.id} className={`p-4 rounded-lg border ${
+              transaction.status === 'PENDING' ? 'bg-yellow-50 border-yellow-200' : 
+              transaction.status === 'REJECTED' ? 'bg-red-50 border-red-200' : 
+              'bg-white border-gray-200'
+            }`}>
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <p className="font-medium text-gray-900">{transaction.studentName}</p>

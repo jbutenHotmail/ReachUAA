@@ -10,6 +10,7 @@ import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import { clsx } from 'clsx';
 import { useUserStore } from '../../stores/userStore';
+import { getCurrentDate, formatDateToString } from '../../utils/dateUtils';
 
 const Transactions: React.FC = () => {
   const { t } = useTranslation();
@@ -41,7 +42,10 @@ const Transactions: React.FC = () => {
   }, [location.pathname, activeTab]);
 
   useEffect(() => {
-    fetchTransactions(selectedDate.toISOString().split('T')[0]);
+    // Use the consistent date format
+    const formattedDate = formatDateToString(selectedDate);
+    console.log('Fetching transactions for date:', formattedDate);
+    fetchTransactions(formattedDate);
     
   }, [fetchTransactions, selectedDate]);
 
@@ -88,7 +92,7 @@ const Transactions: React.FC = () => {
 
   const filteredTransactions = React.useMemo(() => {
     if (!selectedLeader) return transactions;
-    return transactions.filter(t => Number(t.leaderId) === Number(selectedLeader));
+    return transactions.filter(t => t.leaderId === selectedLeader);
   }, [transactions, selectedLeader]);
 
   // Calculate book totals from valid transactions
@@ -217,7 +221,7 @@ const Transactions: React.FC = () => {
             {activeTab === 'finances' ? (
               <DailyTransactions 
                 transactions={filteredTransactions} 
-                date={selectedDate.toISOString().split('T')[0]} 
+                date={formatDateToString(selectedDate)} 
               />
             ) : (
               <Card>

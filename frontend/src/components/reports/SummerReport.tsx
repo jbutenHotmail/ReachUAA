@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { ChevronRight, Users, BarChart3, ChevronLeft, Calendar, ArrowUpDown, ArrowUp, ArrowDown, UserCog } from 'lucide-react';
+import { ChevronRight, Users, BarChart3, ChevronLeft, ArrowUpDown, ArrowUp, ArrowDown, UserCog } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
-import Badge from '../ui/Badge';
 
 interface SummerSale {
   colporterName: string;
@@ -21,6 +20,8 @@ interface SummerReportProps {
   showLeaders?: boolean;
   onToggleView?: () => void;
   onToggleGrouping?: () => void;
+  timePeriod?: 'day' | 'week' | 'month' | 'all';
+  selectedDate?: Date;
 }
 
 type SortField = 'name' | 'total' | 'average';
@@ -31,7 +32,9 @@ const SummerReport: React.FC<SummerReportProps> = ({
   showColporters = true,
   showLeaders = false,
   onToggleView,
-  onToggleGrouping
+  onToggleGrouping,
+  timePeriod = 'all',
+  selectedDate = new Date()
 }) => {
   const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(0);
@@ -48,10 +51,55 @@ const SummerReport: React.FC<SummerReportProps> = ({
     }).format(amount);
   };
 
-  // Get all days from the data and sort them
-  const allDays = sales.length > 0 
-    ? Object.keys(sales[0].dailySales).sort()
-    : [];
+  // Filter days based on selected time period
+  const filteredDays = React.useMemo(() => {
+    if (sales.length === 0) return [];
+    
+    const allDays = Object.keys(sales[0].dailySales).sort();
+    
+    if (timePeriod === 'all') {
+      return allDays;
+    }
+    
+    const today = selectedDate;
+    today.setHours(0, 0, 0, 0);
+    
+    if (timePeriod === 'day') {
+      const dateStr = today.toISOString().split('T')[0];
+      return allDays.filter(day => day === dateStr);
+    }
+    
+    if (timePeriod === 'week') {
+      // Get start of week (Monday)
+      const startOfWeek = new Date(today);
+      const day = today.getDay();
+      const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+      startOfWeek.setDate(diff);
+      startOfWeek.setHours(0, 0, 0, 0);
+      
+      // Get end of week (Sunday)
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+      
+      return allDays.filter(day => {
+        const date = new Date(day);
+        return date >= startOfWeek && date <= endOfWeek;
+      });
+    }
+    
+    if (timePeriod === 'month') {
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      
+      return allDays.filter(day => {
+        const date = new Date(day);
+        return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+      });
+    }
+    
+    return allDays;
+  }, [sales, timePeriod, selectedDate]);
 
   // Group sales by leader if needed
   const groupedSales = React.useMemo(() => {
@@ -70,23 +118,25 @@ const SummerReport: React.FC<SummerReportProps> = ({
         });
         
         // Initialize all days with zero
-        allDays.forEach(day => {
+        filteredDays.forEach(day => {
           leaderMap.get(leaderName)!.dailySales[day] = 0;
         });
       }
       
       // Add sales to leader totals
       const leaderData = leaderMap.get(leaderName)!;
-      leaderData.totalSales += sale.totalSales;
       
-      // Add daily sales
-      Object.entries(sale.dailySales).forEach(([date, amount]) => {
-        leaderData.dailySales[date] = (leaderData.dailySales[date] || 0) + amount;
+      // Only add sales for filtered days
+      filteredDays.forEach(day => {
+        if (sale.dailySales[day]) {
+          leaderData.dailySales[day] = (leaderData.dailySales[day] || 0) + sale.dailySales[day];
+          leaderData.totalSales += sale.dailySales[day];
+        }
       });
     });
     
     return Array.from(leaderMap.values());
-  }, [sales, showLeaders, allDays]);
+  }, [sales, showLeaders, filteredDays]);
 
   // Sort sales data
   const sortedSales = [...groupedSales].sort((a, b) => {
@@ -99,12 +149,21 @@ const SummerReport: React.FC<SummerReportProps> = ({
         bValue = b.colporterName.toLowerCase();
         break;
       case 'total':
-        aValue = a.totalSales;
-        bValue = b.totalSales;
+        // Recalculate total based on filtered days only
+        const aTotal = filteredDays.reduce((sum, day) => sum + (a.dailySales[day] || 0), 0);
+        const bTotal = filteredDays.reduce((sum, day) => sum + (b.dailySales[day] || 0), 0);
+        aValue = aTotal;
+        bValue = bTotal;
         break;
       case 'average':
-        aValue = a.totalSales / allDays.length;
-        bValue = b.totalSales / allDays.length;
+        const aDaysWithSales = filteredDays.filter(day => a.dailySales[day] > 0).length;
+        const bDaysWithSales = filteredDays.filter(day => b.dailySales[day] > 0).length;
+        aValue = aDaysWithSales > 0 
+          ? filteredDays.reduce((sum, day) => sum + (a.dailySales[day] || 0), 0) / aDaysWithSales 
+          : 0;
+        bValue = bDaysWithSales > 0 
+          ? filteredDays.reduce((sum, day) => sum + (b.dailySales[day] || 0), 0) / bDaysWithSales 
+          : 0;
         break;
       default:
         aValue = a.colporterName.toLowerCase();
@@ -121,17 +180,21 @@ const SummerReport: React.FC<SummerReportProps> = ({
   });
 
   // Paginate days
-  const totalPages = Math.ceil(allDays.length / daysPerPage);
+  const totalPages = Math.ceil(filteredDays.length / daysPerPage);
   const startIndex = currentPage * daysPerPage;
-  const endIndex = Math.min(startIndex + daysPerPage, allDays.length);
-  const currentDays = allDays.slice(startIndex, endIndex);
+  const endIndex = Math.min(startIndex + daysPerPage, filteredDays.length);
+  const currentDays = filteredDays.slice(startIndex, endIndex);
 
-  // Calculate totals
+  // Calculate totals based on filtered days
   const totals = sortedSales.reduce((acc, colporter) => {
-    allDays.forEach(date => {
+    filteredDays.forEach(date => {
       acc.dailyTotals[date] = (acc.dailyTotals[date] || 0) + (colporter.dailySales[date] || 0);
     });
-    acc.totalSales += colporter.totalSales;
+    
+    // Calculate total sales based on filtered days only
+    const colporterTotal = filteredDays.reduce((sum, day) => sum + (colporter.dailySales[day] || 0), 0);
+    acc.totalSales += colporterTotal;
+    
     return acc;
   }, {
     dailyTotals: {} as Record<string, number>,
@@ -173,6 +236,16 @@ const SummerReport: React.FC<SummerReportProps> = ({
       : <ArrowDown size={14} className="text-primary-600" />;
   };
 
+  // Calculate average per day
+  const averagePerDay = filteredDays.length > 0 
+    ? totals.totalSales / filteredDays.length 
+    : 0;
+
+  // Calculate average per colporter
+  const averagePerColporter = sortedSales.length > 0 
+    ? totals.totalSales / sortedSales.length 
+    : 0;
+
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
@@ -181,7 +254,11 @@ const SummerReport: React.FC<SummerReportProps> = ({
           <div className="text-center">
             <p className="text-sm font-medium text-gray-500">Total Donations</p>
             <p className="mt-2 text-3xl font-bold text-primary-600">{formatCurrency(totals.totalSales)}</p>
-            <p className="text-xs text-gray-500">Complete program</p>
+            <p className="text-xs text-gray-500">
+              {timePeriod === 'all' ? 'Complete program' : 
+               timePeriod === 'month' ? 'Current month' :
+               timePeriod === 'week' ? 'Current week' : 'Today'}
+            </p>
           </div>
         </Card>
         
@@ -189,9 +266,9 @@ const SummerReport: React.FC<SummerReportProps> = ({
           <div className="text-center">
             <p className="text-sm font-medium text-gray-500">Average per Day</p>
             <p className="mt-2 text-3xl font-bold text-success-600">
-              {formatCurrency(totals.totalSales / allDays.length)}
+              {formatCurrency(averagePerDay)}
             </p>
-            <p className="text-xs text-gray-500">Across {allDays.length} working days</p>
+            <p className="text-xs text-gray-500">Across {filteredDays.length} working days</p>
           </div>
         </Card>
         
@@ -199,7 +276,7 @@ const SummerReport: React.FC<SummerReportProps> = ({
           <div className="text-center">
             <p className="text-sm font-medium text-gray-500">Average per Colporter</p>
             <p className="mt-2 text-3xl font-bold text-warning-600">
-              {formatCurrency(totals.totalSales / sortedSales.length)}
+              {formatCurrency(averagePerColporter)}
             </p>
             <p className="text-xs text-gray-500">Per participant</p>
           </div>
@@ -243,7 +320,7 @@ const SummerReport: React.FC<SummerReportProps> = ({
               </Button>
               
               <span className="text-sm text-gray-600">
-                Days {startIndex + 1}-{endIndex} of {allDays.length}
+                Days {startIndex + 1}-{endIndex} of {filteredDays.length}
               </span>
               
               <Button
@@ -328,48 +405,53 @@ const SummerReport: React.FC<SummerReportProps> = ({
             <tbody className="divide-y divide-gray-200">
               {showColporters ? (
                 // Show individual colporters or leaders
-                sortedSales.map((colporter, index) => (
-                  <tr 
-                    key={colporter.colporterName}
-                    className={clsx(
-                      'hover:bg-gray-50 transition-colors',
-                      index % 2 === 0 ? 'bg-yellow-50' : 'bg-white'
-                    )}
-                  >
-                    <td className="px-4 py-3 text-sm font-medium text-white bg-[#0052B4] sticky left-0 z-10">
-                      {colporter.colporterName}
-                    </td>
-                    {currentDays.map((date) => (
-                      <td key={date} className="px-4 py-3 text-sm text-center whitespace-nowrap">
-                        {formatCurrency(colporter.dailySales[date] || 0)}
+                sortedSales.map((colporter, index) => {
+                  // Calculate total for this colporter based on filtered days only
+                  const colporterTotal = filteredDays.reduce((sum, day) => sum + (colporter.dailySales[day] || 0), 0);
+                  
+                  return (
+                    <tr 
+                      key={colporter.colporterName}
+                      className={clsx(
+                        'hover:bg-gray-50 transition-colors',
+                        index % 2 === 0 ? 'bg-yellow-50' : 'bg-white'
+                      )}
+                    >
+                      <td className="px-4 py-3 text-sm font-medium text-white bg-[#0052B4] sticky left-0 z-10">
+                        {colporter.colporterName}
                       </td>
-                    ))}
-                    <td className="px-4 py-3 text-sm text-center font-medium whitespace-nowrap">
-                      {formatCurrency(colporter.totalSales)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center whitespace-nowrap">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(showLeaders 
-                          ? `/reports/leader/${colporter.colporterName}`
-                          : `/reports/summer-colporter/${colporter.colporterName}`
-                        )}
-                      >
-                        <ChevronRight size={20} />
-                      </Button>
-                    </td>
-                  </tr>
-                ))
+                      {currentDays.map((date) => (
+                        <td key={date} className="px-4 py-3 text-sm text-right whitespace-nowrap">
+                          {formatCurrency(colporter.dailySales[date] || 0)}
+                        </td>
+                      ))}
+                      <td className="px-4 py-3 text-sm text-right font-medium whitespace-nowrap">
+                        {formatCurrency(colporterTotal)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center whitespace-nowrap">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(showLeaders 
+                            ? `/reports/leader/${colporter.colporterName}`
+                            : `/reports/summer-colporter/${colporter.colporterName}`
+                          )}
+                        >
+                          <ChevronRight size={20} />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 // Show only totals
                 <tr className="bg-primary-50">
                   {currentDays.map((date) => (
-                    <td key={date} className="px-4 py-3 text-sm text-center font-semibold whitespace-nowrap text-primary-900">
+                    <td key={date} className="px-4 py-3 text-sm text-right font-semibold whitespace-nowrap text-primary-900">
                       {formatCurrency(totals.dailyTotals[date] || 0)}
                     </td>
                   ))}
-                  <td className="px-4 py-3 text-sm text-center font-bold whitespace-nowrap text-primary-900">
+                  <td className="px-4 py-3 text-sm text-right font-bold whitespace-nowrap text-primary-900">
                     {formatCurrency(totals.totalSales)}
                   </td>
                 </tr>
@@ -382,11 +464,11 @@ const SummerReport: React.FC<SummerReportProps> = ({
                     TOTALES
                   </td>
                   {currentDays.map((date) => (
-                    <td key={date} className="px-4 py-3 text-sm text-center whitespace-nowrap">
+                    <td key={date} className="px-4 py-3 text-sm text-right whitespace-nowrap">
                       {formatCurrency(totals.dailyTotals[date] || 0)}
                     </td>
                   ))}
-                  <td className="px-4 py-3 text-sm text-center whitespace-nowrap">
+                  <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
                     {formatCurrency(totals.totalSales)}
                   </td>
                   <td className="px-4 py-3"></td>
