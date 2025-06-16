@@ -25,7 +25,7 @@ const DonationsReport: React.FC = () => {
   useEffect(() => {
     const loadTransactionData = async () => {
       try {
-        // Fetch all transactions without date filtering
+        // Fetch all APPROVED transactions without date filtering
         await fetchAllTransactions('APPROVED');
       } catch (err) {
         console.error('Error fetching transaction data:', err);
@@ -65,15 +65,19 @@ const DonationsReport: React.FC = () => {
   ];
 
   // Filter transactions based on selected time period
+  // IMPORTANT: Only include APPROVED transactions
   const getFilteredTransactions = () => {
     if (timePeriod === 'all') {
-      return transactions;
+      return transactions.filter(t => t.status === 'APPROVED');
     }
     
     const today = new Date(selectedDate);
     today.setHours(0, 0, 0, 0);
     
     return transactions.filter(transaction => {
+      // Only include APPROVED transactions
+      if (transaction.status !== 'APPROVED') return false;
+      
       const transactionDate = new Date(transaction.date);
       transactionDate.setHours(0, 0, 0, 0);
       
@@ -172,7 +176,9 @@ const DonationsReport: React.FC = () => {
       return 'Complete Program (May 1 - August 31, 2025)';
     }
     
-    const startDate = selectedDate;    
+    const startDate = selectedDate;
+    let endDate = new Date(selectedDate);
+    
     if (timePeriod === 'day') {
       return startDate.toLocaleDateString('en-US', {
         weekday: 'long',

@@ -36,6 +36,7 @@ import {
   Title
 } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
+import { api } from '../../api';
 
 // Register ChartJS components
 ChartJS.register(
@@ -85,11 +86,27 @@ interface ColporterFinancials {
   earnings: number;
 }
 
+interface Expense {
+  id: string;
+  leaderId: string | null;
+  leaderName: string;
+  amount: number;
+  motivo: string;
+  category: string;
+  notes?: string;
+  date: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 const ProgramReport: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('all');
   const [viewType, setViewType] = useState<'summary' | 'detailed'>('summary');
   const [programFinancials, setProgramFinancials] = useState<ProgramFinancials | null>(null);
   const [colporterFinancials, setColporterFinancials] = useState<ColporterFinancials[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -115,11 +132,9 @@ const ProgramReport: React.FC = () => {
           fetchAllTransactions('APPROVED'), // Only fetch approved transactions
           fetchCharges(),
           fetchAdvances(),
-          fetchProgram()
+          fetchProgram(),
+          fetchExpenses()
         ]);
-        
-        // Fetch expenses data
-        await fetchExpenses();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load report data');
       } finally {
@@ -133,13 +148,44 @@ const ProgramReport: React.FC = () => {
   // Fetch expenses data
   const fetchExpenses = async () => {
     try {
-      // In a real implementation, this would fetch expenses from the API
-      // For now, we'll simulate it
-      return [];
+      // Fetch program expenses (where leaderId is 'program')
+      const fetchedExpenses = await api.get<Expense[]>('/expenses', { 
+        params: { leaderId: 'program', status: 'APPROVED' }
+      });
+      setExpenses(fetchedExpenses);
+      return fetchedExpenses;
     } catch (error) {
       console.error('Error fetching expenses:', error);
       return [];
     }
+  };
+
+  // Filter expenses based on selected time period
+  const getFilteredExpenses = () => {
+    if (selectedPeriod === 'all') {
+      return expenses;
+    }
+    
+    const today = new Date(selectedDate);
+    today.setHours(0, 0, 0, 0);
+    
+    return expenses.filter(expense => {
+      const expenseDate = new Date(expense.date);
+      expenseDate.setHours(0, 0, 0, 0);
+      
+      if (selectedPeriod === 'month') {
+        // Filter for current month
+        return expenseDate.getMonth() === today.getMonth() && 
+               expenseDate.getFullYear() === today.getFullYear();
+      } else if (selectedPeriod === 'quarter') {
+        // Filter for current quarter (3 months)
+        const threeMonthsAgo = new Date(today);
+        threeMonthsAgo.setMonth(today.getMonth() - 3);
+        return expenseDate >= threeMonthsAgo && expenseDate <= today;
+      }
+      
+      return true;
+    });
   };
 
   // Filter transactions based on selected time period
@@ -172,9 +218,12 @@ const ProgramReport: React.FC = () => {
 
   useEffect(() => {
     // Calculate program financials from fetched data
-    if (transactions.length > 0 || charges.length > 0 || advances.length > 0) {
+    if (transactions.length > 0 || charges.length > 0 || advances.length > 0 || expenses.length > 0) {
       // Get filtered transactions based on selected period
       const filteredTransactions = getFilteredTransactions();
+      
+      // Get filtered expenses based on selected period
+      const filteredExpenses = getFilteredExpenses();
       
       // Get financial percentages from program config
       const colporterPercentage = program?.financialConfig?.colporter_percentage 
@@ -241,8 +290,8 @@ const ProgramReport: React.FC = () => {
       // Calculate total advances
       const totalAdvances = filteredAdvances.reduce((sum, a) => sum + a.advanceAmount, 0);
       
-      // Assume program expenses for now (in a real app, this would come from expenses API)
-      const programExpenses = totalDonations * 0.15; // 15% of donations as a placeholder
+      // Calculate program expenses from real expense data
+      const programExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
       
       // Calculate distribution amounts
       const colporterAmount = totalDonations * (colporterPercentage / 100);
@@ -323,7 +372,7 @@ const ProgramReport: React.FC = () => {
       
       setColporterFinancials(Array.from(colporterMap.values()));
     }
-  }, [transactions, charges, advances, program, selectedPeriod, selectedDate]);
+  }, [transactions, charges, advances, program, selectedPeriod, selectedDate, expenses]);
 
   // Apply filters to colporter financials
   const filteredColporterFinancials = React.useMemo(() => {
@@ -569,6 +618,10 @@ const ProgramReport: React.FC = () => {
   Object.values(leaderSummaries).forEach(leader => {
     leader.leaderEarnings = equalLeaderEarnings;
   });
+
+  // Get filtered expenses for display
+  const filteredExpenses = getFilteredExpenses();
+  const totalProgramExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   return (
     <div className="space-y-6">
@@ -896,6 +949,76 @@ const ProgramReport: React.FC = () => {
               </div>
             </Card>
           </div>
+
+          {/* Program Expenses Detail */}
+          <Card title="Program Expenses Detail" icon={<Receipt size={20} />}>
+            {filteredExpenses.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Category
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Description
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Created By
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredExpenses.map((expense) => (
+                      <tr key={expense.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {new Date(expense.date).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          <Badge variant="primary">
+                            {expense.category.charAt(0).toUpperCase() + expense.category.slice(1)}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {expense.motivo}
+                          {expense.notes && (
+                            <p className="text-xs text-gray-500 mt-1">{expense.notes}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-red-600">
+                          {formatCurrency(expense.amount)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                          {expense.createdByName}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-gray-100">
+                      <td colSpan={3} className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
+                        Total Program Expenses
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-red-600">
+                        {formatCurrency(totalProgramExpenses)}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No program expenses found for this period</p>
+              </div>
+            )}
+          </Card>
 
           {/* Distribution Summary */}
           <Card title="Earnings Distribution" icon={<PieChart size={20} />}>

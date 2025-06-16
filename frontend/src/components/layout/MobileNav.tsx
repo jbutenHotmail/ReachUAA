@@ -6,7 +6,8 @@ import {
   BookText, 
   PiggyBank, 
   BarChart3, 
-  User 
+  User,
+  Plus
 } from 'lucide-react';
 import { UserRole } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
@@ -15,48 +16,60 @@ const MobileNav: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
   
-  const navItems = [
-    { 
-      path: '/dashboard', 
-      label: t('navigation.dashboard'), 
-      icon: <LayoutDashboard size={18} />, 
-      roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.VIEWER]
-    },
-    { 
-      path: '/inventory', 
-      label: t('navigation.inventory'), 
-      icon: <BookText size={18} />, 
-      roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.VIEWER]
-    },
-    { 
-      path: '/transactions', 
-      label: 'Transactions', 
-      icon: <PiggyBank size={18} />, 
-      roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.VIEWER]
-    },
-    { 
-      path: '/reports', 
-      label: t('navigation.reports'), 
-      icon: <BarChart3 size={18} />, 
-      roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-    },
-    { 
-      path: '/admin', 
-      label: 'Admin', 
-      icon: <User size={18} />, 
-      roles: [UserRole.ADMIN]
-    },
-  ];
+  // Define navigation items based on user role
+  const getNavItems = () => {
+    // Base items for all roles
+    const baseItems = [
+      { 
+        path: '/dashboard', 
+        label: t('navigation.dashboard'), 
+        icon: <LayoutDashboard size={18} />, 
+      },
+      { 
+        path: '/transactions/new', 
+        label: 'New Transaction', 
+        icon: <Plus size={18} />, 
+      },
+      { 
+        path: '/profile', 
+        label: t('profile.title'), 
+        icon: <User size={18} />, 
+      },
+    ];
+    
+    // Items for Admin and Supervisor
+    if (user?.role === UserRole.ADMIN || user?.role === UserRole.SUPERVISOR) {
+      return [
+        baseItems[0],
+        { 
+          path: '/inventory', 
+          label: t('navigation.inventory'), 
+          icon: <BookText size={18} />, 
+        },
+        { 
+          path: '/transactions', 
+          label: 'Transactions', 
+          icon: <PiggyBank size={18} />, 
+        },
+        { 
+          path: '/reports', 
+          label: t('navigation.reports'), 
+          icon: <BarChart3 size={18} />, 
+        },
+        baseItems[2],
+      ];
+    }
+    
+    // For Viewer role, just return the base items
+    return baseItems;
+  };
   
-  // Filter nav items by user role
-  const filteredNavItems = navItems.filter(item => 
-    user && item.roles.includes(user.role)
-  );
+  const navItems = getNavItems();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 md:hidden safe-area-pb">
-      <div className={`grid gap-0 ${filteredNavItems.length === 5 ? 'grid-cols-5' : filteredNavItems.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
-        {filteredNavItems.map((item) => (
+      <div className={`grid gap-0 grid-cols-${navItems.length}`}>
+        {navItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}

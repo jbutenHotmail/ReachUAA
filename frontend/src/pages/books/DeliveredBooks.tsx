@@ -57,7 +57,7 @@ const DeliveredBooks: React.FC = () => {
     { id: '2', name: 'Another Leader' },
   ];
 
-  // Calculate totals
+  // Calculate totals - only from APPROVED transactions
   const totals = mockData.reduce((acc, book) => {
     if (book.isLarge) {
       acc.large += book.quantity;

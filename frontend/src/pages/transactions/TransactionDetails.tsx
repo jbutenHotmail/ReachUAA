@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Clock, CheckCircle, XCircle, DollarSign, BookText } from 'lucide-react';
 import { useTransactionStore } from '../../stores/transactionStore';
+import { useAuthStore } from '../../stores/authStore';
+import { UserRole } from '../../types';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -12,9 +14,12 @@ const TransactionDetails: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { transactions, updateTransaction } = useTransactionStore();
+  const { user } = useAuthStore();
+  
+  // Check if user is admin (only admins can approve/reject)
+  const isAdmin = user?.role === UserRole.ADMIN;
 
-  console.log(transactions)
-  const transaction = transactions.find(t => Number(t.id) === Number(id));
+  const transaction = transactions.find(t =>  Number(t.id) === Number(id));
 
   if (!transaction) {
     return (
@@ -66,7 +71,7 @@ const TransactionDetails: React.FC = () => {
             Transaction Details
           </h1>
         </div>
-        {transaction.status === 'PENDING' && (
+        {transaction.status === 'PENDING' && isAdmin && (
           <div className="flex gap-2">
             <Button
               variant="success"
@@ -126,13 +131,13 @@ const TransactionDetails: React.FC = () => {
                 <div className="p-3 bg-green-50 rounded-lg">
                   <p className="text-sm text-green-600">{t('transactions.cash')}</p>
                   <p className="text-lg font-semibold text-green-700">
-                    ${Number(transaction.cash).toFixed(2)}
+                    ${transaction.cash.toFixed(2)}
                   </p>
                 </div>
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <p className="text-sm text-blue-600">{t('transactions.checks')}</p>
                   <p className="text-lg font-semibold text-blue-700">
-                    ${Number(transaction.checks).toFixed(2)}
+                    ${transaction.checks.toFixed(2)}
                   </p>
                 </div>
                 <div className="p-3 bg-purple-50 rounded-lg">
@@ -152,7 +157,7 @@ const TransactionDetails: React.FC = () => {
               <div className="flex justify-between items-center pt-4 border-t border-gray-200">
                 <span className="font-medium text-gray-700">{t('common.total')}:</span>
                 <Badge variant="primary" size="lg">
-                  ${Number(transaction.total).toFixed(2)}
+                  ${transaction.total.toFixed(2)}
                 </Badge>
               </div>
             </div>

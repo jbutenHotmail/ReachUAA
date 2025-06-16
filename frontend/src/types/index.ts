@@ -68,12 +68,26 @@ export interface Charge {
   updatedAt: string;
 }
 
+// Expense interface
+export interface Expense {
+  id: string;
+  leaderId: string | null;
+  leaderName: string;
+  amount: number;
+  motivo: string;
+  category: string;
+  notes?: string;
+  date: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdBy: string;
+  createdByName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Other existing types...
 export interface FinancialSummary {
   totalSales: number;
-  goal: number;
-  achieved: number;
-  remaining: number;
   dailySales: number;
   weeklySales: number;
   monthlySales: number;
@@ -84,14 +98,17 @@ export interface SalesData {
   amount: number;
 }
 
-export interface FinancialGoal {
+export interface InventoryCount {
   id: string;
-  userId: string;
-  amount: number;
-  achieved: number;
-  startDate: string;
-  endDate: string;
-  type: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  book_id: string;
+  book_title?: string;
+  system_count: number;
+  manual_count: number | null;
+  discrepancy: number;
+  lastUpdated?: string;
+  updatedBy?: string;
+  count_date: string;
+  status?: 'PENDING' | 'VERIFIED' | 'DISCREPANCY';
 }
 
 export interface Book {
@@ -107,68 +124,14 @@ export interface Book {
   stock: number;
   sold: number;
   is_active: boolean;
-  isActive?: boolean; // Alternative property name
   programId?: string; // New field to associate books with programs
 }
 
 // New interface for program-specific book details
-
 export interface ProgramBook {
-  id: number;
-  program_id: number;
-  program_name: string;
-  book_id: number;
-  book_title: string;
-  book_author: string | null;
-  book_category: string;
-  book_image_url: string | null;
-  program_price: string;
-  original_price: string;
-  initial_stock: number;
-  is_active: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface WorkingDay {
-  id: number;
-  program_id: number;
-  day_of_week: string;
-  is_working_day: number;
-}
-
-export interface CustomDay {
-  // Add properties if customDays has data in the future
-  id?: number;
-  program_id?: number;
-  // Add other relevant fields based on future data
-}
-
-
-export interface ProgramConfig {
-  id: number;
-  name: string;
-  motto: string;
-  start_date: string;
-  end_date: string;
-  financial_goal: string;
-  logo_url: string | null;
-  is_active: number;
-  created_at: string;
-  updated_at: string;
-  financialConfig: {
-    id: number;
-    program_id: number;
-    colporter_percentage: string;
-    leader_percentage: string;
-    colporter_cash_advance_percentage: string;
-    leader_cash_advance_percentage: string;
-    created_at: string;
-    updated_at: string;
-  };
-  workingDays: WorkingDay[];
-  customDays: CustomDay[];
-  books: ProgramBook[];
+  bookId: string;
+  price: number; // Program-specific price
+  initialStock: number; // Initial stock for this program
 }
 
 export interface InventoryMovement {
@@ -181,17 +144,19 @@ export interface InventoryMovement {
   notes?: string;
 }
 
-export interface InventoryCount {
-  id: string;
-  book_id: string;
-  book_title?: string;
-  system_count: number;
-  manual_count: number | null;
-  discrepancy: number;
-  lastUpdated?: string;
-  updatedBy?: string;
-  count_date: string;
-  status?: 'PENDING' | 'VERIFIED' | 'DISCREPANCY';
+// Define interfaces for program working days and custom days
+export interface WorkingDay {
+  id: number;
+  program_id: number;
+  day_of_week: string;
+  is_working_day: number | boolean;
+}
+
+export interface CustomDay {
+  id: number;
+  program_id: number;
+  date: string;
+  is_working_day: number | boolean;
 }
 
 export interface Transaction {
@@ -259,4 +224,42 @@ export interface LeaderPerformance {
     amount: number;
   };
   dailySales: Record<string, number>;
+}
+
+// Updated ProgramConfig interface with achieved property
+export interface ProgramConfig {
+  id: number;
+  name: string;
+  motto: string;
+  start_date: string;
+  end_date: string;
+  financial_goal: string;
+  logo_url: string | null;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+  achieved?: number; // Added this property
+  financialConfig: {
+    id: number;
+    program_id: number;
+    colporter_percentage: string;
+    leader_percentage: string;
+    colporter_cash_advance_percentage: string;
+    leader_cash_advance_percentage: string;
+    created_at: string;
+    updated_at: string;
+  };
+  workingDays: {
+    id: number;
+    program_id: number;
+    day_of_week: string;
+    is_working_day: number;
+  }[];
+  customDays: {
+    id: number;
+    program_id: number;
+    date: string;
+    is_working_day: number;
+  }[];
+  books: ProgramBook[];
 }

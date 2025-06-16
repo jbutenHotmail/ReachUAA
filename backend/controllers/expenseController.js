@@ -3,12 +3,13 @@ import * as db from '../config/database.js';
 // Get all expenses
 export const getExpenses = async (req, res) => {
   try {
-    const { leaderId, category, startDate, endDate } = req.query;
+    const { leaderId, category, startDate, endDate, status } = req.query;
     
     let query = `
       SELECT e.id, e.leader_id as leaderId, 
       CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
       e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
+      e.status, 
       e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
       e.created_at as createdAt, e.updated_at as updatedAt
       FROM expenses e
@@ -45,6 +46,11 @@ export const getExpenses = async (req, res) => {
       params.push(endDate);
     }
     
+    if (status) {
+      conditions.push('e.status = ?');
+      params.push(status);
+    }
+    
     if (conditions.length > 0) {
       query += ' WHERE ' + conditions.join(' AND ');
     }
@@ -69,6 +75,7 @@ export const getExpenseById = async (req, res) => {
       `SELECT e.id, e.leader_id as leaderId, 
        CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
+       e.status,
        e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
        e.created_at as createdAt, e.updated_at as updatedAt
        FROM expenses e
@@ -99,7 +106,8 @@ export const createExpense = async (req, res) => {
       motivo,
       category,
       notes,
-      date
+      date,
+      status = 'PENDING' // Default to PENDING status
     } = req.body;
     
     const userId = req.user.id;
@@ -118,8 +126,8 @@ export const createExpense = async (req, res) => {
     
     // Insert expense
     const expenseId = await db.insert(
-      'INSERT INTO expenses (leader_id, amount, motivo, category, notes, expense_date, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [leaderId === 'program' ? null : leaderId, amount, motivo, category, notes || null, date, userId]
+      'INSERT INTO expenses (leader_id, amount, motivo, category, notes, expense_date, created_by, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [leaderId === 'program' ? null : leaderId, amount, motivo, category, notes || null, date, userId, status]
     );
     
     // Get the created expense
@@ -127,6 +135,7 @@ export const createExpense = async (req, res) => {
       `SELECT e.id, e.leader_id as leaderId, 
        CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
+       e.status,
        e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
        e.created_at as createdAt, e.updated_at as updatedAt
        FROM expenses e
@@ -154,7 +163,8 @@ export const updateExpense = async (req, res) => {
       motivo,
       category,
       notes,
-      date
+      date,
+      status
     } = req.body;
     
     // Check if expense exists
@@ -181,7 +191,7 @@ export const updateExpense = async (req, res) => {
     
     // Update expense
     await db.update(
-      'UPDATE expenses SET leader_id = ?, amount = ?, motivo = ?, category = ?, notes = ?, expense_date = ?, updated_at = NOW() WHERE id = ?',
+      'UPDATE expenses SET leader_id = ?, amount = ?, motivo = ?, category = ?, notes = ?, expense_date = ?, status = ?, updated_at = NOW() WHERE id = ?',
       [
         leaderId === 'program' ? null : (leaderId !== undefined ? leaderId : existingExpense.leader_id),
         amount !== undefined ? amount : existingExpense.amount,
@@ -189,6 +199,7 @@ export const updateExpense = async (req, res) => {
         category || existingExpense.category,
         notes !== undefined ? notes : existingExpense.notes,
         date || existingExpense.expense_date,
+        status || existingExpense.status,
         id
       ]
     );
@@ -198,6 +209,7 @@ export const updateExpense = async (req, res) => {
       `SELECT e.id, e.leader_id as leaderId, 
        CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
+       e.status,
        e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
        e.created_at as createdAt, e.updated_at as updatedAt
        FROM expenses e
@@ -239,6 +251,103 @@ export const deleteExpense = async (req, res) => {
     res.json({ message: 'Expense deleted successfully' });
   } catch (error) {
     console.error('Error deleting expense:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Approve expense
+export const approveExpense = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    
+    // Check if expense exists
+    const existingExpense = await db.getOne(
+      'SELECT * FROM expenses WHERE id = ?',
+      [id]
+    );
+    
+    if (!existingExpense) {
+      return res.status(404).json({ message: 'Expense not found' });
+    }
+    
+    if (existingExpense.status === 'APPROVED') {
+      return res.status(400).json({ message: 'Expense is already approved' });
+    }
+    
+    // Update expense status
+    await db.update(
+      'UPDATE expenses SET status = ?, updated_at = NOW() WHERE id = ?',
+      ['APPROVED', id]
+    );
+    
+    // Get the updated expense
+    const updatedExpense = await db.getOne(
+      `SELECT e.id, e.leader_id as leaderId, 
+       CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
+       e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
+       e.status,
+       e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
+       e.created_at as createdAt, e.updated_at as updatedAt
+       FROM expenses e
+       LEFT JOIN people p ON e.leader_id = p.id
+       JOIN users u ON e.created_by = u.id
+       JOIN people cp ON u.person_id = cp.id
+       WHERE e.id = ?`,
+      [id]
+    );
+    
+    res.json(updatedExpense);
+  } catch (error) {
+    console.error('Error approving expense:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Reject expense
+export const rejectExpense = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if expense exists
+    const existingExpense = await db.getOne(
+      'SELECT * FROM expenses WHERE id = ?',
+      [id]
+    );
+    
+    if (!existingExpense) {
+      return res.status(404).json({ message: 'Expense not found' });
+    }
+    
+    if (existingExpense.status === 'REJECTED') {
+      return res.status(400).json({ message: 'Expense is already rejected' });
+    }
+    
+    // Update expense status
+    await db.update(
+      'UPDATE expenses SET status = ?, updated_at = NOW() WHERE id = ?',
+      ['REJECTED', id]
+    );
+    
+    // Get the updated expense
+    const updatedExpense = await db.getOne(
+      `SELECT e.id, e.leader_id as leaderId, 
+       CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
+       e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
+       e.status,
+       e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
+       e.created_at as createdAt, e.updated_at as updatedAt
+       FROM expenses e
+       LEFT JOIN people p ON e.leader_id = p.id
+       JOIN users u ON e.created_by = u.id
+       JOIN people cp ON u.person_id = cp.id
+       WHERE e.id = ?`,
+      [id]
+    );
+    
+    res.json(updatedExpense);
+  } catch (error) {
+    console.error('Error rejecting expense:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

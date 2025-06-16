@@ -17,7 +17,7 @@ const router = express.Router();
 router.get('/', authenticateToken, authorizeRoles(['ADMIN']), getUsers);
 
 // Get user by ID (admin only)
-router.get('/:id', authenticateToken, authorizeRoles(['ADMIN']), getUserById);
+router.get('/:id', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR', 'VIEWER']), getUserById);
 
 // Create new user (admin only)
 router.post('/', authorizeRoles(['ADMIN']), createUser);

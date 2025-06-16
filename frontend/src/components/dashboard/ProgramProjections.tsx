@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TrendingUp, Calendar, DollarSign, Target } from 'lucide-react';
 import Card from '../ui/Card';
+import Badge from '../ui/Badge';
 import { useProgramStore } from '../../stores/programStore';
 import { useTransactionStore } from '../../stores/transactionStore';
 
@@ -22,8 +23,8 @@ const ProgramProjections: React.FC = () => {
 
   useEffect(() => {
     if (transactions.length > 0 && program) {
-      // Filter out rejected transactions
-      const validTransactions = transactions.filter(t => t.status !== 'REJECTED');
+      // Filter out rejected transactions - ONLY INCLUDE APPROVED TRANSACTIONS
+      const validTransactions = transactions.filter(t => t.status === 'APPROVED');
       
       // Calculate total sales from transactions
       const totalSales = validTransactions.reduce((sum, t) => sum + t.total, 0);

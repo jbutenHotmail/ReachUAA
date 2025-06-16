@@ -38,25 +38,27 @@ export const addDays = (date: Date | string, days: number): string => {
 };
 
 /**
- * Gets the start of the current week (Monday) in YYYY-MM-DD format
+ * Gets the start of the current week (Sunday) in YYYY-MM-DD format
+ * Modified to use Sunday as the start of the week
  */
 export const getStartOfWeek = (): string => {
   const now = new Date();
   const day = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-  const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
-  const monday = new Date(now.setDate(diff));
-  return formatDateToString(monday);
+  const diff = now.getDate() - day; // Go back to Sunday
+  const sunday = new Date(now.setDate(diff));
+  return formatDateToString(sunday);
 };
 
 /**
- * Gets the end of the current week (Sunday) in YYYY-MM-DD format
+ * Gets the end of the current week (Saturday) in YYYY-MM-DD format
+ * Modified to use Saturday as the end of the week
  */
 export const getEndOfWeek = (): string => {
   const now = new Date();
   const day = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-  const diff = now.getDate() - day + (day === 0 ? 0 : 7); // Adjust for Sunday
-  const sunday = new Date(now.setDate(diff));
-  return formatDateToString(sunday);
+  const diff = now.getDate() - day + 6; // Go forward to Saturday (Sunday + 6)
+  const saturday = new Date(now.setDate(diff));
+  return formatDateToString(saturday);
 };
 
 /**

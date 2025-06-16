@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   AlertTriangle, 
   CheckCircle, 
-  XCircle, 
-  Calendar, 
   TrendingDown, 
   TrendingUp,
   Package,
@@ -20,7 +18,7 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
 import Spinner from '../../components/ui/Spinner';
-import { UserRole, InventoryCount } from '../../types';
+import { UserRole } from '../../types';
 
 const InventoryTracking: React.FC = () => {
   const { t } = useTranslation();
@@ -69,11 +67,13 @@ const InventoryTracking: React.FC = () => {
           };
         } else {
           // For books without counts, create a new entry
-          // Calculate books delivered from transactions
-          const deliveredCount = transactions.reduce((total, transaction) => {
-            const bookInTransaction = transaction.books?.find(b => b.id === book.id);
-            return total + (bookInTransaction?.quantity || 0);
-          }, 0);
+          // Calculate books delivered from APPROVED transactions
+          const deliveredCount = transactions
+            .filter(t => t.status === 'APPROVED') // Only count APPROVED transactions
+            .reduce((total, transaction) => {
+              const bookInTransaction = transaction.books?.find(b => b.id === book.id);
+              return total + (bookInTransaction?.quantity || 0);
+            }, 0);
 
           // System count = initial stock - delivered books
           const systemCount = Math.max(0, book.stock - deliveredCount);
@@ -95,11 +95,13 @@ const InventoryTracking: React.FC = () => {
     } else {
       // If no stored counts, calculate them based on current data
       return activeBooks.map(book => {
-        // Calculate books delivered from transactions
-        const deliveredCount = transactions.reduce((total, transaction) => {
-          const bookInTransaction = transaction.books?.find(b => b.id === book.id);
-          return total + (bookInTransaction?.quantity || 0);
-        }, 0);
+        // Calculate books delivered from APPROVED transactions
+        const deliveredCount = transactions
+          .filter(t => t.status === 'APPROVED') // Only count APPROVED transactions
+          .reduce((total, transaction) => {
+            const bookInTransaction = transaction.books?.find(b => b.id === book.id);
+            return total + (bookInTransaction?.quantity || 0);
+          }, 0);
 
         // System count = initial stock - delivered books
         const systemCount = Math.max(0, book.stock - deliveredCount);

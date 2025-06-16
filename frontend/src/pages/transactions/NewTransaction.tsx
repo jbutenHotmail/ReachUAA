@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, X, DollarSign, BookText, Calendar } from 'lucide-react';
+import { ChevronDown, X, DollarSign, BookText, Calendar, AlertTriangle, Settings, ChevronRight } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useUserStore } from '../../stores/userStore';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
+import { useProgramStore } from '../../stores/programStore';
+import { useAuthStore } from '../../stores/authStore';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
 import { getCurrentDate } from '../../utils/dateUtils';
+import { isColportableDay, getNextColportableDay } from '../../utils/programUtils';
+import { UserRole } from '../../types';
 
 const NewTransaction: React.FC = () => {
   const { t } = useTranslation();
@@ -18,6 +22,8 @@ const NewTransaction: React.FC = () => {
   const { fetchUsers, fetchPeople, getLeaders, getColporters, people } = useUserStore();
   const { createTransaction } = useTransactionStore();
   const { books, fetchBooks } = useInventoryStore();
+  const { program, fetchProgram } = useProgramStore();
+  const { user } = useAuthStore();
 
   const [leaderSearch, setLeaderSearch] = useState('');
   const [colporterSearch, setColporterSearch] = useState('');
@@ -36,11 +42,18 @@ const NewTransaction: React.FC = () => {
   const leaderDropdownRef = useRef<HTMLDivElement>(null);
   const colporterDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Check if today is a colportable day
+  const today = new Date();
+  const isToday = isColportableDay(today);
+  const nextColportableDay = getNextColportableDay(today);
+  const isAdmin = user?.role === UserRole.ADMIN;
+
   React.useEffect(() => {
     fetchUsers();
     fetchBooks();
+    fetchProgram();
     people && people.length === 0 && fetchPeople();
-  }, [fetchUsers, fetchBooks]);
+  }, [fetchUsers, fetchBooks, fetchProgram, fetchPeople, people]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -72,7 +85,6 @@ const NewTransaction: React.FC = () => {
   const total = cash + checks + atmMobile + paypal;
   const totalBooks = Object.values(bookQuantities).reduce((sum, qty) => sum + qty, 0);
 
-  const today = new Date();
   const formattedDate = today.toLocaleDateString(undefined, {
     weekday: 'long',
     year: 'numeric',
@@ -140,6 +152,87 @@ const NewTransaction: React.FC = () => {
 
   // Filter only active books
   const activeBooks = books.filter(book => book.is_active);
+
+  console.log('Active books:', isToday);
+  // If today is not a colportable day and user is not admin, show restriction screen
+  if (!isToday) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('transactions.newTransaction')}</h1>
+            <div className="flex items-center gap-2 mt-2 text-gray-600">
+              <Calendar size={16} />
+              <span className="text-sm">{formattedDate}</span>
+            </div>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/transactions')}
+          >
+            {t('common.back')}
+          </Button>
+        </div>
+
+        <Card>
+          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+            <div className="bg-warning-100 p-4 rounded-full mb-6">
+              <AlertTriangle size={48} className="text-warning-600" />
+            </div>
+            
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Non-Colportable Day
+            </h2>
+            
+            <p className="text-gray-600 max-w-lg mb-6">
+              Today is not designated as a colportable day in the program settings. 
+              Transactions can only be created on designated working days.
+            </p>
+            
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-8 w-full max-w-md">
+              <p className="text-sm text-gray-700 mb-2">
+                <strong>Next available colportable day:</strong>
+              </p>
+              <p className="text-lg font-medium text-primary-700">
+                {nextColportableDay.toLocaleDateString(undefined, {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </p>
+            </div>
+            
+            <div className="space-y-4 w-full max-w-md">
+              <p className="text-sm text-gray-500">
+                If you need to create a transaction for today, please contact an administrator to mark this day as colportable in the program settings.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/transactions')}
+                  leftIcon={<ChevronRight size={16} className="rotate-180" />}
+                >
+                  Return to Transactions
+                </Button>
+                
+                {isAdmin && (
+                  <Button
+                    variant="primary"
+                    onClick={() => navigate('/admin/settings')}
+                    leftIcon={<Settings size={16} />}
+                  >
+                    Program Settings
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">

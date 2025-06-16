@@ -8,37 +8,35 @@ import {
   getProgramReport,
   getIndividualEarningsReport,
   getSalesHistory,
-  getFinancialGoals,
   getFinancialSummary
 } from '../controllers/reportController.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get daily report
-router.get('/daily', authenticateToken, getDailyReport);
+// Get daily report (admin only)
+router.get('/daily', authenticateToken, authorizeRoles(['ADMIN']), getDailyReport);
 
-// Get weekly report
-router.get('/weekly', authenticateToken, getWeeklyReport);
+// Get weekly report (admin only)
+router.get('/weekly', authenticateToken, authorizeRoles(['ADMIN']), getWeeklyReport);
 
-// Get monthly report
-router.get('/monthly', authenticateToken, getMonthlyReport);
+// Get monthly report (admin only)
+router.get('/monthly', authenticateToken, authorizeRoles(['ADMIN']), getMonthlyReport);
 
-// Get colporter report
-router.get('/colporter/:id', authenticateToken, getColporterReport);
+// Get colporter report (admin only)
+router.get('/colporter/:id', authenticateToken, authorizeRoles(['ADMIN']), getColporterReport);
 
-// Get leader report
-router.get('/leader/:id', authenticateToken, getLeaderReport);
+// Get leader report (admin only)
+router.get('/leader/:id', authenticateToken, authorizeRoles(['ADMIN']), getLeaderReport);
 
-// Get program report
-router.get('/program', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), getProgramReport);
+// Get program report (admin only)
+router.get('/program', authenticateToken, authorizeRoles(['ADMIN']), getProgramReport);
 
-// Get individual earnings report
-router.get('/earnings/:id', authenticateToken, getIndividualEarningsReport);
+// Get individual earnings report (admin only)
+router.get('/earnings/:id', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR', 'VIEWER']), getIndividualEarningsReport);
 
 // New endpoints for dashboard
 router.get('/sales-history/:userId/:period?', authenticateToken, getSalesHistory);
-router.get('/goals/:userId', authenticateToken, getFinancialGoals);
 router.get('/summary/:userId', authenticateToken, getFinancialSummary);
 
 export default router;

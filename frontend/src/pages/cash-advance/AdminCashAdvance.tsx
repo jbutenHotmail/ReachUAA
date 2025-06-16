@@ -52,8 +52,8 @@ const AdminCashAdvance: React.FC = () => {
       
       // Set default percentage based on person type
       const defaultPercentage = selectedPerson.personType === 'COLPORTER' 
-        ? program?.financialConfig.colporter_cash_advance_percentage || 20
-        : program?.financialConfig.leader_cash_advance_percentage || 25;
+        ? program?.financialConfig?.colporter_cash_advance_percentage || 20
+        : program?.financialConfig?.leader_cash_advance_percentage || 25;
       setCustomPercentage(defaultPercentage);
       setIsEditingPercentage(false);
     }
@@ -131,7 +131,7 @@ const AdminCashAdvance: React.FC = () => {
         setError('Please type "confirm" or "confirmar" to proceed');
         return;
       }
-      console.log(selectedPerson)
+
       await createCashAdvance({
         personId: selectedPerson.id,
         weekStartDate: currentWeekSales.weekStartDate,
@@ -142,7 +142,6 @@ const AdminCashAdvance: React.FC = () => {
         personType: selectedPerson.personType,
         personName: selectedPerson.name
       });
-      
       setSuccess(`Cash advance of $${advanceAmount.toFixed(2)} created successfully for ${selectedPerson.name}`);
       
       // Reset form
@@ -343,7 +342,7 @@ const AdminCashAdvance: React.FC = () => {
                         colSpan={Object.keys(currentWeekSales.dailySales).length} 
                         className="px-4 py-3 text-right text-sm font-medium text-gray-900"
                       >
-                        Total: ${Number(currentWeekSales.totalSales).toLocaleString()}
+                        Total: ${Number(currentWeekSales.totalSales).toFixed(2)}
                       </td>
                     </tr>
                   </tfoot>
@@ -396,14 +395,15 @@ const AdminCashAdvance: React.FC = () => {
                     <p className="text-xs text-primary-600">Maximum available</p>
                   </div>
                 </div>
+                
                 {customPercentage !== (selectedPerson.personType === 'COLPORTER' 
-                  ? (program?.financialConfig.colporter_cash_advance_percentage || 20) 
-                  : (program?.financialConfig.leader_cash_advance_percentage || 25)) && (
+                  ? (program?.financialConfig?.colporter_cash_advance_percentage || 20) 
+                  : (program?.financialConfig?.leader_cash_advance_percentage || 25)) && (
                   <div className="p-3 bg-warning-50 border border-warning-200 rounded-lg">
                     <p className="text-sm text-warning-700">
                       <strong>Custom Percentage:</strong> You've modified the default {selectedPerson.personType === 'COLPORTER' 
-                        ? (program?.financialConfig.colporter_cash_advance_percentage || 20) 
-                        : (program?.financialConfig.leader_cash_advance_percentage || 25)}% limit to {customPercentage}% for this advance.
+                        ? (program?.financialConfig?.colporter_cash_advance_percentage || 20) 
+                        : (program?.financialConfig?.leader_cash_advance_percentage || 25)}% limit to {customPercentage}% for this advance.
                     </p>
                   </div>
                 )}

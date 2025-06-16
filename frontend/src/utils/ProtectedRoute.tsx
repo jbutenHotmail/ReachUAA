@@ -3,15 +3,18 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { UserRole } from '../types';
 import { useAuthStore } from '../stores/authStore';
 import Spinner from '../components/ui/Spinner';
+import AccessDeniedPage from '../pages/reports/AccessDeniedPage';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: UserRole[];
+  redirectPath?: string;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
-  allowedRoles = [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.VIEWER]
+  allowedRoles = [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.VIEWER],
+  redirectPath = '/login'
 }) => {
   const location = useLocation();
   const { isAuthenticated, user, isLoading, refreshToken } = useAuthStore();
@@ -40,11 +43,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
   
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to={redirectPath} state={{ from: location }} replace />;
   }
   
+  // If user doesn't have the required role, show access denied page
   if (user && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
+    return <AccessDeniedPage />;
   }
   
   return <>{children}</>;

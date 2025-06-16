@@ -21,6 +21,7 @@ interface ExpenseFormData {
   notes?: string;
   leaderId?: string;
   leaderName?: string;
+  status?: string;
 }
 
 const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
@@ -37,6 +38,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
       amount: 0,
       category: '',
       notes: '',
+      status: 'PENDING', // Default to PENDING status
     }
   );
 
@@ -82,6 +84,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
       ...formData,
       leaderId: selectedLeader?.id,
       leaderName: selectedLeader?.name,
+      status: 'PENDING', // Always set to PENDING when submitting
     });
   };
 
@@ -260,6 +263,25 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                 />
               </div>
+
+              {initialData && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    required
+                  >
+                    <option value="PENDING">Pending</option>
+                    <option value="APPROVED">Approved</option>
+                    <option value="REJECTED">Rejected</option>
+                  </select>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-3">

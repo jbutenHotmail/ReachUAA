@@ -4,7 +4,6 @@ import { useAuthStore } from './stores/authStore';
 import { useProgramStore } from './stores/programStore';
 import ProtectedRoute from './utils/ProtectedRoute';
 import { UserRole } from './types';
-
 import Layout from './components/layout/Layout';
 import Login from './pages/auth/Login';
 import Dashboard from './pages/dashboard/Dashboard';
@@ -39,8 +38,10 @@ import AllPeoplePage from './pages/admin/people/AllPeoplePage';
 import UsersPage from './pages/admin/users/UsersPage';
 import ManageRolesPage from './pages/admin/users/ManageRolesPage';
 import ProgramSettings from './pages/admin/settings/ProgramSettings';
-import ProfilePage from './pages/profile/ProfilePage';
 import ProgramSetup from './pages/admin/setup/ProgramSetup';
+import ProfilePage from './pages/profile/ProfilePage';
+import AccessDeniedPage from './pages/reports/AccessDeniedPage';
+import ViewerDashboard from './pages/dashboard/ViewerDashboard';
 
 function App() {
   const { isAuthenticated, user, refreshToken } = useAuthStore();
@@ -48,6 +49,7 @@ function App() {
 
   // Check if admin user needs to set up program
   const needsProgramSetup = isAuthenticated && user?.role === UserRole.ADMIN && !program;
+  
   // Fetch program data on app load if authenticated
   useEffect(() => {
     if (isAuthenticated) {
@@ -76,11 +78,7 @@ function App() {
         path="/setup" 
         element={
           <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-             {needsProgramSetup ? (
-              <ProgramSetup />
-            ) : (
-              <Navigate to="/dashboard" replace />
-            )}
+            <ProgramSetup />
           </ProtectedRoute>
         } 
       />
@@ -98,25 +96,59 @@ function App() {
         }
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
         
-        <Route path="inventory" element={<InventoryLayout />}>
+        {/* Dashboard - Different view for Viewer role */}
+        <Route path="dashboard" element={
+          user?.role === UserRole.VIEWER ? <ViewerDashboard /> : <Dashboard />
+        } />
+        
+        {/* Inventory - Restricted for Viewer role */}
+        <Route path="inventory" element={
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPERVISOR]}>
+            <InventoryLayout />
+          </ProtectedRoute>
+        }>
           <Route index element={<Navigate to="catalog" replace />} />
           <Route path="catalog" element={<BookCatalog />} />
           <Route path="tracking" element={<InventoryTracking />} />
         </Route>
         
+        {/* Transactions - Viewer can only create new transactions */}
         <Route path="transactions">
           <Route index element={<Navigate to="/transactions/finances" replace />} />
-          <Route path="finances" element={<Transactions />} />
-          <Route path="delivered-books" element={<Transactions />} />
-          <Route path="new" element={<NewTransaction />} />
-          <Route path=":id" element={<TransactionDetails />} />
+          <Route path="finances" element={
+            user?.role === UserRole.VIEWER ? 
+              <AccessDeniedPage message="You don't have permission to view transactions. You can only create new transactions." /> : 
+              <Transactions />
+          } />
+          <Route path="delivered-books" element={
+            user?.role === UserRole.VIEWER ? 
+              <AccessDeniedPage message="You don't have permission to view delivered books. You can only create new transactions." /> : 
+              <Transactions />
+          } />
+          <Route path="new" element={user?.role === UserRole.VIEWER ? 
+              <AccessDeniedPage message="You don't have permission to view transactions. You can only create new transactions." /> : 
+              <NewTransaction />} />
+          <Route path=":id" element={
+            user?.role === UserRole.VIEWER ? 
+              <AccessDeniedPage message="You don't have permission to view transaction details." /> : 
+              <TransactionDetails />
+          } />
         </Route>
 
-        <Route path="delivered-books" element={<DeliveredBooks />} />
+        {/* Delivered Books - Restricted for Viewer role */}
+        <Route path="delivered-books" element={
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPERVISOR]}>
+            <DeliveredBooks />
+          </ProtectedRoute>
+        } />
         
-        <Route path="expenses" element={<ExpenseLayout />}>
+        {/* Expenses - Restricted for Viewer role */}
+        <Route path="expenses" element={
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPERVISOR]}>
+            <ExpenseLayout />
+          </ProtectedRoute>
+        }>
           <Route index element={<Navigate to="/expenses/all" replace />} />
           <Route path="all" element={<AllExpenses />} />
           <Route path="food" element={<FoodExpenses />} />
@@ -126,6 +158,7 @@ function App() {
           <Route path="fuel" element={<FuelExpenses />} />
         </Route>
 
+        {/* Cash Advance - Restricted for Viewer role */}
         <Route 
           path="cash-advance" 
           element={
@@ -139,6 +172,7 @@ function App() {
           <Route path="new" element={<AdminCashAdvance />} />
         </Route>
 
+        {/* Charges - Restricted for Viewer role */}
         <Route 
           path="charges" 
           element={
@@ -149,15 +183,104 @@ function App() {
         />
 
         <Route path="reports">
-          <Route path="donations">
-            <Route path="finances" element={<DonationsReport />} />
-            <Route path="delivered-books" element={<DonationsReport />} />
-          </Route>
-          <Route path="program" element={<ProgramReport />} />
-          <Route path="individual" element={<IndividualReports />} />
-          <Route path="colporter/:name" element={<ColporterReport />} />
-          <Route path="summer-colporter/:name" element={<SummerColporterReport />} />
-          <Route path="leader/:name" element={<LeaderDetailPage />} />
+          {/* Access control for reports - only ADMIN can access reports */}
+          <Route 
+            index 
+            element={
+              <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                <Navigate to="/reports/donations/finances" replace />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* For SUPERVISOR and VIEWER, show access denied page */}
+          <Route 
+            path="access-denied" 
+            element={
+              <ProtectedRoute allowedRoles={[UserRole.SUPERVISOR, UserRole.VIEWER]}>
+                <AccessDeniedPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Redirect non-ADMIN to access denied */}
+          <Route 
+            path="donations/*" 
+            element={
+              user?.role === UserRole.ADMIN ? (
+                <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                  <DonationsReport />
+                </ProtectedRoute>
+              ) : (
+                <Navigate to="/reports/access-denied" replace />
+              )
+            } 
+          />
+          
+          <Route 
+            path="program" 
+            element={
+              user?.role === UserRole.ADMIN ? (
+                <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                  <ProgramReport />
+                </ProtectedRoute>
+              ) : (
+                <Navigate to="/reports/access-denied" replace />
+              )
+            } 
+          />
+          
+          <Route 
+            path="individual" 
+            element={
+              user?.role === UserRole.ADMIN ? (
+                <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                  <IndividualReports />
+                </ProtectedRoute>
+              ) : (
+                <Navigate to="/reports/access-denied" replace />
+              )
+            } 
+          />
+          
+          <Route 
+            path="colporter/:name" 
+            element={
+              user?.role === UserRole.ADMIN ? (
+                <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                  <ColporterReport />
+                </ProtectedRoute>
+              ) : (
+                <Navigate to="/reports/access-denied" replace />
+              )
+            } 
+          />
+          
+          <Route 
+            path="summer-colporter/:name" 
+            element={
+              user?.role === UserRole.ADMIN ? (
+                <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                  <SummerColporterReport />
+                </ProtectedRoute>
+              ) : (
+                <Navigate to="/reports/access-denied" replace />
+              )
+            } 
+          />
+          
+          <Route 
+            path="leader/:name" 
+            element={
+              user?.role === UserRole.ADMIN ? (
+                <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                  <LeaderDetailPage />
+                </ProtectedRoute>
+              ) : (
+                <Navigate to="/reports/access-denied" replace />
+              )
+            } 
+          />
         </Route>
 
         <Route 

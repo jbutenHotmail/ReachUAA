@@ -27,10 +27,10 @@ router.put('/:id', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), u
 // Delete charge
 router.delete('/:id', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), deleteCharge);
 
-// Apply charge
-router.patch('/:id/apply', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), applyCharge);
+// Apply charge (admin only)
+router.patch('/:id/apply', authenticateToken, authorizeRoles(['ADMIN']), applyCharge);
 
-// Cancel charge
-router.patch('/:id/cancel', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), cancelCharge);
+// Cancel charge (admin only)
+router.patch('/:id/cancel', authenticateToken, authorizeRoles(['ADMIN']), cancelCharge);
 
 export default router;

@@ -6,10 +6,14 @@ import { TrendingUp, Calendar } from 'lucide-react';
 
 import Card from '../ui/Card';
 import ProgressBar from '../ui/ProgressBar';
-import { FinancialGoal } from '../../types';
 
 interface GoalProgressProps {
-  goal: FinancialGoal;
+  goal: {
+    amount: number;
+    achieved: number;
+    startDate: string;
+    endDate: string;
+  };
 }
 
 const GoalProgress: React.FC<GoalProgressProps> = ({ goal }) => {
@@ -21,19 +25,6 @@ const GoalProgress: React.FC<GoalProgressProps> = ({ goal }) => {
   
   const formatDate = (date: string) => {
     return format(new Date(date), 'PP', { locale });
-  };
-  
-  const getGoalTitle = () => {
-    switch (goal.type) {
-      case 'DAILY':
-        return t('dashboard.today');
-      case 'WEEKLY':
-        return t('dashboard.thisWeek');
-      case 'MONTHLY':
-        return t('dashboard.thisMonth');
-      default:
-        return t('dashboard.goal');
-    }
   };
   
   let progressVariant: 'primary' | 'success' | 'warning' | 'danger' = 'primary';
@@ -50,7 +41,7 @@ const GoalProgress: React.FC<GoalProgressProps> = ({ goal }) => {
   
   return (
     <Card
-      title={getGoalTitle()}
+      title={t('dashboard.goal')}
       icon={<TrendingUp size={20} />}
       className="h-full"
     >

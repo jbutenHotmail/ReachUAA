@@ -7,6 +7,10 @@ interface CashAdvanceState {
   weeklySales: WeeklySales[];
   isLoading: boolean;
   error: string | null;
+  fetchWeeklySales: (colporterId: string, weekStartDate?: string, weekEndDate?: string) => Promise<void>;
+  createCashAdvance: (advanceData: Omit<CashAdvance, 'id' | 'status' | 'requestDate' | 'approvedDate' | 'approvedBy' | 'approvedByName'>) => Promise<void>;
+  approveAdvance: (id: string) => Promise<void>;
+  rejectAdvance: (id: string) => Promise<void>;
 }
 
 interface CashAdvanceStore extends CashAdvanceState {
@@ -102,14 +106,18 @@ export const useCashAdvanceStore = create<CashAdvanceStore>((set) => ({
   fetchWeeklySales: async (colporterId, weekStartDate, weekEndDate) => {
     set({ isLoading: true, error: null });
     try {
-      // If dates aren't provided, calculate current week dates
+      // If dates aren't provided, calculate current week dates (Sunday to Saturday)
       if (!weekStartDate || !weekEndDate) {
         const today = new Date();
-        const weekStart = new Date(today);
-        weekStart.setDate(today.getDate() - today.getDay() + 1); // Monday of current week
+        const day = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
         
+        // Calculate Sunday (start of week)
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - day); // Go back to Sunday
+        
+        // Calculate Saturday (end of week)
         const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6); // Sunday of current week
+        weekEnd.setDate(weekStart.getDate() + 6); // Sunday + 6 days = Saturday
         
         weekStartDate = weekStart.toISOString().split('T')[0];
         weekEndDate = weekEnd.toISOString().split('T')[0];

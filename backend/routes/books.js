@@ -40,7 +40,6 @@ router.get('/:id/movements', authenticateToken, getInventoryMovements);
 // Create inventory movement (admin or supervisor)
 router.post('/:id/movements', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), createInventoryMovement);
 
-
 // Update inventory count (admin or supervisor)
 router.post('/:id/counts', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), updateInventoryCount);
 

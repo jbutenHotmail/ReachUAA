@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PieChart, DollarSign, TrendingUp, Users } from 'lucide-react';
 import Card from '../ui/Card';
@@ -44,8 +44,13 @@ const FinancialBreakdown: React.FC = () => {
   useEffect(() => {
     const fetchExpenses = async () => {
       try {
-        // Fetch program expenses (where leaderId is null)
-        const expenses = await api.get('/expenses', { params: { leaderId: 'program' } });
+        // Fetch program expenses (where leaderId is null) - ONLY APPROVED EXPENSES
+        const expenses = await api.get('/expenses', { 
+          params: { 
+            leaderId: 'program',
+            status: 'APPROVED' // Only include approved expenses
+          } 
+        });
         return expenses.reduce((sum: number, expense: any) => sum + expense.amount, 0);
       } catch (error) {
         console.error('Error fetching expenses:', error);
@@ -57,8 +62,8 @@ const FinancialBreakdown: React.FC = () => {
       if (transactions.length > 0 && program) {
         setIsLoading(true);
         
-        // Filter out rejected transactions
-        const validTransactions = transactions.filter(t => t.status !== 'REJECTED');
+        // Filter out rejected transactions - ONLY INCLUDE APPROVED TRANSACTIONS
+        const validTransactions = transactions.filter(t => t.status === 'APPROVED');
         
         // Calculate total revenue from transactions
         const totalRevenue = validTransactions.reduce((sum, t) => sum + t.total, 0);
@@ -75,11 +80,12 @@ const FinancialBreakdown: React.FC = () => {
         const studentsAmount = totalRevenue * (studentPercentage / 100);
         const leadersAmount = totalRevenue * (leaderPercentage / 100);
         
-        // Calculate expenses
-        const advancesAmount = advances.reduce((sum, a) => 
-          a.status === 'APPROVED' ? sum + a.advanceAmount : sum, 0);
+        // Calculate expenses - ONLY APPROVED ADVANCES
+        const advancesAmount = advances
+          .filter(a => a.status === 'APPROVED') // Only include approved advances
+          .reduce((sum, a) => sum + a.advanceAmount, 0);
         
-        // Fetch real program costs from expenses API
+        // Fetch real program costs from expenses API - ONLY APPROVED EXPENSES
         const programCostsAmount = await fetchExpenses();
         
         // Calculate total expenses

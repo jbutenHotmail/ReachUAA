@@ -32,7 +32,7 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
     reason: initialData?.reason || '',
     description: initialData?.description || '',
     category: initialData?.category || 'FINE',
-    status: initialData?.status || 'PENDING',
+    status: initialData?.status || 'PENDING', // Default to PENDING
     appliedBy: user?.id || '',
     appliedByName: user?.name || '',
     date: initialData?.date || new Date().toISOString().split('T')[0],
@@ -77,6 +77,7 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
       ...formData,
       personId: selectedPerson?.id,
       personName: selectedPerson?.name,
+      status: 'PENDING', // Always set to PENDING when submitting
     });
   };
 

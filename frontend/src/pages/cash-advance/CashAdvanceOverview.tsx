@@ -1,32 +1,50 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Clock, CheckCircle, XCircle, Calendar, DollarSign, User, Filter, ChevronDown } from 'lucide-react';
+import { 
+  Clock, 
+  CheckCircle, 
+  XCircle, 
+  Calendar, 
+  DollarSign, 
+  User, 
+  Filter, 
+  X as XIcon
+} from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
 import { useCashAdvanceStore } from '../../stores/cashAdvanceStore';
 import Spinner from '../../components/ui/Spinner';
 import { CashAdvance } from '../../types';
 import { clsx } from 'clsx';
+import { useAuthStore } from '../../stores/authStore';
+import { UserRole } from '../../types';
 
 const CashAdvanceOverview: React.FC = () => {
   const { t } = useTranslation();
+  const { user } = useAuthStore();
   const { advances, isLoading, error, fetchAdvances, approveAdvance, rejectAdvance } = useCashAdvanceStore();
   const [selectedAdvance, setSelectedAdvance] = useState<CashAdvance | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
-  const [weekFilter, setWeekFilter] = useState<string>('');
+  
+  // Check if user is admin (only admins can approve/reject)
+  const isAdmin = user?.role === UserRole.ADMIN;
+  
+  // Filters
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [personTypeFilter, setPersonTypeFilter] = useState<string>('');
+  const [weekFilter, setWeekFilter] = useState<string>('');
 
   useEffect(() => {
     fetchAdvances();
   }, [fetchAdvances]);
 
   const handleApprove = async (id: string) => {
+    if (!isAdmin) return;
+    
     setActionLoading(true);
     setActionError(null);
     setActionSuccess(null);
@@ -42,6 +60,8 @@ const CashAdvanceOverview: React.FC = () => {
   };
 
   const handleReject = async (id: string) => {
+    if (!isAdmin) return;
+    
     setActionLoading(true);
     setActionError(null);
     setActionSuccess(null);
@@ -69,29 +89,53 @@ const CashAdvanceOverview: React.FC = () => {
     }
   };
 
-  // Filter advances based on selected filters
-  const filteredAdvances = advances.filter(advance => {
-    // Filter by week (start date)
-    const weekStartMatch = !weekFilter || advance.weekStartDate === weekFilter;
-    
-    // Filter by status
-    const statusMatch = !statusFilter || advance.status === statusFilter;
-    
-    // Filter by person type
-    const personTypeMatch = !personTypeFilter || advance.personType === personTypeFilter;
-    
-    return weekStartMatch && statusMatch && personTypeMatch;
-  });
+  // Get unique weeks from advances
+  const uniqueWeeks = React.useMemo(() => {
+    const weeks = new Set<string>();
+    advances.forEach(advance => {
+      weeks.add(advance.weekStartDate);
+    });
+    return Array.from(weeks).sort();
+  }, [advances]);
 
-  // Get unique weeks for the filter dropdown
-  const uniqueWeeks = [...new Set(advances.map(a => a.weekStartDate))].sort();
+  // Apply filters
+  const filteredAdvances = React.useMemo(() => {
+    return advances.filter(advance => {
+      const matchesStatus = !statusFilter || advance.status === statusFilter;
+      const matchesPersonType = !personTypeFilter || advance.personType === personTypeFilter;
+      const matchesWeek = !weekFilter || advance.weekStartDate === weekFilter;
+      return matchesStatus && matchesPersonType && matchesWeek;
+    });
+  }, [advances, statusFilter, personTypeFilter, weekFilter]);
 
-  // Calculate totals for the filtered advances
-  const totals = {
-    pending: filteredAdvances.filter(a => a.status === 'PENDING').reduce((sum, a) => sum + a.advanceAmount, 0),
-    approved: filteredAdvances.filter(a => a.status === 'APPROVED').reduce((sum, a) => sum + a.advanceAmount, 0),
-    rejected: filteredAdvances.filter(a => a.status === 'REJECTED').reduce((sum, a) => sum + a.advanceAmount, 0),
-    total: filteredAdvances.reduce((sum, a) => sum + a.advanceAmount, 0)
+  // Calculate totals - ONLY APPROVED ADVANCES
+  const totals = React.useMemo(() => {
+    return filteredAdvances.reduce((acc, advance) => {
+      if (advance.status === 'PENDING') {
+        acc.pending.count++;
+        acc.pending.amount += advance.advanceAmount;
+      } else if (advance.status === 'APPROVED') {
+        acc.approved.count++;
+        acc.approved.amount += advance.advanceAmount;
+      } else if (advance.status === 'REJECTED') {
+        acc.rejected.count++;
+        acc.rejected.amount += advance.advanceAmount;
+      }
+      advance.status !== 'REJECTED' && acc.total.count++;
+      advance.status !== 'REJECTED' && (acc.total.amount += advance.advanceAmount);
+      return acc;
+    }, {
+      pending: { count: 0, amount: 0 },
+      approved: { count: 0, amount: 0 },
+      rejected: { count: 0, amount: 0 },
+      total: { count: 0, amount: 0 }
+    });
+  }, [filteredAdvances]);
+
+  const clearFilters = () => {
+    setStatusFilter('');
+    setPersonTypeFilter('');
+    setWeekFilter('');
   };
 
   if (isLoading && advances.length === 0) {
@@ -114,62 +158,81 @@ const CashAdvanceOverview: React.FC = () => {
   return (
     <div className="space-y-6">
       {actionSuccess && (
-        <div className="p-4 bg-success-50 border border-success-200 rounded-lg flex items-start gap-3">
-          <CheckCircle className="text-success-500 flex-shrink-0 mt-0.5" size={20} />
-          <div className="text-sm text-success-700">
-            <p className="font-medium">Success</p>
-            <p>{actionSuccess}</p>
-          </div>
+        <div className="p-4 bg-success-50 border border-success-200 rounded-lg text-success-700">
+          <p className="font-medium">{actionSuccess}</p>
         </div>
       )}
 
       {actionError && (
-        <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg flex items-start gap-3">
-          <XCircle className="text-danger-500 flex-shrink-0 mt-0.5" size={20} />
-          <div className="text-sm text-danger-700">
-            <p className="font-medium">Error</p>
-            <p>{actionError}</p>
-          </div>
+        <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
+          <p className="font-medium">Error</p>
+          <p>{actionError}</p>
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">Cash Advances</h2>
-          <p className="text-sm text-gray-500">Manage and track cash advances for colporters and leaders</p>
-        </div>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <div className="text-center">
+            <p className="text-sm font-medium text-gray-500">Total Advances (Approved + Pending)</p>
+            <p className="mt-2 text-2xl font-bold text-gray-900">{totals.total.count}</p>
+            <p className="text-lg font-semibold text-gray-700">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totals.total.amount)}</p>
+          </div>
+        </Card>
         
+        <Card>
+          <div className="text-center">
+            <p className="text-sm font-medium text-gray-500">Pending</p>
+            <p className="mt-2 text-2xl font-bold text-warning-600">{totals.pending.count}</p>
+            <p className="text-lg font-semibold text-warning-700">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totals.pending.amount)}</p>
+          </div>
+        </Card>
+        
+        <Card>
+          <div className="text-center">
+            <p className="text-sm font-medium text-gray-500">Approved</p>
+            <p className="mt-2 text-2xl font-bold text-success-600">{totals.approved.count}</p>
+            <p className="text-lg font-semibold text-success-700">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totals.approved.amount)}</p>
+          </div>
+        </Card>
+        
+        <Card>
+          <div className="text-center">
+            <p className="text-sm font-medium text-gray-500">Rejected</p>
+            <p className="mt-2 text-2xl font-bold text-danger-600">{totals.rejected.count}</p>
+            <p className="text-lg font-semibold text-danger-700">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totals.rejected.amount)}</p>
+          </div>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <div className="flex justify-between items-center">
         <Button
           variant="outline"
-          leftIcon={<Filter size={18} />}
+          leftIcon={<Filter size={16} />}
           onClick={() => setShowFilters(!showFilters)}
         >
-          Filters {showFilters ? <ChevronDown className="transform rotate-180" size={16} /> : <ChevronDown size={16} />}
+          {showFilters ? 'Hide Filters' : 'Show Filters'}
         </Button>
+        
+        {(statusFilter || personTypeFilter || weekFilter) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+          >
+            Clear Filters
+          </Button>
+        )}
       </div>
 
       {showFilters && (
         <Card>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Week</label>
-              <select
-                value={weekFilter}
-                onChange={(e) => setWeekFilter(e.target.value)}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              >
-                <option value="">All Weeks</option>
-                {uniqueWeeks.map(week => (
-                  <option key={week} value={week}>
-                    {new Date(week).toLocaleDateString()} - {new Date(new Date(week).getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString()}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -183,7 +246,9 @@ const CashAdvanceOverview: React.FC = () => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Person Type</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Person Type
+              </label>
               <select
                 value={personTypeFilter}
                 onChange={(e) => setPersonTypeFilter(e.target.value)}
@@ -194,67 +259,33 @@ const CashAdvanceOverview: React.FC = () => {
                 <option value="LEADER">Leaders</option>
               </select>
             </div>
-          </div>
-          
-          <div className="flex justify-end mt-4 pt-4 border-t border-gray-200">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setWeekFilter('');
-                setStatusFilter('');
-                setPersonTypeFilter('');
-              }}
-            >
-              Clear Filters
-            </Button>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Week
+              </label>
+              <select
+                value={weekFilter}
+                onChange={(e) => setWeekFilter(e.target.value)}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+              >
+                <option value="">All Weeks</option>
+                {uniqueWeeks.map(week => (
+                  <option key={week} value={week}>
+                    Week of {new Date(week).toLocaleDateString()}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </Card>
       )}
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <div className="text-center">
-            <p className="text-sm font-medium text-gray-500">Total Advances</p>
-            <p className="mt-2 text-2xl font-bold text-gray-900">${totals.total.toFixed(2)}</p>
-            <p className="text-xs text-gray-500">{filteredAdvances.length} advances</p>
-          </div>
-        </Card>
-        
-        <Card>
-          <div className="text-center">
-            <p className="text-sm font-medium text-gray-500">Pending</p>
-            <p className="mt-2 text-2xl font-bold text-warning-600">${totals.pending.toFixed(2)}</p>
-            <p className="text-xs text-gray-500">{filteredAdvances.filter(a => a.status === 'PENDING').length} advances</p>
-          </div>
-        </Card>
-        
-        <Card>
-          <div className="text-center">
-            <p className="text-sm font-medium text-gray-500">Approved</p>
-            <p className="mt-2 text-2xl font-bold text-success-600">${totals.approved.toFixed(2)}</p>
-            <p className="text-xs text-gray-500">{filteredAdvances.filter(a => a.status === 'APPROVED').length} advances</p>
-          </div>
-        </Card>
-        
-        <Card>
-          <div className="text-center">
-            <p className="text-sm font-medium text-gray-500">Rejected</p>
-            <p className="mt-2 text-2xl font-bold text-danger-600">${totals.rejected.toFixed(2)}</p>
-            <p className="text-xs text-gray-500">{filteredAdvances.filter(a => a.status === 'REJECTED').length} advances</p>
-          </div>
-        </Card>
-      </div>
 
       <Card>
         <div className="space-y-4">
           {filteredAdvances.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">
-                {advances.length === 0 
-                  ? t('cashAdvance.noAdvancesYet') 
-                  : 'No advances match the selected filters'}
-              </p>
+              <p className="text-gray-500">{t('cashAdvance.noAdvancesYet')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -279,9 +310,11 @@ const CashAdvanceOverview: React.FC = () => {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Request Date
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    {isAdmin && (
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -328,28 +361,30 @@ const CashAdvanceOverview: React.FC = () => {
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                         {new Date(advance.requestDate).toLocaleDateString()}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                        {advance.status === 'PENDING' && (
-                          <div className="flex items-center justify-center gap-2">
-                            <Button
-                              variant="success"
-                              size="sm"
-                              onClick={() => handleApprove(advance.id)}
-                              disabled={actionLoading}
-                            >
-                              <CheckCircle size={16} />
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => handleReject(advance.id)}
-                              disabled={actionLoading}
-                            >
-                              <XCircle size={16} />
-                            </Button>
-                          </div>
-                        )}
-                      </td>
+                      {isAdmin && (
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                          {advance.status === 'PENDING' && (
+                            <div className="flex items-center justify-center gap-2">
+                              <Button
+                                variant="success"
+                                size="sm"
+                                onClick={() => handleApprove(advance.id)}
+                                disabled={actionLoading}
+                              >
+                                <CheckCircle size={16} />
+                              </Button>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                onClick={() => handleReject(advance.id)}
+                                disabled={actionLoading}
+                              >
+                                <XCircle size={16} />
+                              </Button>
+                            </div>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -373,7 +408,7 @@ const CashAdvanceOverview: React.FC = () => {
                     onClick={() => setSelectedAdvance(null)}
                     className="text-gray-400 hover:text-gray-500"
                   >
-                    <XCircle size={20} />
+                    <XIcon size={20} />
                   </button>
                 </div>
 
@@ -420,7 +455,7 @@ const CashAdvanceOverview: React.FC = () => {
                   )}
                 </div>
 
-                {selectedAdvance.status === 'PENDING' && (
+                {selectedAdvance.status === 'PENDING' && isAdmin && (
                   <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
                     <Button
                       variant="outline"

@@ -4,7 +4,9 @@ import {
   getExpenseById, 
   createExpense, 
   updateExpense, 
-  deleteExpense 
+  deleteExpense,
+  approveExpense,
+  rejectExpense
 } from '../controllers/expenseController.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
 
@@ -24,5 +26,11 @@ router.put('/:id', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), u
 
 // Delete expense
 router.delete('/:id', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), deleteExpense);
+
+// Approve expense (admin only)
+router.patch('/:id/approve', authenticateToken, authorizeRoles(['ADMIN']), approveExpense);
+
+// Reject expense (admin only)
+router.patch('/:id/reject', authenticateToken, authorizeRoles(['ADMIN']), rejectExpense);
 
 export default router;

@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft} from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
-import { useTransactionStore } from '../../stores/transactionStore';
 import { useProgramStore } from '../../stores/programStore';
 import Spinner from '../../components/ui/Spinner';
 import { api } from '../../api';
@@ -14,7 +13,6 @@ const ColporterReport: React.FC = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { transactions, fetchTransactions } = useTransactionStore();
   const { program } = useProgramStore();
   
   // State for colporter data
@@ -56,9 +54,9 @@ const ColporterReport: React.FC = () => {
       
       setIsLoading(true);
       try {
-        // Get all transactions for this colporter
+        // Get all transactions for this colporter - ONLY APPROVED TRANSACTIONS
         const colporterTransactions = await api.get('/transactions', { 
-          params: { studentId: colporterId } 
+          params: { studentId: colporterId, status: 'APPROVED' } 
         });
         
         // Process the transactions to get weekly data
@@ -84,8 +82,8 @@ const ColporterReport: React.FC = () => {
       return;
     }
     
-    // Filter out rejected transactions
-    const validTransactions = colporterTransactions.filter(t => t.status !== 'REJECTED');
+    // Filter out rejected transactions - ONLY INCLUDE APPROVED TRANSACTIONS
+    const validTransactions = colporterTransactions.filter(t => t.status === 'APPROVED');
     
     // Get the colporter percentage from program config
     const colporterPercentage = program?.financialConfig?.colporter_percentage 
@@ -177,9 +175,7 @@ const ColporterReport: React.FC = () => {
     )[0];
     
     if (mostRecentWeek) {
-      // Calculate weekly totals
-      const weeklyTotal = Object.values(mostRecentWeek.sales).reduce((sum: number, amount: any) => sum + amount, 0);
-      
+      // Calculate weekly totals      
       setWeeklyData(mostRecentWeek);
       
       // Set colporter data

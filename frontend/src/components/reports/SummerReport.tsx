@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { ChevronRight, Users, BarChart3, ChevronLeft, ArrowUpDown, ArrowUp, ArrowDown, UserCog } from 'lucide-react';
+import { ChevronRight, Users, BarChart3, ChevronLeft, Calendar, ArrowUpDown, ArrowUp, ArrowDown, UserCog } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
+import Badge from '../ui/Badge';
 
 interface SummerSale {
   colporterName: string;

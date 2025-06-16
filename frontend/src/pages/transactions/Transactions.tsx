@@ -65,7 +65,8 @@ const Transactions: React.FC = () => {
   };
 
   // Filter out rejected transactions for leader totals and book counts
-  const validTransactions = transactions.filter(t => t.status !== 'REJECTED');
+  // IMPORTANT: Only include APPROVED transactions for calculations
+  const validTransactions = transactions.filter(t => t.status === 'APPROVED');
 
   const leaderTotals = React.useMemo(() => {
     const totals = new Map();

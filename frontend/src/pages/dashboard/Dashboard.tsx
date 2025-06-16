@@ -12,30 +12,26 @@ import SalesChart from '../../components/dashboard/SalesChart';
 import GoalProgress from '../../components/dashboard/GoalProgress';
 import ProgramProjections from '../../components/dashboard/ProgramProjections';
 import FinancialBreakdown from '../../components/dashboard/FinancialBreakdown';
-import DailyTransactions from '../../components/dashboard/DailyTransactions';
 import Spinner from '../../components/ui/Spinner';
+import { useProgramStore } from '../../stores/programStore';
 
 const Dashboard: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
   const { 
-    summary, 
-    salesHistory, 
-    goals, 
     isLoading: isFinancialLoading,
     fetchSummary,
-    fetchSalesHistory,
-    fetchGoals
+    fetchSalesHistory
   } = useFinancialStore();
   
   const {
     transactions,
     isLoading: isTransactionsLoading,
-    fetchTransactions
+    fetchTransactions,
+    fetchAllTransactions
   } = useTransactionStore();
 
   const {
-    advances,
     fetchAdvances
   } = useCashAdvanceStore();
   
@@ -44,6 +40,8 @@ const Dashboard: React.FC = () => {
     isLoading: isDashboardLoading,
     fetchDashboardStats
   } = useDashboardStore();
+
+  const { program, fetchProgram } = useProgramStore();
   
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
   
@@ -51,21 +49,33 @@ const Dashboard: React.FC = () => {
     if (user) {
       fetchSummary(user.id);
       fetchSalesHistory(user.id, selectedPeriod);
-      fetchGoals(user.id);
       fetchDashboardStats();
       fetchAdvances();
+      fetchProgram();
       
       // Fetch today's transactions using the consistent date format
       const today = getCurrentDate();
       console.log('Frontend today date:', today);
       fetchTransactions(today);
     }
-  }, [user, fetchSummary, fetchSalesHistory, fetchGoals, fetchTransactions, fetchDashboardStats, fetchAdvances, selectedPeriod]);
+  }, [user, fetchSummary, fetchSalesHistory, fetchTransactions, fetchDashboardStats, fetchAdvances, selectedPeriod, fetchProgram]);
+
+
+  useEffect(() => {
+    const loadTransactionData = async () => {
+      try {
+        // Fetch all APPROVED transactions without date filtering
+        await fetchAllTransactions('APPROVED');
+      } catch (err) {
+        console.error('Error fetching transaction data:', err);
+      }
+    };
+
+    loadTransactionData();
+  }, [fetchAllTransactions]);
+  
 
   const isLoading = isFinancialLoading || isTransactionsLoading || isDashboardLoading;
-
-  // Filter out rejected transactions
-  const validTransactions = transactions.filter(t => t.status !== 'REJECTED');
 
   // Calculate change percentages by comparing to previous periods
   const calculateChanges = () => {
@@ -75,9 +85,7 @@ const Dashboard: React.FC = () => {
       monthlyChange: { value: 0, type: 'increase' as const }
     };
     
-    // Calculate daily change
-    // In a real implementation, we would compare today's sales with yesterday's
-    // For now, we'll compare with the average of the previous 7 days
+ 
     const dailySales = stats.today.sales;
     const previousDaysSales = stats.salesChart.slice(-8, -1); // Last 7 days excluding today
     const previousDaysAverage = previousDaysSales.length > 0 
@@ -127,7 +135,7 @@ const Dashboard: React.FC = () => {
 
   const { dailyChange, weeklyChange, monthlyChange } = calculateChanges();
 
-  if (isLoading && (!stats)) {
+  if (isLoading && (!stats || !program)) {
     return (
       <div className="flex items-center justify-center h-64">
         <Spinner size="lg" />
@@ -135,8 +143,13 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  // Get the monthly goal if available
-  const monthlyGoal = goals.find(goal => goal.type === 'MONTHLY');
+  // Create program goal object for GoalProgress component
+  const programGoal = program ? {
+    amount: parseFloat(program.financial_goal),
+    achieved: stats?.program.achieved || 0,
+    startDate: program.start_date,
+    endDate: program.end_date
+  } : null;
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -180,7 +193,7 @@ const Dashboard: React.FC = () => {
         </div>
         
         <div>
-          {monthlyGoal && <GoalProgress goal={monthlyGoal} />}
+          {programGoal && <GoalProgress goal={programGoal} />}
         </div>
       </div>
 
@@ -189,7 +202,6 @@ const Dashboard: React.FC = () => {
         <FinancialBreakdown />
       </div>
       
-      <DailyTransactions transactions={validTransactions} />
     </div>
   );
 };

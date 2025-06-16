@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ProgramBook, ProgramConfig } from '../types';
 import { api } from '../api';
+import { ProgramConfig } from '../types';
 
 interface ProgramState {
   program: ProgramConfig | null;
@@ -11,7 +11,7 @@ interface ProgramState {
 
 interface ProgramStore extends ProgramState {
   createProgram: (programData: any) => Promise<void>;
-  updateProgram: (id: string, programData: any) => Promise<void>;
+  updateProgram: (id: number, programData: any) => Promise<void>;
   fetchProgram: () => Promise<void>;
 }
 
@@ -58,7 +58,6 @@ export const useProgramStore = create<ProgramStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await api.get('/program');
-          console.log(response);
           set({ 
             program: response?.program || null, 
             isLoading: false 

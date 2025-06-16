@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
-  Users, Search, Filter, Download, UserPlus,
+  Users, Search, Download, UserPlus,
   Shield, ShieldCheck, Eye, 
   Edit, Save, X, AlertCircle,
   Trash2
@@ -150,9 +150,9 @@ const UsersPage: React.FC = () => {
 
   // Filter users based on search and filters
   const filteredUsers = React.useMemo(() => {
-    return users.filter(user => {
-      const matchesSearch = user.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
-                           user.email.toLowerCase().includes(globalFilter.toLowerCase());
+    return users?.filter(user => {
+      const matchesSearch = user.name?.toLowerCase().includes(globalFilter.toLowerCase()) ||
+                           user.email?.toLowerCase().includes(globalFilter.toLowerCase());
       const matchesRole = !roleFilter || user.role === roleFilter;
       const matchesStatus = !statusFilter || user.status === statusFilter;
       return matchesSearch && matchesRole && matchesStatus;

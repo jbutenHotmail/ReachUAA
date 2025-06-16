@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
 import { 
@@ -7,7 +7,7 @@ import {
   X, DollarSign, ChevronDown, ClipboardList, 
   Receipt, Wallet, Utensils, ChevronFirst as FirstAid, ShoppingBag, Wrench, 
   Fuel, Users, UserPlus, BookOpen, UserCog, UsersRound,
-  Package, TrendingUp, Calendar, Sun, AlertTriangle, FileText, Plus, Lock
+  Package, TrendingUp, Calendar, AlertTriangle, FileText, Plus, Lock
 } from 'lucide-react';
 
 import { UserRole } from '../../types';
@@ -22,7 +22,6 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const location = useLocation();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [recordsOpen, setRecordsOpen] = React.useState(true);
   const [inventoryOpen, setInventoryOpen] = React.useState(true);
@@ -33,218 +32,221 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
   const [peopleOpen, setPeopleOpen] = React.useState(true);
   const [usersOpen, setUsersOpen] = React.useState(true);
   
-  const menuItems = [
-    { 
+  // Define menu items based on user role
+  const getMenuItems = () => {
+    // Base dashboard item for all roles
+    const dashboardItem = { 
       path: '/dashboard', 
       label: t('navigation.dashboard'), 
       icon: <LayoutDashboard size={20} />, 
-      roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.VIEWER]
-    },
-    {
-      label: t('navigation.records'),
-      icon: <ClipboardList size={20} />,
-      submenu: [
-        {
-          path: '/transactions/finances',
-          label: t('dashboard.dailyTransactions'),
-          icon: <DollarSign size={20} />,
-          roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.VIEWER]
-        },
-        {
-          path: '/transactions/delivered-books',
-          label: t('navigation.deliveredBooks'),
-          icon: <BookText size={20} />,
-          roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.VIEWER]
-        },
-        {
-          path: '/transactions/new',
-          label: t('navigation.newTransaction'),
-          icon: <Plus size={20} />,
-          roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.VIEWER]
-        }
-      ],
-      roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.VIEWER]
-    },
-    {
-      label: t('navigation.inventory'),
-      icon: <Package size={20} />,
-      submenu: [
-        {
-          path: '/inventory/catalog',
-          label: 'Book Catalog',
-          icon: <BookOpen size={20} />,
-          roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.VIEWER]
-        },
-        {
-          path: '/inventory/tracking',
-          label: 'Inventory Tracking',
-          icon: <TrendingUp size={20} />,
-          roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-        }
-      ],
-      roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.VIEWER]
-    },
-    {
-      label: t('cashAdvance.title'),
-      icon: <Wallet size={20} />,
-      submenu: [
-        {
-          path: '/cash-advance/overview',
-          label: 'Overview',
-          icon: <PiggyBank size={20} />,
-          roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-        },
-        {
-          path: '/cash-advance/new',
-          label: 'New Advance',
-          icon: <DollarSign size={20} />,
-          roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-        }
-      ],
-      roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-    },
-    {
-      label: t('navigation.expenses'),
-      icon: <Receipt size={20} />,
-      submenu: [
-        {
-          path: '/expenses/all',
-          label: 'All Expenses',
-          icon: <ClipboardList size={20} />,
-          roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-        },
-        {
-          path: '/expenses/food',
-          label: t('expenses.food'),
-          icon: <Utensils size={20} />,
-          roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-        },
-        {
-          path: '/expenses/health',
-          label: t('expenses.health'),
-          icon: <FirstAid size={20} />,
-          roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-        },
-        {
-          path: '/expenses/supplies',
-          label: t('expenses.supplies'),
-          icon: <ShoppingBag size={20} />,
-          roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-        },
-        {
-          path: '/expenses/maintenance',
-          label: t('expenses.maintenance'),
-          icon: <Wrench size={20} />,
-          roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-        },
-        {
-          path: '/expenses/fuel',
-          label: t('expenses.fuel'),
-          icon: <Fuel size={20} />,
-          roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-        }
-      ],
-      roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-    },
-    { 
-      path: '/charges', 
-      label: 'Charges & Fines', 
-      icon: <AlertTriangle size={20} />, 
-      roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-    },
-    {
-      label: t('navigation.reports'),
-      icon: <BarChart3 size={20} />,
-      submenu: [
-        {
-          path: '/reports/donations/finances',
-          label: 'Donations',
-          icon: <Heart size={20} />,
-          roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-        },
-        {
-          path: '/reports/program',
-          label: 'Program Report',
-          icon: <BarChart3 size={20} />,
-          roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-        },
-        {
-          path: '/reports/individual',
-          label: 'Individual Reports',
-          icon: <FileText size={20} />,
-          roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-        }
-      ],
-      roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
-    },
-    {
-      label: 'Administration',
-      icon: <Settings size={20} />,
-      submenu: [
-        {
-          label: 'Users',
-          icon: <UserCog size={20} />,
-          submenu: [
-            {
-              path: '/admin/users/manage',
-              label: 'Manage Users',
-              icon: <UserCog size={20} />,
-              roles: [UserRole.ADMIN]
-            },
-            {
-              path: '/admin/users/roles',
-              label: 'Manage Roles',
-              icon: <Lock size={20} />,
-              roles: [UserRole.ADMIN]
-            }
-          ],
-          roles: [UserRole.ADMIN]
-        },
-        {
-          label: 'People',
-          icon: <Users size={20} />,
-          submenu: [
-            {
-              path: '/admin/people/all',
-              label: 'All People',
-              icon: <Users size={20} />,
-              roles: [UserRole.ADMIN]
-            },
-            {
-              path: '/admin/people/colporters',
-              label: 'Colporters',
-              icon: <UserPlus size={20} />,
-              roles: [UserRole.ADMIN]
-            },
-            {
-              path: '/admin/people/leaders',
-              label: 'Leaders',
-              icon: <UsersRound size={20} />,
-              roles: [UserRole.ADMIN]
-            }
-          ],
-          roles: [UserRole.ADMIN]
-        },
-        {
-          path: '/admin/settings',
-          label: 'Program',
-          icon: <Calendar size={20} />,
-          roles: [UserRole.ADMIN]
-        }
-      ],
-      roles: [UserRole.ADMIN]
-    },
-    { 
+    };
+    
+    // New transaction item for all roles
+    const newTransactionItem = {
+      path: '/transactions/new',
+      label: t('navigation.newTransaction'),
+      icon: <Plus size={20} />,
+    };
+    
+    // Settings item for all roles
+    const settingsItem = { 
       path: '/settings', 
       label: 'Settings', 
       icon: <Settings size={20} />, 
-      roles: [UserRole.ADMIN, UserRole.SUPERVISOR]
+    };
+    
+    // For Viewer role, return limited menu
+    if (user?.role === UserRole.VIEWER) {
+      return [
+        dashboardItem,
+        newTransactionItem,
+        settingsItem
+      ];
     }
-  ];
+    
+    // For Admin and Supervisor roles
+    return [
+      dashboardItem,
+      {
+        label: t('navigation.records'),
+        icon: <ClipboardList size={20} />,
+        submenu: [
+          {
+            path: '/transactions/finances',
+            label: t('dashboard.dailyTransactions'),
+            icon: <DollarSign size={20} />,
+          },
+          {
+            path: '/transactions/delivered-books',
+            label: t('navigation.deliveredBooks'),
+            icon: <BookText size={20} />,
+          },
+          {
+            path: '/transactions/new',
+            label: t('navigation.newTransaction'),
+            icon: <Plus size={20} />,
+          }
+        ],
+      },
+      {
+        label: t('navigation.inventory'),
+        icon: <Package size={20} />,
+        submenu: [
+          {
+            path: '/inventory/catalog',
+            label: 'Book Catalog',
+            icon: <BookOpen size={20} />,
+          },
+          {
+            path: '/inventory/tracking',
+            label: 'Inventory Tracking',
+            icon: <TrendingUp size={20} />,
+          }
+        ],
+      },
+      {
+        label: t('cashAdvance.title'),
+        icon: <Wallet size={20} />,
+        submenu: [
+          {
+            path: '/cash-advance/overview',
+            label: 'Overview',
+            icon: <PiggyBank size={20} />,
+          },
+          {
+            path: '/cash-advance/new',
+            label: 'New Advance',
+            icon: <DollarSign size={20} />,
+          }
+        ],
+      },
+      {
+        label: t('navigation.expenses'),
+        icon: <Receipt size={20} />,
+        submenu: [
+          {
+            path: '/expenses/all',
+            label: 'All Expenses',
+            icon: <ClipboardList size={20} />,
+          },
+          {
+            path: '/expenses/food',
+            label: t('expenses.food'),
+            icon: <Utensils size={20} />,
+          },
+          {
+            path: '/expenses/health',
+            label: t('expenses.health'),
+            icon: <FirstAid size={20} />,
+          },
+          {
+            path: '/expenses/supplies',
+            label: t('expenses.supplies'),
+            icon: <ShoppingBag size={20} />,
+          },
+          {
+            path: '/expenses/maintenance',
+            label: t('expenses.maintenance'),
+            icon: <Wrench size={20} />,
+          },
+          {
+            path: '/expenses/fuel',
+            label: t('expenses.fuel'),
+            icon: <Fuel size={20} />,
+          }
+        ],
+      },
+      { 
+        path: '/charges', 
+        label: 'Charges & Fines', 
+        icon: <AlertTriangle size={20} />, 
+      },
+      {
+        label: t('navigation.reports'),
+        icon: <BarChart3 size={20} />,
+        submenu: [
+          {
+            path: '/reports/donations/finances',
+            label: 'Donations',
+            icon: <Heart size={20} />,
+            roles: [UserRole.ADMIN]
+          },
+          {
+            path: '/reports/program',
+            label: 'Program Report',
+            icon: <BarChart3 size={20} />,
+            roles: [UserRole.ADMIN]
+          },
+          {
+            path: '/reports/individual',
+            label: 'Individual Reports',
+            icon: <FileText size={20} />,
+            roles: [UserRole.ADMIN]
+          },
+          {
+            path: '/reports/access-denied',
+            label: 'Reports Access',
+            icon: <Lock size={20} />,
+            roles: [UserRole.SUPERVISOR]
+          }
+        ],
+      },
+      // Admin section only for Admin role
+      ...(user?.role === UserRole.ADMIN ? [
+        {
+          label: 'Administration',
+          icon: <Settings size={20} />,
+          submenu: [
+            {
+              label: 'Users',
+              icon: <UserCog size={20} />,
+              submenu: [
+                {
+                  path: '/admin/users/manage',
+                  label: 'Manage Users',
+                  icon: <UserCog size={20} />,
+                },
+                {
+                  path: '/admin/users/roles',
+                  label: 'Manage Roles',
+                  icon: <Lock size={20} />,
+                }
+              ],
+            },
+            {
+              label: 'People',
+              icon: <Users size={20} />,
+              submenu: [
+                {
+                  path: '/admin/people/all',
+                  label: 'All People',
+                  icon: <Users size={20} />,
+                },
+                {
+                  path: '/admin/people/colporters',
+                  label: 'Colporters',
+                  icon: <UserPlus size={20} />,
+                },
+                {
+                  path: '/admin/people/leaders',
+                  label: 'Leaders',
+                  icon: <UsersRound size={20} />,
+                }
+              ],
+            },
+            {
+              path: '/admin/settings',
+              label: 'Program',
+              icon: <Calendar size={20} />,
+            }
+          ],
+        }
+      ] : []),
+      settingsItem
+    ];
+  };
 
-  const filteredMenuItems = menuItems.filter(item => 
-    user && item.roles.includes(user.role)
-  );
+  const menuItems = getMenuItems();
   
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -301,6 +303,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
 
   const renderSubmenuItems = (submenu: any[], level = 0) => {
     return submenu.map((subItem) => {
+      // Skip items that require specific roles the user doesn't have
+      if (subItem.roles && (!user || !subItem.roles.includes(user.role))) {
+        return null;
+      }
+      
       if ('submenu' in subItem) {
         return (
           <div key={subItem.label}>
@@ -431,8 +438,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
         <nav className="h-[calc(100%-3.5rem)] sm:h-[calc(100%-4rem)] flex flex-col">
           <div className="flex-1 px-2 sm:px-4 py-4 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20 hover:scrollbar-thumb-white/30">
             <ul className="space-y-1">
-              {filteredMenuItems.map((item, index) => (
-                <li key={item.label}>
+              {menuItems.map((item) => (
+                <li key={item.label || item.path}>
                   {'submenu' in item ? (
                     <div>
                       <button

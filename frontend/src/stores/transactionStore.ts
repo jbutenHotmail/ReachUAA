@@ -47,9 +47,13 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
   fetchAllTransactions: async (status: string) => {
     set({ isLoading: true, error: null });
     try {
-
-      // Fetch all transactions without date filtering
-      const transactions = status ? await api.get<Transaction[]>(`/transactions?status=${status}`) : await api.get<Transaction[]>('/transactions');
+      // Fetch all transactions with optional status filtering
+      const params: Record<string, string> = {};
+      if (status) {
+        params.status = status;
+      }
+      
+      const transactions = await api.get<Transaction[]>('/transactions', { params });
       set({ transactions, isLoading: false });
     } catch (error) {
       set({ 

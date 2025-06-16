@@ -100,6 +100,8 @@ export const createCashAdvance = async (req, res) => {
   try {
     const {
       personId,
+      personType,
+      personName,
       weekStartDate,
       weekEndDate,
       totalSales,
@@ -119,9 +121,9 @@ export const createCashAdvance = async (req, res) => {
     
     // Check if advance already exists for this week
     const existingAdvance = await db.getOne(
-  'SELECT * FROM cash_advances WHERE person_id = ? AND week_start_date = ? AND week_end_date = ? AND (status = ? OR status = ?)',
-  [personId, weekStartDate, weekEndDate, 'APPROVED', 'PENDING']
-);
+      'SELECT * FROM cash_advances WHERE person_id = ? AND week_start_date = ? AND week_end_date = ?',
+      [personId, weekStartDate, weekEndDate]
+    );
     
     if (existingAdvance) {
       return res.status(400).json({ 
@@ -135,7 +137,7 @@ export const createCashAdvance = async (req, res) => {
     );
     
     // Calculate maximum advance amount
-    const maxPercentage = person.person_type === 'COLPORTER' 
+    const maxPercentage = personType === 'COLPORTER' 
       ? financialConfig?.colporter_cash_advance_percentage || 20
       : financialConfig?.leader_cash_advance_percentage || 25;
     

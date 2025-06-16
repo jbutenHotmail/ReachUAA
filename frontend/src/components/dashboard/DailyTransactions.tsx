@@ -7,6 +7,8 @@ import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../stores/authStore';
+import { UserRole } from '../../types';
 
 interface DailyTransactionsProps {
   transactions: Transaction[];
@@ -20,9 +22,14 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { updateTransaction } = useTransactionStore();
+  const { user } = useAuthStore();
+  
+  // Check if user is admin (only admins can approve/reject)
+  const isAdmin = user?.role === UserRole.ADMIN;
   
   // Filter out rejected transactions for totals
-  const validTransactions = transactions.filter(t => t.status !== 'REJECTED');
+  // IMPORTANT: Only count APPROVED transactions for totals
+  const validTransactions = transactions.filter(t => t.status === 'APPROVED');
   
   const totals = validTransactions.reduce((acc, curr) => ({
     cash: Number(acc.cash) + Number(curr.cash),
@@ -60,18 +67,21 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
   return (
     <Card
       title={t('dashboard.dailyTransactions')}
-      subtitle={new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',timeZone:'UTC' })}
+      subtitle={new Date(date).toLocaleDateString()}
       icon={<DollarSign size={20} />}
     >
       <div className="space-y-4">
         {/* Mobile-first table */}
-        <div className="block sm:hidden space-y-3">
+        <div className="block lg:hidden space-y-3">
           {transactions.map((transaction) => (
-            <div key={transaction.id} className={`p-4 rounded-lg border ${
-              transaction.status === 'PENDING' ? 'bg-yellow-50 border-yellow-200' : 
-              transaction.status === 'REJECTED' ? 'bg-red-50 border-red-200' : 
-              'bg-white border-gray-200'
-            }`}>
+            <div 
+              key={transaction.id}
+              className={`p-4 rounded-lg border ${
+                transaction.status === 'PENDING' ? 'bg-yellow-50 border-yellow-200' : 
+                transaction.status === 'REJECTED' ? 'bg-red-50 border-red-200' : 
+                'bg-white border-gray-200'
+              }`}
+            >
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <p className="font-medium text-gray-900">{transaction.studentName}</p>
@@ -108,7 +118,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                   {transaction.books?.reduce((sum, book) => sum + book.quantity, 0) || 0} books
                 </Badge>
                 
-                {transaction.status === 'PENDING' ? (
+                {transaction.status === 'PENDING' && isAdmin ? (
                   <div className="flex space-x-2">
                     <Button
                       variant="success"
@@ -140,7 +150,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
         </div>
 
         {/* Desktop table */}
-        <div className="hidden sm:block overflow-x-auto">
+        <div className="hidden lg:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead>
               <tr>
@@ -215,7 +225,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                     {getStatusBadge(transaction.status)}
                   </td>
                   <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center">
-                    {transaction.status === 'PENDING' ? (
+                    {transaction.status === 'PENDING' && isAdmin ? (
                       <div className="flex items-center justify-center space-x-2">
                         <Button
                           variant="success"

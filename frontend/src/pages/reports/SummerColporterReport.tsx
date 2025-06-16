@@ -4,6 +4,7 @@ import { ChevronLeft, Calendar, TrendingUp, BookOpen, DollarSign, Users } from '
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
+import { useTransactionStore } from '../../stores/transactionStore';
 import { useProgramStore } from '../../stores/programStore';
 import Spinner from '../../components/ui/Spinner';
 import { api } from '../../api';
@@ -97,10 +98,10 @@ const SummerColporterReport: React.FC = () => {
       
       setIsLoading(true);
       try {
-        // Get all transactions for this person based on their type
+        // Get all transactions for this person based on their type - ONLY APPROVED TRANSACTIONS
         const params = personType === 'COLPORTER' 
-          ? { studentId: personId } 
-          : { leaderId: personId };
+          ? { studentId: personId, status: 'APPROVED' } 
+          : { leaderId: personId, status: 'APPROVED' };
         
         const personTransactions = await api.get('/transactions', { params });
         
@@ -125,7 +126,7 @@ const SummerColporterReport: React.FC = () => {
   }, [personId, personType]);
 
   // Fetch team members for a leader
-  const fetchTeamMembers = async (leaderId: string, leaderTransactions: any[]) => {
+  const fetchTeamMembers = async (leaderTransactions: any[]) => {
     try {
       // Get unique colporter IDs from transactions
       const colporterIds = new Set<string>();
@@ -141,9 +142,9 @@ const SummerColporterReport: React.FC = () => {
       
       // Calculate stats for each team member
       const teamStats = teamColporters.map((colporter: any) => {
-        // Get transactions for this colporter
+        // Get transactions for this colporter - ONLY APPROVED TRANSACTIONS
         const colporterTransactions = leaderTransactions.filter(t => 
-          t.studentId === colporter.id && t.status !== 'REJECTED'
+          t.studentId === colporter.id && t.status === 'APPROVED'
         );
         
         // Calculate total sales
@@ -192,8 +193,8 @@ const SummerColporterReport: React.FC = () => {
       return;
     }
     
-    // Filter out rejected transactions
-    const validTransactions = personTransactions.filter(t => t.status !== 'REJECTED');
+    // Filter out rejected transactions - only include APPROVED transactions
+    const validTransactions = personTransactions.filter(t => t.status === 'APPROVED');
     
     // Get the appropriate percentage from program config
     const percentage = type === 'COLPORTER'

@@ -20,11 +20,11 @@ router.get('/:id', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), g
 // Create new cash advance
 router.post('/', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), createCashAdvance);
 
-// Approve cash advance
-router.patch('/:id/approve', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), approveCashAdvance);
+// Approve cash advance (admin only)
+router.patch('/:id/approve', authenticateToken, authorizeRoles(['ADMIN']), approveCashAdvance);
 
-// Reject cash advance
-router.patch('/:id/reject', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), rejectCashAdvance);
+// Reject cash advance (admin only)
+router.patch('/:id/reject', authenticateToken, authorizeRoles(['ADMIN']), rejectCashAdvance);
 
 // Get weekly sales for a person
 router.get('/weekly-sales/:personId', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), getWeeklySales);

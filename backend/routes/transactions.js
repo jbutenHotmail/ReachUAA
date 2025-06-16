@@ -28,11 +28,11 @@ router.put('/:id', authenticateToken, updateTransaction);
 // Delete transaction (admin only)
 router.delete('/:id', authenticateToken, authorizeRoles(['ADMIN']), deleteTransaction);
 
-// Approve transaction (admin or supervisor)
-router.patch('/:id/approve', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), approveTransaction);
+// Approve transaction (admin only)
+router.patch('/:id/approve', authenticateToken, authorizeRoles(['ADMIN']), approveTransaction);
 
-// Reject transaction (admin or supervisor)
-router.patch('/:id/reject', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), rejectTransaction);
+// Reject transaction (admin only)
+router.patch('/:id/reject', authenticateToken, authorizeRoles(['ADMIN']), rejectTransaction);
 
 // Get transaction books
 router.get('/:id/books', authenticateToken, getTransactionBooks);
