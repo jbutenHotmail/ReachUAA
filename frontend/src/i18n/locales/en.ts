@@ -36,6 +36,7 @@ export default {
     add: "Add",
     create: "Create",
     logoAlt: "Reach UAA",
+    months: 'Months'
   },
   bookSetup: {
     title: "Book Setup",

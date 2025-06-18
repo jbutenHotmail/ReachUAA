@@ -679,7 +679,7 @@ const ProgramSettings: React.FC = () => {
                 </div>
 
                 <div className="p-3 bg-warning-50 rounded-lg text-center">
-                  <p className="text-xs font-medium text-warning-600">{t("programSettings.months")}</p>
+                  <p className="text-xs font-medium text-warning-600">{t("common.months")}</p>
                   <p className="text-lg font-bold text-warning-700">
                     {duration.months}
                   </p>

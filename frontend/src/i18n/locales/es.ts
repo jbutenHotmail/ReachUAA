@@ -37,6 +37,7 @@ export default {
     add: "Agregar",
     actions: "Acciones",
     logoAlt: "Reach UAA",
+    months: 'Meses'
   },
   "userForm": {
     "editUser": "Editar Usuario",
