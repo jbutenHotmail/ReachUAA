@@ -1,11 +1,9 @@
 import React from 'react';
 import { Outlet, useNavigate, useLocation, NavLink } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { Users, Settings, UserCog, Lock } from 'lucide-react';
+import { Users, Settings, UserCog } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const AdminLayout: React.FC = () => {
-  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
 

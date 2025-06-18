@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { UserRole } from '../types';
 import { useAuthStore } from '../stores/authStore';
-import Spinner from '../components/ui/Spinner';
 import AccessDeniedPage from '../pages/reports/AccessDeniedPage';
+import LoadingScreen from '../components/ui/LoadingScreen';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -37,7 +37,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="lg" />
+        <LoadingScreen message='Loading...' />
       </div>
     );
   }

@@ -27,10 +27,8 @@ const BookSetupStep: React.FC<BookSetupStepProps> = ({
   const [editingBook, setEditingBook] = useState<Book | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Add default books if none exist
   useEffect(() => {
     if (books.length === 0) {
-      // Create books with temporary IDs
       const initialBooks = defaultBooks.map((book, index) => ({
         ...book,
         id: `temp-${index + 1}`,
@@ -44,7 +42,7 @@ const BookSetupStep: React.FC<BookSetupStepProps> = ({
   const handleAddBook = (bookData: Omit<Book, 'id'>) => {
     const newBook: Book = {
       ...bookData,
-      id: `temp-${Date.now()}`, // Temporary ID until saved to database
+      id: `temp-${Date.now()}`,
       stock: 0,
       sold: 0,
     };
@@ -64,6 +62,7 @@ const BookSetupStep: React.FC<BookSetupStepProps> = ({
     );
     
     setEditingBook(null);
+    setShowAddForm(false);
   };
 
   const handleDeleteBook = (id: string) => {
@@ -83,32 +82,32 @@ const BookSetupStep: React.FC<BookSetupStepProps> = ({
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
           <BookText className="text-primary-600" size={24} />
-          Book Setup
+          {t('bookSetup.title')}
         </h2>
         <div className="flex gap-2">
           <Button
             variant="outline"
             onClick={onBack}
           >
-            Back
+            {t('common.back')}
           </Button>
           <Button
             variant="primary"
             onClick={onNext}
             disabled={books.length === 0}
           >
-            Next
+            {t('common.next')}
           </Button>
         </div>
       </div>
 
       <p className="text-gray-600">
-        Add books that will be available in the program. You can set a custom price and initial stock for each book.
+        {t('bookSetup.description')}
       </p>
 
       <div className="flex flex-col sm:flex-row justify-between gap-4">
         <Input
-          placeholder="Search books..."
+          placeholder={t('bookSetup.searchPlaceholder')}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           leftIcon={<BookText size={18} />}
@@ -120,7 +119,7 @@ const BookSetupStep: React.FC<BookSetupStepProps> = ({
           leftIcon={<Plus size={18} />}
           onClick={() => setShowAddForm(true)}
         >
-          Add Book
+          {t('bookSetup.addBook')}
         </Button>
       </div>
 
@@ -131,19 +130,19 @@ const BookSetupStep: React.FC<BookSetupStepProps> = ({
               <thead>
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Book
+                    {t('bookSetup.book')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
+                    {t('bookSetup.category')}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Price
+                    {t('bookSetup.price')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Initial Stock
+                    {t('bookSetup.initialStock')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
+                    {t('bookSetup.actions')}
                   </th>
                 </tr>
               </thead>
@@ -164,7 +163,7 @@ const BookSetupStep: React.FC<BookSetupStepProps> = ({
                             {book.title}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {book.author || 'Unknown author'}
+                            {book.author || t('bookSetup.unknownAuthor')}
                           </div>
                         </div>
                       </div>
@@ -193,7 +192,10 @@ const BookSetupStep: React.FC<BookSetupStepProps> = ({
                           variant="ghost"
                           size="sm"
                           className="p-1"
-                          onClick={() => setEditingBook(book)}
+                          onClick={() => {
+                            setEditingBook(book);
+                            setShowAddForm(true);
+                          }}
                         >
                           <Edit size={14} />
                         </Button>
@@ -219,10 +221,10 @@ const BookSetupStep: React.FC<BookSetupStepProps> = ({
             <Package size={48} />
           </div>
           <h3 className="mt-2 text-lg font-medium text-gray-900">
-            {searchTerm ? 'No results found' : 'No books added yet'}
+            {searchTerm ? t('bookSetup.noBooksFound') : t('bookSetup.noBooksAdded')}
           </h3>
           <p className="mt-1 text-sm text-gray-500">
-            {searchTerm ? 'Try adjusting your search terms' : 'Get started by adding books to your program.'}
+            {searchTerm ? t('bookSetup.searchNoResults') : t('bookSetup.noBooksPrompt')}
           </p>
           <div className="mt-6">
             <Button
@@ -231,7 +233,7 @@ const BookSetupStep: React.FC<BookSetupStepProps> = ({
               leftIcon={<Plus size={18} />}
               onClick={() => setShowAddForm(true)}
             >
-              Add Book
+              {t('bookSetup.addBook')}
             </Button>
           </div>
         </Card>

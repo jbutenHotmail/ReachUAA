@@ -23,7 +23,7 @@ const NewTransaction: React.FC = () => {
   const { fetchUsers, fetchPeople, people, werePeopleFetched, wereUsersFetched } = useUserStore();
   const { createTransaction } = useTransactionStore();
   const { books, fetchBooks, wereBooksLoaded } = useInventoryStore();
-  const { fetchProgram, wasProgramFetched, program } = useProgramStore();
+  const { fetchProgram, wasProgramFetched } = useProgramStore();
   const { user } = useAuthStore();
 
   const [leaderSearch, setLeaderSearch] = useState('');

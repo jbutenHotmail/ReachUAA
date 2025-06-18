@@ -22,7 +22,7 @@ import Badge from '../../../components/ui/Badge';
 import { UserRole, User } from '../../../types';
 import AddUserForm from './AddUserForm';
 import { useUserStore } from '../../../stores/userStore';
-import Spinner from '../../../components/ui/Spinner';
+import LoadingScreen from '../../../components/ui/LoadingScreen';
 
 const columnHelper = createColumnHelper<User>();
 
@@ -317,7 +317,7 @@ const UsersPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
+        <LoadingScreen message='Loading users...' />
       </div>
     );
   }

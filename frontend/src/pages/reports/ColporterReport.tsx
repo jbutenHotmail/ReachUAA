@@ -5,8 +5,8 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import { useProgramStore } from '../../stores/programStore';
-import Spinner from '../../components/ui/Spinner';
 import { api } from '../../api';
+import LoadingScreen from '../../components/ui/LoadingScreen';
 
 const ColporterReport: React.FC = () => {
   const { name } = useParams<{ name: string }>();
@@ -196,7 +196,7 @@ const ColporterReport: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
+        <LoadingScreen message='Loading report...' />
       </div>
     );
   }

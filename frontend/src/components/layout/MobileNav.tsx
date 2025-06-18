@@ -7,7 +7,8 @@ import {
   PiggyBank, 
   BarChart3, 
   User,
-  Plus
+  Plus,
+  Globe
 } from 'lucide-react';
 import { UserRole } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
@@ -31,6 +32,11 @@ const MobileNav: React.FC = () => {
         icon: <Plus size={18} />, 
       },
       { 
+        path: '/settings', 
+        label: t('settings.title'), 
+        icon: <Globe size={18} />, 
+      },
+      { 
         path: '/profile', 
         label: t('profile.title'), 
         icon: <User size={18} />, 
@@ -47,7 +53,7 @@ const MobileNav: React.FC = () => {
           icon: <BookText size={18} />, 
         },
         { 
-          path: '/transactions/finances', 
+          path: '/transactions', 
           label: 'Transactions', 
           icon: <PiggyBank size={18} />, 
         },

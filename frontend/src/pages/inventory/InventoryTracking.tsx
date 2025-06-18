@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   AlertTriangle, 
   CheckCircle, 
-  XCircle, 
-  Calendar, 
   TrendingDown, 
   TrendingUp,
   Package,
@@ -20,7 +18,7 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
 import LoadingScreen from '../../components/ui/LoadingScreen';
-import { UserRole, InventoryCount, BookSize } from '../../types';
+import { UserRole, BookSize } from '../../types';
 
 const InventoryTracking: React.FC = () => {
   const { t } = useTranslation();

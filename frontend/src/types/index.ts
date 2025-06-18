@@ -13,11 +13,12 @@ export interface User {
   role: UserRole;
   phone?: string;
   address?: string;
-  profileImage?: string;
+  profile_image_url?: string;
   createdAt: string;
   updatedAt: string;
   personType?: string;
   lastLogin?: string;
+  status: 'ACTIVE' | 'INACTIVE';
 }
 
 // Define AuthState interface
@@ -39,7 +40,7 @@ export interface Person {
   address: string;
   status: 'ACTIVE' | 'INACTIVE';
   hasUser: boolean;
-  profileImage?: string;
+  profile_image_url?: string;
   createdAt: string;
   updatedAt: string;
   personType: 'COLPORTER' | 'LEADER';
@@ -140,6 +141,7 @@ export interface ProgramBook {
   bookId: string;
   price: number; // Program-specific price
   initialStock: number; // Initial stock for this program
+  is_active: boolean; // Whether the book is active in the program
 }
 
 export interface InventoryMovement {
@@ -233,6 +235,36 @@ export interface LeaderPerformance {
     amount: number;
   };
   dailySales: Record<string, number>;
+}
+
+export interface Colporter {
+  id: string;
+  name: string;
+  apellido: string;
+  email: string;
+  phone?: string;
+  school: string;
+  address?: string;
+  age: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  hasUser: boolean;
+  createdAt: string;
+  updatedAt: string;
+  profile_image_url?: string;
+}
+
+export interface Leader {
+  id: string;
+  name: string;
+  apellido: string;
+  email: string;
+  phone?: string;
+  institution: string;
+  address?: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  hasUser: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Updated ProgramConfig interface with achieved property

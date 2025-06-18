@@ -10,7 +10,6 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
-import Spinner from '../../components/ui/Spinner';
 import LoadingScreen from '../../components/ui/LoadingScreen';
 
 const AdminCashAdvance: React.FC = () => {
@@ -382,7 +381,7 @@ const AdminCashAdvance: React.FC = () => {
 
       {isCalculatingLocally && (
         <div className="flex items-center justify-center h-64">
-          <Spinner size="lg" />
+          <LoadingScreen message='Calculating...' />
         </div>
       )}
 

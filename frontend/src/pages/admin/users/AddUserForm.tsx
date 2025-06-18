@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, ChevronDown, AlertCircle, CheckCircle, Lock } from 'lucide-react';
+import { X, ChevronDown, AlertCircle, Lock } from 'lucide-react';
 import { clsx } from 'clsx';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
 import Badge from '../../../components/ui/Badge';
 import { UserRole } from '../../../types';
 import { useUserStore } from '../../../stores/userStore';
@@ -122,7 +121,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">
-                {initialData ? 'Edit User' : 'Create New User'}
+                {initialData ? t('userForm.editUser') : t('userForm.createUser')}
               </h2>
               <button
                 type="button"
@@ -138,7 +137,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
               {!initialData && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Person Type
+                    {t('userForm.personType')}
                   </label>
                   <select
                     name="personType"
@@ -147,8 +146,8 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                     required
                   >
-                    <option value="COLPORTER">Colporter</option>
-                    <option value="LEADER">Leader</option>
+                    <option value="COLPORTER">{t('common.colporter')}</option>
+                    <option value="LEADER">{t('common.leader')}</option>
                   </select>
                 </div>
               )}
@@ -157,7 +156,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
               {!initialData && (
                 <div className="relative" ref={personDropdownRef}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Select {formData.personType === 'COLPORTER' ? 'Colporter' : 'Leader'}
+                    {t('userForm.selectPerson', { type: formData.personType === 'COLPORTER' ? t('common.colporter') : t('common.leader') })}
                   </label>
                   <div
                     className={clsx(
@@ -168,7 +167,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                     <div className="flex items-center">
                       <input
                         type="text"
-                        placeholder={`Search ${formData.personType.toLowerCase()}...`}
+                        placeholder={t('userForm.searchPersonPlaceholder', { type: formData.personType.toLowerCase() })}
                         value={personSearch}
                         onChange={(e) => {
                           setPersonSearch(e.target.value);
@@ -238,8 +237,8 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                         ) : (
                           <div className="px-4 py-2 text-sm text-gray-500">
                             {personSearch ? 
-                              "No matching people found" : 
-                              `No ${formData.personType.toLowerCase()}s found without user accounts`}
+                              t('userForm.noMatchingPeople') : 
+                              t('userForm.noPeopleWithoutAccounts', { type: formData.personType.toLowerCase() })}
                           </div>
                         )}
                       </div>
@@ -260,7 +259,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                       variant={initialData.personType === 'COLPORTER' ? 'primary' : 'success'}
                       size="sm"
                     >
-                      {initialData.personType}
+                      {t(`common.${initialData.personType.toLowerCase()}`)}
                     </Badge>
                   </div>
                 </div>
@@ -269,7 +268,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
               {/* Role Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  User Role
+                  {t('userForm.userRole')}
                 </label>
                 <select
                   name="role"
@@ -278,14 +277,14 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                   required
                 >
-                  <option value={UserRole.ADMIN}>Administrator</option>
-                  <option value={UserRole.SUPERVISOR}>Supervisor</option>
-                  <option value={UserRole.VIEWER}>Viewer</option>
+                  <option value={UserRole.ADMIN}>{t('userForm.roles.admin')}</option>
+                  <option value={UserRole.SUPERVISOR}>{t('userForm.roles.supervisor')}</option>
+                  <option value={UserRole.VIEWER}>{t('userForm.roles.viewer')}</option>
                 </select>
                 <p className="mt-1 text-xs text-gray-500">
-                  {formData.role === UserRole.ADMIN && 'Full access to all system features and settings'}
-                  {formData.role === UserRole.SUPERVISOR && 'Can manage colporters and view reports'}
-                  {formData.role === UserRole.VIEWER && 'Basic access to view their own data'}
+                  {formData.role === UserRole.ADMIN && t('userForm.roleDescriptions.admin')}
+                  {formData.role === UserRole.SUPERVISOR && t('userForm.roleDescriptions.supervisor')}
+                  {formData.role === UserRole.VIEWER && t('userForm.roleDescriptions.viewer')}
                 </p>
               </div>
 
@@ -293,7 +292,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
               {initialData && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Account Status
+                    {t('userForm.accountStatus')}
                   </label>
                   <select
                     name="status"
@@ -302,13 +301,13 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                     required
                   >
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
+                    <option value="ACTIVE">{t('userForm.status.active')}</option>
+                    <option value="INACTIVE">{t('userForm.status.inactive')}</option>
                   </select>
                   <p className="mt-1 text-xs text-gray-500">
                     {formData.status === 'ACTIVE' 
-                      ? 'User can log in and access the system' 
-                      : 'User cannot log in but their data is preserved'}
+                      ? t('userForm.statusDescriptions.active') 
+                      : t('userForm.statusDescriptions.inactive')}
                   </p>
                 </div>
               )}
@@ -319,20 +318,20 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                   <div className="flex items-start gap-3">
                     <Lock size={20} className="text-primary-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-primary-700">Default Password</p>
+                      <p className="text-sm font-medium text-primary-700">{t('userForm.defaultPassword')}</p>
                       <p className="text-xs text-primary-600 mt-1">
-                        A user account will be created with the following credentials:
+                        {t('userForm.accountCreationNote')}
                       </p>
                       <div className="mt-2 p-2 bg-white rounded border border-primary-200">
                         <p className="text-xs">
-                          <span className="font-medium">Username/Email:</span> {selectedPerson.email}
+                          <span className="font-medium">{t('auth.email')}:</span> {selectedPerson.email}
                         </p>
                         <p className="text-xs">
-                          <span className="font-medium">Password:</span> {getDefaultPassword(selectedPerson.name)}
+                          <span className="font-medium">{t('auth.password')}:</span> {getDefaultPassword(selectedPerson.name)}
                         </p>
                       </div>
                       <p className="text-xs text-primary-600 mt-2">
-                        The user will be prompted to change their password on first login.
+                        {t('userForm.passwordChangePrompt')}
                       </p>
                     </div>
                   </div>
@@ -345,9 +344,9 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                   <div className="flex items-start gap-3">
                     <AlertCircle size={20} className="text-warning-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-warning-700">Reset Password</p>
+                      <p className="text-sm font-medium text-warning-700">{t('userForm.resetPassword')}</p>
                       <p className="text-xs text-warning-600 mt-1">
-                        You can reset this user's password to the default: {getDefaultPassword(initialData.personName)}
+                        {t('userForm.resetPasswordNote', { password: getDefaultPassword(initialData.personName) })}
                       </p>
                       <div className="mt-2">
                         <Button
@@ -356,10 +355,10 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                           size="sm"
                           onClick={() => {
                             // In a real app, this would call an API to reset the password
-                            alert(`Password reset to: ${getDefaultPassword(initialData.personName)}`);
+                            alert(`${t('userForm.passwordResetConfirmation')} ${getDefaultPassword(initialData.personName)}`);
                           }}
                         >
-                          Reset Password
+                          {t('userForm.resetPasswordButton')}
                         </Button>
                       </div>
                     </div>
@@ -374,14 +373,14 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                 variant="outline"
                 onClick={onClose}
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button
                 type="submit"
                 variant="primary"
                 disabled={!initialData && !selectedPerson}
               >
-                {initialData ? 'Save Changes' : 'Create User'}
+                {initialData ? t('leaderForm.saveChanges') : t('userForm.createUser')}
               </Button>
             </div>
           </form>

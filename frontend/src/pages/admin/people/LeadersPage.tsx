@@ -21,7 +21,7 @@ import Badge from '../../../components/ui/Badge';
 import AddPersonForm from './AddPersonForm';
 import { useUserStore } from '../../../stores/userStore';
 import { Person } from '../../../types';
-import Spinner from '../../../components/ui/Spinner';
+import LoadingScreen from '../../../components/ui/LoadingScreen';
 
 const columnHelper = createColumnHelper<Person>();
 
@@ -47,7 +47,6 @@ const LeadersPage: React.FC = () => {
     !werePeopleFetched && fetchPeople();
   }, [fetchPeople, werePeopleFetched]);
 
-  // Filter only leaders
   const leaders = people.filter(person => person.personType === 'LEADER');
 
   const handleAddLeader = async (data: any) => {
@@ -70,13 +69,14 @@ const LeadersPage: React.FC = () => {
         personType: 'LEADER'
       });
       setEditingLeader(null);
+      setShowAddForm(false); // Close the form after editing
     } catch (error) {
       console.error('Error updating leader:', error);
     }
   };
 
   const handleDeleteLeader = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this leader?')) return;
+    if (!window.confirm(t('leadersPage.confirmDelete'))) return;
     try {
       await deletePerson(id, 'LEADER');
     } catch (error) {
@@ -86,7 +86,7 @@ const LeadersPage: React.FC = () => {
 
   const columns = [
     columnHelper.accessor('name', {
-      header: 'Name',
+      header: t('leaderForm.name'),
       cell: info => (
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-success-100 flex items-center justify-center text-success-700">
@@ -100,7 +100,7 @@ const LeadersPage: React.FC = () => {
       ),
     }),
     columnHelper.accessor('phone', {
-      header: 'Contact',
+      header: t('peoplePage.contact'),
       cell: info => (
         <div className="space-y-1">
           <div className="flex items-center gap-1 text-gray-600">
@@ -115,7 +115,7 @@ const LeadersPage: React.FC = () => {
       ),
     }),
     columnHelper.accessor('institution', {
-      header: 'Institution',
+      header: t('leaderForm.institution'),
       cell: info => (
         <div className="flex items-center gap-1">
           <Building2 size={16} className="text-gray-400" />
@@ -124,7 +124,7 @@ const LeadersPage: React.FC = () => {
       ),
     }),
     columnHelper.accessor('address', {
-      header: 'Address',
+      header: t('leaderForm.address'),
       cell: info => (
         <div className="flex items-center gap-1">
           <MapPin size={16} className="text-gray-400" />
@@ -133,7 +133,7 @@ const LeadersPage: React.FC = () => {
       ),
     }),
     columnHelper.accessor('status', {
-      header: 'Status',
+      header: t('peoplePage.status'),
       cell: info => (
         <Badge
           variant={info.getValue() === 'ACTIVE' ? 'success' : 'danger'}
@@ -144,18 +144,21 @@ const LeadersPage: React.FC = () => {
       ),
     }),
     columnHelper.accessor('createdAt', {
-      header: 'Created At',
-      cell: info => new Date(info.getValue()).toLocaleDateString(),
+      header: t('peoplePage.createdAt'),
+      cell: info => new Date(info.getValue()).toLocaleDateString('es-US'),
     }),
     columnHelper.display({
       id: 'actions',
-      header: 'Actions',
+      header: t('peoplePage.actions'),
       cell: info => (
         <div className="flex items-center justify-center gap-2">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setEditingLeader(info.row.original)}
+            onClick={() => {
+              setEditingLeader(info.row.original);
+              setShowAddForm(true);
+            }}
           >
             <Pencil size={16} className="text-primary-600" />
           </Button>
@@ -194,7 +197,7 @@ const LeadersPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
+        <LoadingScreen message={t('leadersPage.loadingLeaders')} />
       </div>
     );
   }
@@ -202,7 +205,7 @@ const LeadersPage: React.FC = () => {
   if (error) {
     return (
       <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
-        <p className="font-medium">Error loading leaders</p>
+        <p className="font-medium">{t('leadersPage.errorLoadingLeaders')}</p>
         <p>{error}</p>
       </div>
     );
@@ -215,7 +218,7 @@ const LeadersPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div className="flex flex-col sm:flex-row gap-4">
               <Input
-                placeholder="Search leaders..."
+                placeholder={t('leadersPage.searchPlaceholder')}
                 value={globalFilter}
                 onChange={(e) => setGlobalFilter(e.target.value)}
                 leftIcon={<Search size={18} />}
@@ -226,7 +229,7 @@ const LeadersPage: React.FC = () => {
                 variant="outline"
                 leftIcon={<Filter size={18} />}
               >
-                Filter
+                {t('common.filter')}
               </Button>
             </div>
             
@@ -235,7 +238,7 @@ const LeadersPage: React.FC = () => {
                 variant="outline"
                 leftIcon={<Download size={18} />}
               >
-                Export
+                {t('common.export')}
               </Button>
             </div>
           </div>

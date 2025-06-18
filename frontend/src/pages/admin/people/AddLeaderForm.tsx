@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, AlertCircle } from 'lucide-react';
 import Card from '../../../components/ui/Card';
@@ -27,7 +27,7 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
     institution: initialData?.institution || '',
     address: initialData?.address || '',
     createUser: !initialData,
-    profileImage: initialData?.profileImage,
+    profileImage: initialData?.profile_image_url,
     personType: 'LEADER'
   });
 
@@ -73,7 +73,7 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">
-                {initialData ? 'Edit Leader' : 'Add New Leader'}
+                {initialData ? t('leaderForm.editLeader') : t('leaderForm.addNewLeader')}
               </h2>
               <button
                 type="button"
@@ -88,8 +88,8 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
               <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg flex items-start gap-3">
                 <AlertCircle className="text-warning-500 flex-shrink-0 mt-0.5" size={20} />
                 <div className="text-sm text-warning-700">
-                  <p className="font-medium">User Account Exists</p>
-                  <p>Name, last name, and email cannot be modified while a user account exists. To modify these fields, please delete the user account first from the Users section.</p>
+                  <p className="font-medium">{t('leaderForm.userAccountExists')}</p>
+                  <p>{t('leaderForm.userAccountExistsWarning')}</p>
                 </div>
               </div>
             )}
@@ -97,7 +97,7 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Profile Image
+                  {t('leaderForm.profileImage')}
                 </label>
                 <ImageUpload
                   value={formData.profileImage}
@@ -107,7 +107,7 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
               </div>
 
               <Input
-                label="Name"
+                label={t('leaderForm.name')}
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
@@ -116,7 +116,7 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
               />
 
               <Input
-                label="Last Name"
+                label={t('leaderForm.lastName')}
                 name="apellido"
                 value={formData.apellido}
                 onChange={handleChange}
@@ -125,7 +125,7 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
               />
 
               <Input
-                label="Email"
+                label={t('leaderForm.email')}
                 type="email"
                 name="email"
                 value={formData.email}
@@ -135,7 +135,7 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
               />
 
               <Input
-                label="Phone"
+                label={t('leaderForm.phone')}
                 type="tel"
                 name="phone"
                 value={formData.phone}
@@ -144,7 +144,7 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
               />
 
               <Input
-                label="Institution"
+                label={t('leaderForm.institution')}
                 name="institution"
                 value={formData.institution}
                 onChange={handleChange}
@@ -163,14 +163,14 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
                     className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                   />
                   <label htmlFor="createUser" className="text-sm font-medium text-gray-700">
-                    Create user account
+                    {t('leaderForm.createUserAccount')}
                   </label>
                 </div>
               )}
 
               <div className="md:col-span-2">
                 <Input
-                  label="Address"
+                  label={t('leaderForm.address')}
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
@@ -181,11 +181,11 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
               {!initialData && formData.createUser && formData.name && formData.apellido && formData.email && (
                 <div className="md:col-span-2 p-4 bg-primary-50 rounded-lg">
                   <p className="text-sm text-primary-700">
-                    <strong>Note:</strong> A user account will be created with the following credentials:
+                    <strong>{t('leaderForm.accountCreationNote')}</strong>
                     <br />
-                    <strong>Username/Email:</strong> {formData.email}
+                    <strong>{t('auth.username')}/{t('leaderForm.email')}:</strong> {formData.email}
                     <br />
-                    <strong>Password:</strong> {defaultPassword}
+                    <strong>{t('auth.password')}:</strong> {defaultPassword}
                   </p>
                 </div>
               )}
@@ -197,13 +197,13 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
                 variant="outline"
                 onClick={onClose}
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button
                 type="submit"
                 variant="primary"
               >
-                {initialData ? 'Save Changes' : 'Add Leader'}
+                {initialData ? t('leaderForm.saveChanges') : t('leaderForm.addNewLeader')}
               </Button>
             </div>
           </form>

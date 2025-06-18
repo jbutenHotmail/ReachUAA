@@ -21,7 +21,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
-import ImageUpload from '../../components/ui/ImageUpload';
+// import ImageUpload from '../../components/ui/ImageUpload';
 
 const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
@@ -36,7 +36,7 @@ const ProfilePage: React.FC = () => {
     email: user?.email || '',
     phone: user?.phone || '',
     address: user?.address || '',
-    profileImage: user?.profileImage || '',
+    profileImage: user?.profile_image_url || '',
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -140,7 +140,7 @@ const ProfilePage: React.FC = () => {
       email: user?.email || '',
       phone: user?.phone || '',
       address: user?.address || '',
-      profileImage: user?.profileImage || '',
+      profileImage: user?.profile_image_url || '',
     });
     setIsEditing(false);
     setErrorMessage('');

@@ -12,10 +12,9 @@ import {
 } from 'lucide-react';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
-import Badge from '../../../components/ui/Badge';
 import { UserRole } from '../../../types';
 import { useUserStore } from '../../../stores/userStore';
-import Spinner from '../../../components/ui/Spinner';
+import LoadingScreen from '../../../components/ui/LoadingScreen';
 
 interface RolePermission {
   id: string;
@@ -85,16 +84,16 @@ const ManageRolesPage: React.FC = () => {
     }
   };
 
-  const getRoleIcon = (role: UserRole) => {
-    switch (role) {
-      case UserRole.ADMIN:
-        return <ShieldCheck size={16} className="text-red-600" />;
-      case UserRole.SUPERVISOR:
-        return <Shield size={16} className="text-blue-600" />;
-      case UserRole.VIEWER:
-        return <Eye size={16} className="text-green-600" />;
-    }
-  };
+  // const getRoleIcon = (role: UserRole) => {
+  //   switch (role) {
+  //     case UserRole.ADMIN:
+  //       return <ShieldCheck size={16} className="text-red-600" />;
+  //     case UserRole.SUPERVISOR:
+  //       return <Shield size={16} className="text-blue-600" />;
+  //     case UserRole.VIEWER:
+  //       return <Eye size={16} className="text-green-600" />;
+  //   }
+  // };
 
   // Group permissions by category
   const permissionCategories = React.useMemo(() => {
@@ -138,10 +137,10 @@ const ManageRolesPage: React.FC = () => {
     return categories;
   }, [permissions]);
 
-  if (isLoading && permissions.length === 0) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
+        <LoadingScreen message='Loading Permissions...' />
       </div>
     );
   }

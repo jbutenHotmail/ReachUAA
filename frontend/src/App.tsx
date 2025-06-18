@@ -42,10 +42,13 @@ import ProgramSetup from './pages/admin/setup/ProgramSetup';
 import ProfilePage from './pages/profile/ProfilePage';
 import AccessDeniedPage from './pages/reports/AccessDeniedPage';
 import ViewerDashboard from './pages/dashboard/ViewerDashboard';
+import SettingsPage from './pages/settings/SettingsPage';
+import { useSettingsStore } from './stores/settingsStore';
 
 function App() {
   const { isAuthenticated, user, refreshToken } = useAuthStore();
   const { program, fetchProgram } = useProgramStore();
+  const { settings } = useSettingsStore();
 
   // Check if admin user needs to set up program
   const needsProgramSetup = isAuthenticated && user?.role === UserRole.ADMIN && !program;
@@ -306,6 +309,7 @@ function App() {
         </Route>
         
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
   );

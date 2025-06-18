@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, AlertCircle } from 'lucide-react';
 import Card from '../../../components/ui/Card';
@@ -28,7 +28,7 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
     address: initialData?.address || '',
     age: initialData?.age || '',
     createUser: !initialData,
-    profileImage: initialData?.profileImage,
+    profileImage: initialData?.profile_image_url,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -73,7 +73,7 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">
-                {initialData ? 'Edit Colporter' : 'Add New Colporter'}
+                {initialData ? t('personForm.editPerson') : t('personForm.addNewPerson')}
               </h2>
               <button
                 type="button"
@@ -88,8 +88,8 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
               <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg flex items-start gap-3">
                 <AlertCircle className="text-warning-500 flex-shrink-0 mt-0.5" size={20} />
                 <div className="text-sm text-warning-700">
-                  <p className="font-medium">User Account Exists</p>
-                  <p>Name, last name, and email cannot be modified while a user account exists. To modify these fields, please delete the user account first from the Users section.</p>
+                  <p className="font-medium">{t('leaderForm.userAccountExists')}</p>
+                  <p>{t('leaderForm.userAccountExistsWarning')}</p>
                 </div>
               </div>
             )}
@@ -97,7 +97,7 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Profile Image
+                  {t('leaderForm.profileImage')}
                 </label>
                 <ImageUpload
                   value={formData.profileImage}
@@ -107,7 +107,7 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
               </div>
 
               <Input
-                label="Name"
+                label={t('leaderForm.name')}
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
@@ -116,7 +116,7 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
               />
 
               <Input
-                label="Last Name"
+                label={t('leaderForm.lastName')}
                 name="apellido"
                 value={formData.apellido}
                 onChange={handleChange}
@@ -125,7 +125,7 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
               />
 
               <Input
-                label="Age"
+                label={t('personForm.age')}
                 type="number"
                 name="age"
                 value={formData.age}
@@ -136,7 +136,7 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
               />
 
               <Input
-                label="Email"
+                label={t('leaderForm.email')}
                 type="email"
                 name="email"
                 value={formData.email}
@@ -146,7 +146,7 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
               />
 
               <Input
-                label="Phone"
+                label={t('leaderForm.phone')}
                 type="tel"
                 name="phone"
                 value={formData.phone}
@@ -155,11 +155,11 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
               />
 
               <Input
-                label="School/Institution"
+                label={t('personForm.schoolInstitution')}
                 name="school"
                 value={formData.school}
                 onChange={handleChange}
-                placeholder="e.g., Universidad Adventista de las Antillas"
+                placeholder={t('personForm.schoolInstitutionPlaceholder')}
                 required
               />
 
@@ -174,14 +174,14 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
                     className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                   />
                   <label htmlFor="createUser" className="text-sm font-medium text-gray-700">
-                    Create user account
+                    {t('leaderForm.createUserAccount')}
                   </label>
                 </div>
               )}
 
               <div className="md:col-span-2">
                 <Input
-                  label="Address"
+                  label={t('leaderForm.address')}
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
@@ -192,11 +192,11 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
               {!initialData && formData.createUser && formData.name && formData.apellido && formData.email && (
                 <div className="md:col-span-2 p-4 bg-primary-50 rounded-lg">
                   <p className="text-sm text-primary-700">
-                    <strong>Note:</strong> A user account will be created with the following credentials:
+                    <strong>{t('programSettings.importantNotes')}:</strong> {t('leaderForm.accountCreationNote')}
                     <br />
-                    <strong>Username/Email:</strong> {formData.email}
+                    <strong>{t('auth.email')}:</strong> {formData.email}
                     <br />
-                    <strong>Password:</strong> {defaultPassword}
+                    <strong>{t('auth.password')}:</strong> {defaultPassword}
                   </p>
                 </div>
               )}
@@ -208,13 +208,13 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
                 variant="outline"
                 onClick={onClose}
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button
                 type="submit"
                 variant="primary"
               >
-                {initialData ? 'Save Changes' : 'Add Colporter'}
+                {initialData ? t('leaderForm.saveChanges') : t('personForm.addNewPerson')}
               </Button>
             </div>
           </form>

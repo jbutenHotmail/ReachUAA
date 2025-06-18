@@ -7,9 +7,9 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
-import Spinner from '../../components/ui/Spinner';
 import AddBookForm from './AddBookForm';
 import { UserRole, Book, BookSize } from '../../types';
+import LoadingScreen from '../../components/ui/LoadingScreen';
 
 interface ConfirmationModal {
   isOpen: boolean;
@@ -20,7 +20,9 @@ interface ConfirmationModal {
 const BookCatalog: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const { books, isLoading, fetchBooks, createBook, updateBook, deleteBook, toggleBookStatus, wereBooksLoaded } = useInventoryStore();
+  const { books, isLoading, fetchBooks, createBook, updateBook, 
+    // deleteBook, 
+    toggleBookStatus, wereBooksLoaded } = useInventoryStore();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
@@ -69,14 +71,14 @@ const BookCatalog: React.FC = () => {
     }
   };
 
-  const handleDeleteBook = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this book?')) return;
-    try {
-      await deleteBook(id);
-    } catch (error) {
-      console.error('Error deleting book:', error);
-    }
-  };
+  // const handleDeleteBook = async (id: string) => {
+  //   if (!window.confirm('Are you sure you want to delete this book?')) return;
+  //   try {
+  //     await deleteBook(id);
+  //   } catch (error) {
+  //     console.error('Error deleting book:', error);
+  //   }
+  // };
 
   const handleStatusToggle = (book: Book) => {
     // Only allow admins to toggle book status
@@ -153,7 +155,7 @@ const BookCatalog: React.FC = () => {
 
       {isLoading && books.length === 0 ? (
         <div className="flex items-center justify-center h-64">
-          <Spinner size="lg" />
+          <LoadingScreen message='Loading books...' />
         </div>
       ) : filteredBooks.length > 0 ? (
         <Card>

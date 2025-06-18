@@ -112,38 +112,38 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
           <Users className="text-primary-600" size={24} />
-          People Setup
+          {t('confirmationStep.programPeople')}
         </h2>
         <div className="flex gap-2">
           <Button
             variant="outline"
             onClick={onBack}
           >
-            Back
+            {t('common.back')}
           </Button>
           <Button
             variant="primary"
             onClick={onNext}
             disabled={!canProceed}
           >
-            Next
+            {t('common.next')}
           </Button>
         </div>
       </div>
 
       <p className="text-gray-600">
-        Add colporters and leaders who will participate in the program. You must add at least one of each to proceed.
+        {t('confirmationStep.description')}
       </p>
 
       {!canProceed && (
         <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg flex items-start gap-3">
           <AlertCircle className="text-warning-500 flex-shrink-0 mt-0.5" size={20} />
           <div className="text-sm text-warning-700">
-            <p className="font-medium">Required participants</p>
-            <p>You need to add at least one colporter and one leader to proceed to the next step.</p>
+            <p className="font-medium">{t('confirmationStep.importantNotes')}</p>
+            <p>{t('confirmationStep.notePeopleAddLater')}</p>
             <ul className="mt-2 list-disc list-inside">
-              {colporters.length === 0 && <li>Add at least one colporter</li>}
-              {leaders.length === 0 && <li>Add at least one leader</li>}
+              {colporters.length === 0 && <li>{t('confirmationStep.noColporters')}</li>}
+              {leaders.length === 0 && <li>{t('confirmationStep.noLeaders')}</li>}
             </ul>
           </div>
         </div>
@@ -160,8 +160,8 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
         >
           <div className="flex items-center gap-2">
             <User size={18} />
-            Colporters ({colporters.length})
-            {colporters.length === 0 && <span className="text-danger-500 text-xs">Required</span>}
+            {t('common.colporters')} ({colporters.length})
+            {colporters.length === 0 && <span className="text-danger-500 text-xs">{t('confirmationStep.importantNotes')}</span>}
           </div>
         </button>
         <button
@@ -174,15 +174,15 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
         >
           <div className="flex items-center gap-2">
             <UserCog size={18} />
-            Leaders ({leaders.length})
-            {leaders.length === 0 && <span className="text-danger-500 text-xs">Required</span>}
+            {t('common.leaders')} ({leaders.length})
+            {leaders.length === 0 && <span className="text-danger-500 text-xs">{t('confirmationStep.importantNotes')}</span>}
           </div>
         </button>
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between gap-4">
         <Input
-          placeholder={`Search ${activeTab}...`}
+          placeholder={t(`${activeTab}Page.searchPlaceholder`)}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           leftIcon={<Search size={18} />}
@@ -194,7 +194,7 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
           leftIcon={<UserPlus size={18} />}
           onClick={() => setShowAddForm(true)}
         >
-          Add {activeTab === 'colporters' ? 'Colporter' : 'Leader'}
+          {t('common.add')} {activeTab === 'colporters' ? t('common.colporter') : t('common.leader')}
         </Button>
       </div>
 
@@ -206,19 +206,19 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
                 <thead>
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
+                      {t('leaderForm.name')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
+                      {t('leaderForm.email')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      School
+                      {t('colportersPage.school')}
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Age
+                      {t('colportersPage.age')}
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
+                      {t('common.actions')}
                     </th>
                   </tr>
                 </thead>
@@ -253,14 +253,14 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
                             size="sm"
                             onClick={() => setEditingColporter(colporter)}
                           >
-                            Edit
+                            {t('common.edit')}
                           </Button>
                           <Button
                             variant="danger"
                             size="sm"
                             onClick={() => handleDeleteColporter(colporter.id)}
                           >
-                            Remove
+                            {t('common.delete')}
                           </Button>
                         </div>
                       </td>
@@ -272,9 +272,9 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
           ) : (
             <div className="text-center py-8">
               <User size={48} className="mx-auto text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No colporters</h3>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">{t('confirmationStep.noColporters')}</h3>
               <p className="mt-1 text-sm text-gray-500">
-                Get started by adding a new colporter.
+                {t('colportersPage.searchNoResults')}
               </p>
               <div className="mt-6">
                 <Button
@@ -283,7 +283,7 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
                   leftIcon={<UserPlus size={16} />}
                   onClick={() => setShowAddForm(true)}
                 >
-                  Add Colporter
+                  {t('common.add')} {t('common.colporter')}
                 </Button>
               </div>
             </div>
@@ -297,16 +297,16 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
                 <thead>
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
+                      {t('leaderForm.name')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
+                      {t('leaderForm.email')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Institution
+                      {t('leaderForm.institution')}
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
+                      {t('common.actions')}
                     </th>
                   </tr>
                 </thead>
@@ -336,14 +336,14 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
                             size="sm"
                             onClick={() => setEditingLeader(leader)}
                           >
-                            Edit
+                            {t('common.edit')}
                           </Button>
                           <Button
                             variant="danger"
                             size="sm"
                             onClick={() => handleDeleteLeader(leader.id)}
                           >
-                            Remove
+                            {t('common.delete')}
                           </Button>
                         </div>
                       </td>
@@ -355,9 +355,9 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
           ) : (
             <div className="text-center py-8">
               <UserCog size={48} className="mx-auto text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No leaders</h3>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">{t('confirmationStep.noLeaders')}</h3>
               <p className="mt-1 text-sm text-gray-500">
-                Get started by adding a new leader.
+                {t('leadersPage.searchNoResults')}
               </p>
               <div className="mt-6">
                 <Button
@@ -366,7 +366,7 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
                   leftIcon={<UserPlus size={16} />}
                   onClick={() => setShowAddForm(true)}
                 >
-                  Add Leader
+                  {t('common.add')} {t('common.leader')}
                 </Button>
               </div>
             </div>

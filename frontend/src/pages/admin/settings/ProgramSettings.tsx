@@ -39,21 +39,6 @@ const DAYS_OF_WEEK = [
   { id: "sunday", label: "Sunday", short: "Sun" },
 ];
 
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
 const ProgramSettings: React.FC = () => {
   const { t } = useTranslation();
   const { program, fetchProgram, wasProgramFetched } = useProgramStore();
@@ -90,19 +75,18 @@ const ProgramSettings: React.FC = () => {
         !wasProgramFetched && await fetchProgram();
       } catch (error) {
         console.error("Error fetching program:", error);
-        setError("Failed to load program data");
+        setError(t("programSettings.noProgramFound"));
       } finally {
         setIsLoading(false);
       }
     };
 
     loadProgramData();
-  }, [fetchProgram]);
+  }, [fetchProgram, wasProgramFetched, t]);
 
   // Update local state when program data changes
   useEffect(() => {
     if (program) {
-
       // Update financial config
       if (program.financialConfig) {
         setFinancialConfig({
@@ -147,7 +131,6 @@ const ProgramSettings: React.FC = () => {
 
     // Check custom overrides first
     const customDay = customDays.find((day) => {
-      // Normalize the custom day date to YYYY-MM-DD
       const customDayStr = new Date(day.date).toISOString().split("T")[0];
       return customDayStr === dateStr;
     });
@@ -201,7 +184,6 @@ const ProgramSettings: React.FC = () => {
         });
         
         if (existingIndex >= 0) {
-          // Update existing custom day
           const updated = [...prev];
           updated[existingIndex] = {
             ...updated[existingIndex],
@@ -209,11 +191,10 @@ const ProgramSettings: React.FC = () => {
           };
           return updated;
         } else {
-          // Add new custom day
           return [
             ...prev,
             {
-              id: Date.now(), // Temporary ID until refreshed from server
+              id: Date.now(),
               program_id: program?.id || 0,
               date,
               is_working_day: newStatus === "work",
@@ -235,7 +216,7 @@ const ProgramSettings: React.FC = () => {
       setTimeout(() => setIsSaved(false), 3000);
     } catch (error) {
       console.error("Error updating custom day:", error);
-      setError("Failed to update working day");
+      setError(t("programSettings.configurationError"));
     } finally {
       setIsLoading(false);
     }
@@ -259,12 +240,11 @@ const ProgramSettings: React.FC = () => {
 
     const firstDay = new Date(year, month, 1);
     const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - firstDay.getDay()); // Start from Sunday
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
 
     const days = [];
     const currentDateForLoop = new Date(startDate);
 
-    // Generate 6 weeks (42 days) to ensure full calendar
     for (let i = 0; i < 42; i++) {
       days.push(new Date(currentDateForLoop));
       currentDateForLoop.setDate(currentDateForLoop.getDate() + 1);
@@ -280,7 +260,6 @@ const ProgramSettings: React.FC = () => {
     setError("");
 
     try {
-      // Update financial config
       await api.put(`/program/${program.id}/financial-config`, {
         colporterPercentage: financialConfig.colporterPercentage,
         leaderPercentage: financialConfig.leaderPercentage,
@@ -290,14 +269,13 @@ const ProgramSettings: React.FC = () => {
           financialConfig.leaderCashAdvancePercentage,
       });
 
-      // Refresh program data
       await fetchProgram();
 
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 3000);
     } catch (error) {
       console.error("Error updating financial config:", error);
-      setError("Failed to update financial configuration");
+      setError(t("programSettings.configurationError"));
     } finally {
       setIsLoading(false);
     }
@@ -339,7 +317,7 @@ const ProgramSettings: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <LoadingScreen message="Loading program settings..." />
+        <LoadingScreen message={t("programSettings.loadingProgramSettings")} />
       </div>
     );
   }
@@ -347,15 +325,14 @@ const ProgramSettings: React.FC = () => {
   if (!program) {
     return (
       <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg text-warning-700">
-        <p className="font-medium">No active program found</p>
-        <p>Please create a program first.</p>
+        <p className="font-medium">{t("programSettings.noProgramFound")}</p>
+        <p>{t("programSettings.createProgramPrompt")}</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-
       {error && (
         <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg flex items-start gap-3">
           <AlertCircle
@@ -363,7 +340,7 @@ const ProgramSettings: React.FC = () => {
             size={20}
           />
           <div className="text-sm text-danger-700">
-            <p className="font-medium">Configuration Error</p>
+            <p className="font-medium">{t("programSettings.configurationError")}</p>
             <p>{error}</p>
           </div>
         </div>
@@ -376,20 +353,19 @@ const ProgramSettings: React.FC = () => {
             size={20}
           />
           <div className="text-sm text-success-700">
-            <p className="font-medium">Settings Saved</p>
-            <p>Program configuration has been updated successfully.</p>
+            <p className="font-medium">{t("programSettings.settingsSaved")}</p>
+            <p>{t("programSettings.settingsSavedMessage")}</p>
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Program Information (Read-only) */}
         <div className="lg:col-span-2 space-y-6">
-          <Card title="Program Information" icon={<SettingsIcon size={20} />}>
+          <Card title={t("programSettings.programInformation")} icon={<SettingsIcon size={20} />}>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Program Name
+                  {t("programSettings.programName")}
                 </label>
                 <div className="p-3 bg-gray-50 rounded-md text-gray-900 font-medium">
                   {program.name}
@@ -399,10 +375,10 @@ const ProgramSettings: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Start Date
+                    {t("programSettings.startDate")}
                   </label>
                   <div className="p-3 bg-gray-50 rounded-md text-gray-900">
-                    {new Date(program.start_date).toLocaleDateString("en-US", {
+                    {new Date(program.start_date).toLocaleDateString("es-US", {
                       weekday: "long",
                       year: "numeric",
                       month: "long",
@@ -413,10 +389,10 @@ const ProgramSettings: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    End Date
+                    {t("programSettings.endDate")}
                   </label>
                   <div className="p-3 bg-gray-50 rounded-md text-gray-900">
-                    {new Date(program.end_date).toLocaleDateString("en-US", {
+                    {new Date(program.end_date).toLocaleDateString("es-US", {
                       weekday: "long",
                       year: "numeric",
                       month: "long",
@@ -428,13 +404,13 @@ const ProgramSettings: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Default Working Schedule
+                  {t("programSettings.defaultWorkingSchedule")}
                 </label>
                 <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
                   <div className="flex items-center gap-2 mb-3">
                     <Lock size={16} className="text-gray-500" />
                     <span className="text-sm text-gray-600">
-                      Default schedule
+                      {t("programSettings.defaultSchedule")}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -453,26 +429,25 @@ const ProgramSettings: React.FC = () => {
                               : "bg-gray-100 text-gray-500"
                           }`}
                         >
-                          {day.label}
+                          {t(`programSettings.days.${day.id}`)}
                         </div>
                       );
                     })}
                   </div>
                   <p className="mt-3 text-xs text-gray-500">
-                    To modify the working schedule for specific dates, use the calendar below to set custom overrides.
+                    {t("programSettings.scheduleOverrideNote")}
                   </p>
                 </div>
               </div>
             </div>
           </Card>
 
-          {/* Financial Configuration */}
-          <Card title="Financial Configuration" icon={<DollarSign size={20} />}>
+          <Card title={t("programSettings.financialConfiguration")} icon={<DollarSign size={20} />}>
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Colporter Percentage (%)
+                    {t("programSettings.colporterPercentage")}
                   </label>
                   <Input
                     type="number"
@@ -488,13 +463,13 @@ const ProgramSettings: React.FC = () => {
                     step="0.1"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Percentage of sales that goes to colporters
+                    {t("programSettings.colporterPercentageDescription")}
                   </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Leader Percentage (%)
+                    {t("programSettings.leaderPercentage")}
                   </label>
                   <Input
                     type="number"
@@ -510,7 +485,7 @@ const ProgramSettings: React.FC = () => {
                     step="0.1"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Percentage of sales that goes to leaders
+                    {t("programSettings.leaderPercentageDescription")}
                   </p>
                 </div>
               </div>
@@ -518,7 +493,7 @@ const ProgramSettings: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Colporter Cash Advance Limit (%)
+                    {t("programSettings.colporterCashAdvanceLimit")}
                   </label>
                   <Input
                     type="number"
@@ -536,14 +511,13 @@ const ProgramSettings: React.FC = () => {
                     step="0.1"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Maximum percentage of weekly sales for colporter cash
-                    advances
+                    {t("programSettings.colporterCashAdvanceDescription")}
                   </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Leader Cash Advance Limit (%)
+                    {t("programSettings.leaderCashAdvanceLimit")}
                   </label>
                   <Input
                     type="number"
@@ -559,17 +533,9 @@ const ProgramSettings: React.FC = () => {
                     step="0.1"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Maximum percentage of weekly sales for leader cash advances
+                    {t("programSettings.leaderCashAdvanceDescription")}
                   </p>
                 </div>
-              </div>
-
-              <div className="p-4 bg-primary-50 rounded-lg">
-                <p className="text-sm text-primary-700">
-                  <strong>Distribution Summary:</strong> For each $100 in sales,
-                  colporters will receive ${financialConfig.colporterPercentage}{" "}
-                  and leaders will receive ${financialConfig.leaderPercentage}.
-                </p>
               </div>
 
               <div className="flex justify-end">
@@ -579,22 +545,18 @@ const ProgramSettings: React.FC = () => {
                   isLoading={isLoading}
                   leftIcon={<Save size={18} />}
                 >
-                  Save Financial Configuration
+                  {t("programSettings.saveFinancialConfiguration")}
                 </Button>
               </div>
             </div>
           </Card>
 
-          {/* Interactive Calendar */}
-          <Card title="Working Days Calendar" icon={<CalendarDays size={20} />}>
+          <Card title={t("programSettings.workingDaysCalendar")} icon={<CalendarDays size={20} />}>
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                Click on any date to toggle between working day and rest day.
-                Changes will affect statistics calculations and transaction
-                availability.
+                {t("programSettings.calendarInstruction")}
               </p>
 
-              {/* Calendar Header */}
               <div className="flex items-center justify-between">
                 <Button
                   variant="ghost"
@@ -605,7 +567,7 @@ const ProgramSettings: React.FC = () => {
                 </Button>
 
                 <h3 className="text-lg font-semibold text-gray-900">
-                  {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
+                  {t(`programSettings.months.${currentDate.getMonth()}`)} {currentDate.getFullYear()}
                 </h3>
 
                 <Button
@@ -617,9 +579,7 @@ const ProgramSettings: React.FC = () => {
                 </Button>
               </div>
 
-              {/* Calendar Grid */}
               <div className="grid grid-cols-7 gap-1">
-                {/* Day headers */}
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
                   (day) => (
                     <div
@@ -631,7 +591,6 @@ const ProgramSettings: React.FC = () => {
                   )
                 )}
 
-                {/* Calendar days */}
                 {calendarDays.map((date, index) => {
                   const isCurrentMonth =
                     date.getMonth() === currentDate.getMonth();
@@ -678,51 +637,49 @@ const ProgramSettings: React.FC = () => {
                 })}
               </div>
 
-              {/* Legend */}
               <div className="flex items-center justify-center gap-6 pt-4 border-t border-gray-200">
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 bg-primary-100 rounded"></div>
-                  <span className="text-sm text-gray-600">Working Day</span>
+                  <span className="text-sm text-gray-600">{t("programSettings.workingDay")}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 bg-gray-200 rounded"></div>
-                  <span className="text-sm text-gray-600">Rest Day</span>
+                  <span className="text-sm text-gray-600">{t("programSettings.restDay")}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 bg-gray-100 rounded"></div>
-                  <span className="text-sm text-gray-600">Outside Program</span>
+                  <span className="text-sm text-gray-600">{t("programSettings.outsideProgram")}</span>
                 </div>
               </div>
             </div>
           </Card>
         </div>
 
-        {/* Program Statistics */}
         <div className="lg:col-span-1">
-          <Card title="Program Statistics" icon={<Timer size={20} />}>
+          <Card title={t("programSettings.programStatistics")} icon={<Timer size={20} />}>
             <div className="space-y-4">
               <div className="p-4 bg-primary-50 rounded-lg">
                 <div className="text-center">
                   <p className="text-sm font-medium text-primary-600">
-                    Total Duration
+                    {t("programSettings.totalDuration")}
                   </p>
                   <p className="mt-1 text-2xl font-bold text-primary-700">
                     {duration.days}
                   </p>
-                  <p className="text-xs text-primary-600">days</p>
+                  <p className="text-xs text-primary-600">{t("common.days")}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 bg-success-50 rounded-lg text-center">
-                  <p className="text-xs font-medium text-success-600">Weeks</p>
+                  <p className="text-xs font-medium text-success-600">{t("programSettings.weeks")}</p>
                   <p className="text-lg font-bold text-success-700">
                     {duration.weeks}
                   </p>
                 </div>
 
                 <div className="p-3 bg-warning-50 rounded-lg text-center">
-                  <p className="text-xs font-medium text-warning-600">Months</p>
+                  <p className="text-xs font-medium text-warning-600">{t("programSettings.months")}</p>
                   <p className="text-lg font-bold text-warning-700">
                     {duration.months}
                   </p>
@@ -732,23 +689,23 @@ const ProgramSettings: React.FC = () => {
               <div className="p-4 bg-blue-50 rounded-lg">
                 <div className="text-center">
                   <p className="text-sm font-medium text-blue-600">
-                    Working Days
+                    {t("programSettings.workingDays")}
                   </p>
                   <p className="mt-1 text-2xl font-bold text-blue-700">
                     {totalWorkDays}
                   </p>
-                  <p className="text-xs text-blue-600">total work days</p>
+                  <p className="text-xs text-blue-600">{t("programSettings.totalWorkDays")}</p>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div className="text-xs text-gray-500">
                   <p>
-                    <strong>Custom Rest Days:</strong>{" "}
+                    <strong>{t("programSettings.customRestDays")}:</strong>{" "}
                     {customDays.filter((d) => !d.is_working_day).length}
                   </p>
                   <p>
-                    <strong>Custom Work Days:</strong>{" "}
+                    <strong>{t("programSettings.customWorkDays")}:</strong>{" "}
                     {customDays.filter((d) => d.is_working_day).length}
                   </p>
                 </div>
@@ -757,21 +714,21 @@ const ProgramSettings: React.FC = () => {
               <div className="pt-4 border-t border-gray-200">
                 <div className="text-xs text-gray-500 space-y-1">
                   <p>
-                    <strong>Created:</strong>{" "}
-                    {new Date(program.created_at).toLocaleDateString()}
+                    <strong>{t("programSettings.created")}:</strong>{" "}
+                    {new Date(program.created_at).toLocaleDateString('es-US')}
                   </p>
                   <p>
-                    <strong>Last Updated:</strong>{" "}
-                    {new Date(program.updated_at).toLocaleDateString()}
+                    <strong>{t("programSettings.lastUpdated")}:</strong>{" "}
+                    {new Date(program.updated_at).toLocaleDateString('es-US')}
                   </p>
                   <p>
-                    <strong>Status:</strong>
+                    <strong>{t("programSettings.status")}:</strong>
                     <Badge
                       variant={program.is_active ? "success" : "secondary"}
                       size="sm"
                       className="ml-1"
                     >
-                      {program.is_active ? "Active" : "Inactive"}
+                      {program.is_active ? t("programSettings.active") : t("programSettings.inactive")}
                     </Badge>
                   </p>
                 </div>
@@ -787,13 +744,12 @@ const ProgramSettings: React.FC = () => {
               leftIcon={<Save size={18} />}
               fullWidth
             >
-              Save All Changes
+              {t("programSettings.saveAllChanges")}
             </Button>
           </div>
 
-          {/* Books Summary */}
           <Card
-            title="Program Books"
+            title={t("programSettings.programBooks")}
             icon={<BookText size={20} />}
             className="mt-6"
           >
@@ -801,7 +757,7 @@ const ProgramSettings: React.FC = () => {
               <div className="p-3 bg-gray-50 rounded-lg">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-700">
-                    Active Books
+                    {t("programSettings.activeBooks")}
                   </span>
                   <Badge variant="success">
                     {program.books?.filter((b) => b.is_active).length || 0}
@@ -812,7 +768,7 @@ const ProgramSettings: React.FC = () => {
               <div className="p-3 bg-gray-50 rounded-lg">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-700">
-                    Inactive Books
+                    {t("programSettings.inactiveBooks")}
                   </span>
                   <Badge variant="secondary">
                     {program.books?.filter((b) => !b.is_active).length || 0}
@@ -823,7 +779,7 @@ const ProgramSettings: React.FC = () => {
               <div className="p-3 bg-gray-50 rounded-lg">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-700">
-                    Total Books
+                    {t("programSettings.totalBooks")}
                   </span>
                   <Badge variant="primary">{program.books?.length || 0}</Badge>
                 </div>
@@ -836,14 +792,13 @@ const ProgramSettings: React.FC = () => {
                 leftIcon={<BookText size={16} />}
                 fullWidth
               >
-                Manage Books
+                {t("programSettings.manageBooks")}
               </Button>
             </div>
           </Card>
         </div>
       </div>
 
-      {/* Confirmation Modal */}
       {confirmationModal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
@@ -852,36 +807,34 @@ const ProgramSettings: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <AlertCircle className="text-warning-500" size={24} />
                   <h3 className="text-lg font-semibold text-gray-900">
-                    Confirm Day Change
+                    {t("programSettings.confirmDayChange")}
                   </h3>
                 </div>
 
                 <div className="space-y-3">
                   <p className="text-sm text-gray-600">
-                    You are about to change{" "}
-                    <strong>
-                      {new Date(confirmationModal.date).toLocaleDateString(
-                        "en-US",
+                    {t("programSettings.dayChangeMessage", {
+                      date: new Date(confirmationModal.date).toLocaleDateString(
+                        "es-US",
                         {
                           weekday: "long",
                           month: "long",
                           day: "numeric",
                           year: "numeric",
                         }
-                      )}
-                    </strong>{" "}
-                    from a{" "}
-                    <strong>{confirmationModal.currentStatus} day</strong> to a{" "}
-                    <strong>{confirmationModal.newStatus} day</strong>.
+                      ),
+                      currentStatus: confirmationModal.currentStatus,
+                      newStatus: confirmationModal.newStatus
+                    })}
                   </p>
 
                   <div className="p-3 bg-warning-50 border border-warning-200 rounded-lg">
                     <p className="text-sm text-warning-700">
-                      <strong>⚠️ Important:</strong> This change will affect
-                      statistics calculations.
-                      {confirmationModal.newStatus === "rest"
-                        ? " Data from this day will not be counted in performance metrics."
-                        : " Data from this day will be included in performance metrics."}
+                      <strong>{t("programSettings.dayChangeWarning", {
+                        newStatusMessage: confirmationModal.newStatus === "rest"
+                          ? t("programSettings.restDayImpact")
+                          : t("programSettings.workDayImpact")
+                      })}</strong>
                     </p>
                   </div>
                 </div>
@@ -898,14 +851,14 @@ const ProgramSettings: React.FC = () => {
                       })
                     }
                   >
-                    Cancel
+                    {t("common.cancel")}
                   </Button>
                   <Button
                     variant="primary"
                     onClick={confirmDateChange}
                     isLoading={isLoading}
                   >
-                    Confirm Change
+                    {t("common.confirm")}
                   </Button>
                 </div>
               </div>
@@ -914,7 +867,6 @@ const ProgramSettings: React.FC = () => {
         </div>
       )}
 
-      {/* Important Notes */}
       <Card>
         <div className="flex items-start gap-4">
           <AlertCircle
@@ -923,36 +875,16 @@ const ProgramSettings: React.FC = () => {
           />
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Important Notes
+              {t("programSettings.importantNotes")}
             </h3>
             <ul className="text-sm text-gray-600 space-y-2">
-              <li>
-                • <strong>Program Information:</strong> Basic program details
-                are read-only and managed by administrators.
-              </li>
-              <li>
-                • <strong>Default Schedule:</strong> The default weekly schedule is locked and cannot be modified.
-              </li>
-              <li>
-                • <strong>Calendar Interaction:</strong> Click on any date
-                within the program period to toggle work/rest status.
-              </li>
-              <li>
-                • <strong>Statistics Impact:</strong> Changes to working days
-                affect all performance calculations and reports.
-              </li>
-              <li>
-                • <strong>Custom Overrides:</strong> Specific dates can override
-                the default weekly schedule.
-              </li>
-              <li>
-                • <strong>Data Integrity:</strong> Rest days exclude
-                transactions from daily averages but preserve the data.
-              </li>
-              <li>
-                • <strong>Transaction Restrictions:</strong> Regular users
-                cannot create transactions on non-working days.
-              </li>
+              <li>{t("programSettings.noteProgramInformation")}</li>
+              <li>{t("programSettings.noteDefaultSchedule")}</li>
+              <li>{t("programSettings.noteCalendarInteraction")}</li>
+              <li>{t("programSettings.noteStatisticsImpact")}</li>
+              <li>{t("programSettings.noteCustomOverrides")}</li>
+              <li>{t("programSettings.noteDataIntegrity")}</li>
+              <li>{t("programSettings.noteTransactionRestrictions")}</li>
             </ul>
           </div>
         </div>

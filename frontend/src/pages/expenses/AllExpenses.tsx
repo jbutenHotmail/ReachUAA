@@ -45,7 +45,9 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const { wereExpensesFetched, fetchExpenses, expenses, createExpense, updateExpense, deleteExpense, approveExpense, rejectExpense, isLoading } = useExpenseStore();
+  const { wereExpensesFetched, fetchExpenses, expenses, createExpense, updateExpense, 
+    // deleteExpense, 
+    approveExpense, rejectExpense, isLoading } = useExpenseStore();
   const isAdmin = user?.role === UserRole.ADMIN;
 
   useEffect(() => {

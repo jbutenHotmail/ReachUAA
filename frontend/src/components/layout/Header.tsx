@@ -50,7 +50,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
             >
               <Avatar
                 name={user?.name || ''}
-                src={user?.profileImage}
+                src={user?.profile_image_url || ''}
                 size="sm"
                 className="ring-2 ring-white/20 w-7 h-7 sm:w-8 sm:h-8"
               />

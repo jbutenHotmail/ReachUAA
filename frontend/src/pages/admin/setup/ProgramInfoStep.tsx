@@ -66,13 +66,13 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
   };
 
   const days = [
-    { id: 'monday', label: 'Monday' },
-    { id: 'tuesday', label: 'Tuesday' },
-    { id: 'wednesday', label: 'Wednesday' },
-    { id: 'thursday', label: 'Thursday' },
-    { id: 'friday', label: 'Friday' },
-    { id: 'saturday', label: 'Saturday' },
-    { id: 'sunday', label: 'Sunday' },
+    { id: 'monday', label: t('programSettings.days.monday') },
+    { id: 'tuesday', label: t('programSettings.days.tuesday') },
+    { id: 'wednesday', label: t('programSettings.days.wednesday') },
+    { id: 'thursday', label: t('programSettings.days.thursday') },
+    { id: 'friday', label: t('programSettings.days.friday') },
+    { id: 'saturday', label: t('programSettings.days.saturday') },
+    { id: 'sunday', label: t('programSettings.days.sunday') },
   ];
 
   return (
@@ -80,19 +80,19 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
           <Calendar className="text-primary-600" size={24} />
-          Program Information
+          {t('programSettings.programInformation')}
         </h2>
         <Button
           variant="primary"
           onClick={onNext}
           disabled={!isFormValid()}
         >
-          Next
+          {t('common.next')}
         </Button>
       </div>
 
       <p className="text-gray-600">
-        Enter the basic information about your colportage program.
+        {t('programSettings.noteProgramInformation')}
       </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -102,25 +102,25 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-6">
                 <Input
-                  label="Program Name"
+                  label={t('programSettings.programName')}
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
                   required
-                  placeholder="Summer Colportage Program 2025"
+                  placeholder={t('programSettings.programNamePlaceholder')}
                 />
                 
                 <Input
-                  label="Program Motto (Optional)"
+                  label={t('confirmationStep.motto')}
                   name="motto"
                   value={formData.motto}
                   onChange={handleChange}
-                  placeholder="Reaching hearts and minds through literature"
+                  placeholder={t('programSettings.mottoPlaceholder')}
                 />
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
-                    label="Start Date"
+                    label={t('programSettings.startDate')}
                     type="date"
                     name="startDate"
                     value={formData.startDate}
@@ -129,7 +129,7 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
                   />
                   
                   <Input
-                    label="End Date"
+                    label={t('programSettings.endDate')}
                     type="date"
                     name="endDate"
                     value={formData.endDate}
@@ -139,7 +139,7 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
                 </div>
                 
                 <Input
-                  label="Financial Goal ($)"
+                  label={t('confirmationStep.financialGoal')}
                   type="number"
                   name="goal"
                   value={formData.goal || ''}
@@ -147,7 +147,7 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
                   min="0"
                   step="0.01"
                   required
-                  placeholder="100000"
+                  placeholder={t('programSettings.financialGoalPlaceholder')}
                 />
               </div>
             </div>
@@ -156,7 +156,7 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
 
         {/* Logo Upload */}
         <div className="lg:col-span-1">
-          <Card title="Program Logo" icon={<BookText size={20} />}>
+          <Card title={t('programSettings.programLogo')} icon={<BookText size={20} />}>
             <div className="space-y-4">
               <ImageUpload
                 value={formData.logo}
@@ -164,7 +164,7 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
                 className="w-full"
               />
               <p className="text-sm text-gray-500 text-center">
-                Upload a logo for your program (optional)
+                {t('programSettings.programLogoDescription')}
               </p>
             </div>
           </Card>
@@ -172,10 +172,10 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
 
         {/* Working Days */}
         <div className="lg:col-span-3">
-          <Card title="Working Days" icon={<Calendar size={20} />}>
+          <Card title={t('programSettings.workingDays')} icon={<Calendar size={20} />}>
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                Select the days of the week that will be working days in your program.
+                {t('programSettings.workingDaysDescription')}
               </p>
               
               <div className="flex flex-wrap gap-3">
@@ -201,8 +201,7 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
               
               <div className="p-4 bg-primary-50 rounded-lg mt-4">
                 <p className="text-sm text-primary-700">
-                  <strong>Note:</strong> Working days will be used to calculate program statistics and financial projections. 
-                  You can override specific dates later in the program settings.
+                  <strong>{t('programSettings.importantNotes')}:</strong> {t('programSettings.workingDaysNote')}
                 </p>
               </div>
             </div>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Calendar, BookText, Settings, DollarSign, Check, Users, LogOut } from 'lucide-react';
+import { Calendar, BookText, DollarSign, Check, Users, LogOut } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import { useProgramStore } from '../../../stores/programStore';
 import { useAuthStore } from '../../../stores/authStore';
@@ -32,7 +32,6 @@ interface ProgramFormData {
 }
 
 const ProgramSetup: React.FC = () => {
-  console.log('ProgramSetup')
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { createProgram, isLoading } = useProgramStore();
@@ -167,12 +166,12 @@ const ProgramSetup: React.FC = () => {
             <div className="flex items-center">
               <img 
                 src="/src/assets/logo_reach_1.webp" 
-                alt="Reach UAA" 
+                alt={t('common.logoAlt')} 
                 className="h-20 w-30 object-contain"
               />
             </div>
             <div className="h-8 border-l border-gray-300"></div>
-            <h1 className="text-2xl font-bold text-gray-900">Program Setup</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('programSetup.title')}</h1>
           </div>
           <div className="flex items-center space-x-4">
             <Button
@@ -187,35 +186,35 @@ const ProgramSetup: React.FC = () => {
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === 'info' || currentStep === 'financial' || currentStep === 'books' || currentStep === 'people' || currentStep === 'confirmation' ? 'bg-primary-100' : 'bg-gray-200'}`}>
                   <Calendar size={16} />
                 </div>
-                <span className="ml-2 text-sm font-medium">Program Info</span>
+                <span className="ml-2 text-sm font-medium">{t('programSetup.programInfo')}</span>
               </div>
               <div className="w-8 h-0.5 bg-gray-200"></div>
               <div className={`flex items-center ${currentStep === 'financial' || currentStep === 'books' || currentStep === 'people' || currentStep === 'confirmation' ? 'text-primary-600' : 'text-gray-400'}`}>
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === 'financial' || currentStep === 'books' || currentStep === 'people' || currentStep === 'confirmation' ? 'bg-primary-100' : 'bg-gray-200'}`}>
                   <DollarSign size={16} />
                 </div>
-                <span className="ml-2 text-sm font-medium">Financial</span>
+                <span className="ml-2 text-sm font-medium">{t('programSetup.financial')}</span>
               </div>
               <div className="w-8 h-0.5 bg-gray-200"></div>
               <div className={`flex items-center ${currentStep === 'books' || currentStep === 'people' || currentStep === 'confirmation' ? 'text-primary-600' : 'text-gray-400'}`}>
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === 'books' || currentStep === 'people' || currentStep === 'confirmation' ? 'bg-primary-100' : 'bg-gray-200'}`}>
                   <BookText size={16} />
                 </div>
-                <span className="ml-2 text-sm font-medium">Books</span>
+                <span className="ml-2 text-sm font-medium">{t('programSetup.books')}</span>
               </div>
               <div className="w-8 h-0.5 bg-gray-200"></div>
               <div className={`flex items-center ${currentStep === 'people' || currentStep === 'confirmation' ? 'text-primary-600' : 'text-gray-400'}`}>
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === 'people' || currentStep === 'confirmation' ? 'bg-primary-100' : 'bg-gray-200'}`}>
                   <Users size={16} />
                 </div>
-                <span className="ml-2 text-sm font-medium">People</span>
+                <span className="ml-2 text-sm font-medium">{t('programSetup.people')}</span>
               </div>
               <div className="w-8 h-0.5 bg-gray-200"></div>
               <div className={`flex items-center ${currentStep === 'confirmation' ? 'text-primary-600' : 'text-gray-400'}`}>
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === 'confirmation' ? 'bg-primary-100' : 'bg-gray-200'}`}>
                   <Check size={16} />
                 </div>
-                <span className="ml-2 text-sm font-medium">Confirmation</span>
+                <span className="ml-2 text-sm font-medium">{t('programSetup.confirmation')}</span>
               </div>
             </div>
           </div>

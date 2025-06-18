@@ -4,10 +4,9 @@ import { ChevronLeft, Calendar, TrendingUp, BookOpen, DollarSign, Users } from '
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
-import { useTransactionStore } from '../../stores/transactionStore';
 import { useProgramStore } from '../../stores/programStore';
-import Spinner from '../../components/ui/Spinner';
 import { api } from '../../api';
+import LoadingScreen from '../../components/ui/LoadingScreen';
 
 interface ColporterSummerStats {
   bruto: {
@@ -319,7 +318,7 @@ const SummerColporterReport: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
+        <LoadingScreen message='Loading stats...' />
       </div>
     );
   }

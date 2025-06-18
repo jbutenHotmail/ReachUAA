@@ -9,6 +9,8 @@ import { useTransactionStore } from '../../stores/transactionStore';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { UserRole } from '../../types';
+import { format } from 'date-fns';
+import { enUS, es } from 'date-fns/locale';
 
 interface DailyTransactionsProps {
   transactions: Transaction[];
@@ -19,24 +21,28 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
   transactions,
   date = new Date().toISOString().split('T')[0]
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { approveTransaction, rejectTransaction } = useTransactionStore();
   const { user } = useAuthStore();
   const [statusFilter, setStatusFilter] = useState<string>('');
-  
+
   // Check if user is admin (only admins can approve/reject)
   const isAdmin = user?.role === UserRole.ADMIN;
-  
+
+  // Formatear la fecha según el idioma
+  const locale = i18n.language === 'es' ? es : enUS;
+  const formattedDate = format(new Date(date), 'PP', { locale });
+
   // Filter transactions based on status filter
   const filteredTransactions = statusFilter 
     ? transactions.filter(t => t.status === statusFilter)
     : transactions;
-  
+
   // Filter out rejected transactions for totals
   // IMPORTANT: Only count APPROVED transactions for totals
   const validTransactions = transactions.filter(t => t.status === 'APPROVED');
-  
+
   const totals = validTransactions.reduce((acc, curr) => ({
     cash: Number(acc.cash) + Number(curr.cash),
     checks: Number(acc.checks) + Number(curr.checks),
@@ -54,7 +60,6 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
   // Calculate book totals
   const bookTotals = validTransactions.reduce((acc, transaction) => {
     transaction.books?.forEach(book => {
-      // Use the book's size field if available, otherwise determine by price
       const bookSize = book.size;
       if (bookSize === BookSize.LARGE) {
         acc.large += book.quantity;
@@ -64,7 +69,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
     });
     return acc;
   }, { large: 0, small: 0, total: 0 });
-  
+
   // Update total books
   bookTotals.total = bookTotals.large + bookTotals.small;
 
@@ -95,7 +100,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
   return (
     <Card
       title={t('dashboard.dailyTransactions')}
-      subtitle={date}
+      subtitle={formattedDate}
       icon={<DollarSign size={20} />}
       actions={
         <div className="flex items-center gap-2">
@@ -104,10 +109,10 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
             onChange={(e) => setStatusFilter(e.target.value)}
             className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
-            <option value="">All Status</option>
-            <option value="PENDING">Pending</option>
-            <option value="APPROVED">Approved</option>
-            <option value="REJECTED">Rejected</option>
+            <option value="">{t('common.all')}</option>
+            <option value="PENDING">{t('transactions.pending')}</option>
+            <option value="APPROVED">{t('transactions.approved')}</option>
+            <option value="REJECTED">{t('transactions.rejected')}</option>
           </select>
         </div>
       }
@@ -137,20 +142,19 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
               
               <div className="grid grid-cols-2 gap-2 text-sm mb-3">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Cash:</span>
+                  <span className="text-gray-500">{t('transactions.cash')}:</span>
                   <span>${Number(transaction.cash).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Checks:</span>
+                  <span className="text-gray-500">{t('transactions.checks')}:</span>
                   <span>${Number(transaction.checks).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">ATM/Mobile:</span>
-                  
+                  <span className="text-gray-500">{t('transactions.atmMobile')}:</span>
                   <span>${Number(transaction.atmMobile).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">PayPal:</span>
+                  <span className="text-gray-500">{t('transactions.paypal')}:</span>
                   <span>${Number(transaction.paypal).toFixed(2)}</span>
                 </div>
               </div>
@@ -163,13 +167,13 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                         {transaction.books.reduce((sum, book) => {
                           const bookSize = book.size;
                           return sum + (bookSize === BookSize.LARGE ? book.quantity : 0);
-                        }, 0)} large
+                        }, 0)} {t('inventory.large')}
                       </Badge>
                       <Badge variant="success" size="sm">
                         {transaction.books.reduce((sum, book) => {
                           const bookSize = book.size;
                           return sum + (bookSize === BookSize.SMALL ? book.quantity : 0);
-                        }, 0)} small
+                        }, 0)} {t('inventory.small')}
                       </Badge>
                     </>
                   )}
@@ -235,13 +239,13 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                 <th className="px-3 lg:px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="flex items-center justify-center gap-1">
                     <BookText size={14} className="text-primary-600" />
-                    <span>Large</span>
+                    <span>{t('inventory.large')}</span>
                   </div>
                 </th>
                 <th className="px-3 lg:px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="flex items-center justify-center gap-1">
                     <BookText size={14} className="text-success-600" />
-                    <span>Small</span>
+                    <span>{t('inventory.small')}</span>
                   </div>
                 </th>
                 <th className="px-3 lg:px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -254,7 +258,6 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredTransactions.map((transaction) => {
-                // Calculate book counts for this transaction
                 const largeBooks = transaction.books?.reduce((sum, book) => {
                   const bookSize = book.size;
                   return sum + (bookSize === BookSize.LARGE ? book.quantity : 0);
@@ -344,7 +347,6 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                 <td colSpan={2} className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                   {t('common.totals')}
                 </td>
-                
                 <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                   ${Number(totals.cash).toFixed(2)}
                 </td>

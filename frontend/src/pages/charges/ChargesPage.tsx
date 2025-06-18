@@ -1,20 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Edit, DollarSign, AlertTriangle, X, CheckCircle } from 'lucide-react';
+import { Plus, Search, DollarSign, AlertTriangle, X, CheckCircle } from 'lucide-react';
 import { useChargeStore } from '../../stores/chargeStore';
 import { useAuthStore } from '../../stores/authStore';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
-import Spinner from '../../components/ui/Spinner';
 import AddChargeForm from './AddChargeForm';
 import { UserRole, Charge } from '../../types';
+import LoadingScreen from '../../components/ui/LoadingScreen';
 
 const ChargesPage: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const { charges, isLoading, fetchCharges, createCharge, updateCharge, deleteCharge, applyCharge, cancelCharge, wereChargesFetched } = useChargeStore();
+  const { charges, isLoading, fetchCharges, createCharge, updateCharge, 
+    // deleteCharge, 
+    applyCharge, cancelCharge, wereChargesFetched } = useChargeStore();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCharge, setEditingCharge] = useState<Charge | null>(null);
@@ -66,16 +68,16 @@ const ChargesPage: React.FC = () => {
     }
   };
 
-  const handleDeleteCharge = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this charge?')) return;
-    try {
-      await deleteCharge(id);
-      setSuccess('Charge deleted successfully');
-      setTimeout(() => setSuccess(null), 5000);
-    } catch (error) {
-      console.error('Error deleting charge:', error);
-    }
-  };
+  // const handleDeleteCharge = async (id: string) => {
+  //   if (!window.confirm('Are you sure you want to delete this charge?')) return;
+  //   try {
+  //     await deleteCharge(id);
+  //     setSuccess('Charge deleted successfully');
+  //     setTimeout(() => setSuccess(null), 5000);
+  //   } catch (error) {
+  //     console.error('Error deleting charge:', error);
+  //   }
+  // };
 
   const handleApplyCharge = async (id: string) => {
     if (!canToggleChargeStatus) return;
@@ -137,7 +139,7 @@ const ChargesPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
+        <LoadingScreen message='Loading charges...' />
       </div>
     );
   }

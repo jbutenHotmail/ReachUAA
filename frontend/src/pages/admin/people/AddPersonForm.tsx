@@ -38,7 +38,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
     address: initialData?.address || '',
     age: initialData?.age || '',
     createUser: !initialData,
-    profileImage: initialData?.profileImage,
+    profileImage: initialData?.profile_image_url,
     personType: initialData?.personType || initialPersonType || 'COLPORTER'
   });
 
@@ -46,28 +46,24 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
     e.preventDefault();
     
     try {
-      // If we have initialData, we're updating an existing person
       if (initialData) {
         await updatePerson(initialData.id, {
           ...formData,
           personType
         });
       } else {
-        // Otherwise, we're creating a new person
         await createPerson({
           ...formData,
           personType
         });
       }
       
-      // Call the parent's onSubmit handler
       onSubmit({
         ...formData,
         personType
       });
     } catch (error) {
       console.error('Error saving person:', error);
-      // You could add error handling here, such as showing an error message
     }
   };
 
@@ -116,7 +112,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">
-                {initialData ? 'Edit Person' : 'Add New Person'}
+                {initialData ? t('personForm.editPerson') : t('personForm.addNewPerson')}
               </h2>
               <button
                 type="button"
@@ -131,17 +127,16 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
               <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg flex items-start gap-3">
                 <AlertCircle className="text-warning-500 flex-shrink-0 mt-0.5" size={20} />
                 <div className="text-sm text-warning-700">
-                  <p className="font-medium">User Account Exists</p>
-                  <p>Name, last name, and email cannot be modified while a user account exists. To modify these fields, please delete the user account first from the Users section.</p>
+                  <p className="font-medium">{t('leaderForm.userAccountExists')}</p>
+                  <p>{t('leaderForm.userAccountExistsWarning')}</p>
                 </div>
               </div>
             )}
 
-            {/* Person Type Selection */}
             {!initialData && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Person Type
+                  {t('personForm.personType')}
                 </label>
                 <div className="grid grid-cols-2 gap-4">
                   <button
@@ -157,8 +152,8 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
                     <div className="flex flex-col items-center">
                       <User size={24} className={personType === 'COLPORTER' ? 'text-primary-600' : 'text-gray-400'} />
                       <div className="mt-2 text-center">
-                        <div className="font-medium">Colporter</div>
-                        <div className="text-xs text-gray-500 mt-1">Student book seller</div>
+                        <div className="font-medium">{t('personForm.colporter')}</div>
+                        <div className="text-xs text-gray-500 mt-1">{t('personForm.colporterDescription')}</div>
                       </div>
                     </div>
                   </button>
@@ -176,8 +171,8 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
                     <div className="flex flex-col items-center">
                       <UserCog size={24} className={personType === 'LEADER' ? 'text-success-600' : 'text-gray-400'} />
                       <div className="mt-2 text-center">
-                        <div className="font-medium">Leader</div>
-                        <div className="text-xs text-gray-500 mt-1">Team supervisor</div>
+                        <div className="font-medium">{t('personForm.leader')}</div>
+                        <div className="text-xs text-gray-500 mt-1">{t('personForm.leaderDescription')}</div>
                       </div>
                     </div>
                   </button>
@@ -188,7 +183,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Profile Image
+                  {t('leaderForm.profileImage')}
                 </label>
                 <ImageUpload
                   value={formData.profileImage}
@@ -198,7 +193,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
               </div>
 
               <Input
-                label="Name"
+                label={t('leaderForm.name')}
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
@@ -207,7 +202,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
               />
 
               <Input
-                label="Last Name"
+                label={t('leaderForm.lastName')}
                 name="apellido"
                 value={formData.apellido}
                 onChange={handleChange}
@@ -216,7 +211,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
               />
 
               <Input
-                label="Email"
+                label={t('leaderForm.email')}
                 type="email"
                 name="email"
                 value={formData.email}
@@ -226,7 +221,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
               />
 
               <Input
-                label="Phone"
+                label={t('leaderForm.phone')}
                 type="tel"
                 name="phone"
                 value={formData.phone}
@@ -237,7 +232,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
               {personType === 'COLPORTER' && (
                 <>
                   <Input
-                    label="Age"
+                    label={t('personForm.age')}
                     type="number"
                     name="age"
                     value={formData.age}
@@ -248,7 +243,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
                   />
 
                   <Input
-                    label="School/Institution"
+                    label={t('personForm.schoolInstitution')}
                     name="school"
                     value={formData.school}
                     onChange={handleChange}
@@ -260,7 +255,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
 
               {personType === 'LEADER' && (
                 <Input
-                  label="Institution"
+                  label={t('leaderForm.institution')}
                   name="institution"
                   value={formData.institution}
                   onChange={handleChange}
@@ -281,14 +276,14 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
                     className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                   />
                   <label htmlFor="createUser" className="text-sm font-medium text-gray-700">
-                    Create user account
+                    {t('leaderForm.createUserAccount')}
                   </label>
                 </div>
               )}
 
               <div className="md:col-span-2">
                 <Input
-                  label="Address"
+                  label={t('leaderForm.address')}
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
@@ -299,13 +294,13 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
               {!initialData && formData.createUser && formData.name && formData.apellido && formData.email && (
                 <div className="md:col-span-2 p-4 bg-primary-50 rounded-lg">
                   <p className="text-sm text-primary-700">
-                    <strong>Note:</strong> A user account will be created with the following credentials:
+                    <strong>{t('leaderForm.accountCreationNote')}</strong>
                     <br />
-                    <strong>Username/Email:</strong> {formData.email}
+                    <strong>{t('auth.username')}/{t('leaderForm.email')}:</strong> {formData.email}
                     <br />
-                    <strong>Password:</strong> {defaultPassword}
+                    <strong>{t('auth.password')}:</strong> {defaultPassword}
                     <br />
-                    <strong>Role:</strong> {personType === 'COLPORTER' ? 'Viewer' : 'Supervisor'}
+                    <strong>{t('personForm.role')}:</strong> {personType === 'COLPORTER' ? t('personForm.viewer') : t('personForm.supervisor')}
                   </p>
                 </div>
               )}
@@ -317,14 +312,14 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
                 variant="outline"
                 onClick={onClose}
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button
                 type="submit"
                 variant="primary"
                 isLoading={isLoading}
               >
-                {initialData ? 'Save Changes' : `Add ${personType === 'COLPORTER' ? 'Colporter' : 'Leader'}`}
+                {initialData ? t('leaderForm.saveChanges') : t('personForm.addNewPerson', { type: personType === 'COLPORTER' ? t('personForm.colporter') : t('personForm.leader') })}
               </Button>
             </div>
           </form>

@@ -21,7 +21,7 @@ import Badge from '../../../components/ui/Badge';
 import AddPersonForm from './AddPersonForm';
 import { useUserStore } from '../../../stores/userStore';
 import { Person } from '../../../types';
-import Spinner from '../../../components/ui/Spinner';
+import LoadingScreen from '../../../components/ui/LoadingScreen';
 
 const columnHelper = createColumnHelper<Person>();
 
@@ -53,14 +53,14 @@ const AllPeoplePage: React.FC = () => {
       try {
         !werePeopleFetched && await fetchPeople();
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load people data');
+        setError(err instanceof Error ? err.message : t('peoplePage.errorLoadingPeople'));
       } finally {
         setIsLoading(false);
       }
     };
 
     loadData();
-  }, [fetchPeople, werePeopleFetched]);
+  }, [fetchPeople, werePeopleFetched, t]);
 
   const handleAddPerson = () => {
     setShowAddForm(true);
@@ -70,10 +70,8 @@ const AllPeoplePage: React.FC = () => {
   const handleAddOrEditPerson = async (data: any) => {
     try {
       if (editingPerson) {
-        // Update existing person
         await updatePerson(editingPerson.id, data);
       } else {
-        // Create new person
         await createPerson(data);
       }
       
@@ -90,7 +88,7 @@ const AllPeoplePage: React.FC = () => {
   };
 
   const handleDeletePerson = async (id: string, type: 'COLPORTER' | 'LEADER') => {
-    if (window.confirm('Are you sure you want to delete this person?')) {
+    if (window.confirm(t('peoplePage.confirmDelete'))) {
       try {
         await deletePerson(id, type);
       } catch (error) {
@@ -101,7 +99,7 @@ const AllPeoplePage: React.FC = () => {
 
   const columns = [
     columnHelper.accessor('name', {
-      header: 'Name',
+      header: t('leaderForm.name'),
       cell: info => (
         <div className="flex items-center gap-3">
           <div className={`h-10 w-10 rounded-full flex items-center justify-center text-white ${
@@ -122,7 +120,7 @@ const AllPeoplePage: React.FC = () => {
       ),
     }),
     columnHelper.accessor('phone', {
-      header: 'Contact',
+      header: t('peoplePage.contact'),
       cell: info => (
         <div className="space-y-1">
           <div className="flex items-center gap-1 text-gray-600">
@@ -138,7 +136,7 @@ const AllPeoplePage: React.FC = () => {
     }),
     columnHelper.accessor(row => row.personType === 'COLPORTER' ? row.school : row.institution, {
       id: 'organization',
-      header: 'Organization',
+      header: t('peoplePage.organization'),
       cell: info => (
         <div className="flex items-center gap-1">
           <Building2 size={16} className="text-gray-400" />
@@ -147,7 +145,7 @@ const AllPeoplePage: React.FC = () => {
       ),
     }),
     columnHelper.accessor('address', {
-      header: 'Address',
+      header: t('leaderForm.address'),
       cell: info => (
         <div className="flex items-center gap-1">
           <MapPin size={16} className="text-gray-400" />
@@ -156,18 +154,18 @@ const AllPeoplePage: React.FC = () => {
       ),
     }),
     columnHelper.accessor('personType', {
-      header: 'Type',
+      header: t('peoplePage.type'),
       cell: info => (
         <Badge
           variant={info.getValue() === 'COLPORTER' ? 'primary' : 'success'}
           rounded
         >
-          {info.getValue()}
+          {t(`personForm.${info.getValue().toLowerCase()}`)}
         </Badge>
       ),
     }),
     columnHelper.accessor('status', {
-      header: 'Status',
+      header: t('peoplePage.status'),
       cell: info => (
         <Badge
           variant={info.getValue() === 'ACTIVE' ? 'success' : 'danger'}
@@ -178,12 +176,12 @@ const AllPeoplePage: React.FC = () => {
       ),
     }),
     columnHelper.accessor('createdAt', {
-      header: 'Created At',
-      cell: info => new Date(info.getValue()).toLocaleDateString(),
+      header: t('peoplePage.createdAt'),
+      cell: info => new Date(info.getValue()).toLocaleDateString('es-US'),
     }),
     columnHelper.display({
       id: 'actions',
-      header: 'Actions',
+      header: t('peoplePage.actions'),
       cell: info => (
         <div className="flex items-center justify-center gap-2">
           <Button
@@ -231,7 +229,7 @@ const AllPeoplePage: React.FC = () => {
   if (isLoading || peopleLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
+        <LoadingScreen message={t('peoplePage.loadingPeople')} />
       </div>
     );
   }
@@ -239,7 +237,7 @@ const AllPeoplePage: React.FC = () => {
   if (error || peopleError) {
     return (
       <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
-        <p className="font-medium">Error loading people</p>
+        <p className="font-medium">{t('peoplePage.errorLoadingPeople')}</p>
         <p>{error || peopleError}</p>
       </div>
     );
@@ -252,7 +250,7 @@ const AllPeoplePage: React.FC = () => {
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div className="flex flex-col sm:flex-row gap-4">
               <Input
-                placeholder="Search people..."
+                placeholder={t('peoplePage.searchPlaceholder')}
                 value={globalFilter}
                 onChange={(e) => setGlobalFilter(e.target.value)}
                 leftIcon={<Search size={18} />}
@@ -264,16 +262,16 @@ const AllPeoplePage: React.FC = () => {
                 onChange={(e) => setTypeFilter(e.target.value as 'COLPORTER' | 'LEADER' | '')}
                 className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               >
-                <option value="">All Types</option>
-                <option value="COLPORTER">Colporters</option>
-                <option value="LEADER">Leaders</option>
+                <option value="">{t('common.allTypes')}</option>
+                <option value="COLPORTER">{t('common.colporters')}</option>
+                <option value="LEADER">{t('common.leaders')}</option>
               </select>
 
               <Button
                 variant="outline"
                 leftIcon={<Filter size={18} />}
               >
-                Filter
+                {t('common.filter')}
               </Button>
             </div>
             
@@ -282,7 +280,7 @@ const AllPeoplePage: React.FC = () => {
                 variant="outline"
                 leftIcon={<Download size={18} />}
               >
-                Export
+                {t('common.export')}
               </Button>
               
               <Button
@@ -290,7 +288,7 @@ const AllPeoplePage: React.FC = () => {
                 leftIcon={<UserPlus size={18} />}
                 onClick={handleAddPerson}
               >
-                Add Person
+                {t('common.addPerson')}
               </Button>
             </div>
           </div>

@@ -14,7 +14,6 @@ import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import { useCashAdvanceStore } from '../../stores/cashAdvanceStore';
-import Spinner from '../../components/ui/Spinner';
 import { CashAdvance } from '../../types';
 import { clsx } from 'clsx';
 import { useAuthStore } from '../../stores/authStore';

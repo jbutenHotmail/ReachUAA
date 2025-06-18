@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import LoginForm from '../../components/auth/LoginForm';
 import { useAuthStore } from '../../stores/authStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 
 const Login: React.FC = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
+  const { changeLanguage, settings } = useSettingsStore();
   
   // Redirect if already authenticated
   useEffect(() => {
@@ -17,8 +19,8 @@ const Login: React.FC = () => {
   }, [isAuthenticated, navigate]);
   
   const toggleLanguage = () => {
-    const newLang = i18n.language === 'en' ? 'es' : 'en';
-    i18n.changeLanguage(newLang);
+    const newLang = settings.language === 'en' ? 'es' : 'en';
+    changeLanguage(newLang);
   };
 
   return (
@@ -33,7 +35,7 @@ const Login: React.FC = () => {
           onClick={toggleLanguage}
           className="px-4 py-2 rounded-md text-sm font-medium bg-white/90 shadow-lg text-[#0052B4] hover:bg-white transition-colors"
         >
-          {i18n.language === 'en' ? 'Español' : 'English'}
+          {settings.language === 'en' ? 'Español' : 'English'}
         </button>
       </div>
     
@@ -42,9 +44,15 @@ const Login: React.FC = () => {
           <img 
             src="/src/assets/logo_reach.webp" 
             alt="Reach UAA" 
-            className="h-34 w-auto drop-shadow-xl"
+            className="h-32 w-auto drop-shadow-xl"
           />
         </div>
+        <h2 className="mt-4 text-center text-3xl font-extrabold text-white drop-shadow-md">
+          Reach UAA
+        </h2>
+        <p className="mt-2 text-center text-sm text-white/90">
+          {t('auth.login')}
+        </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">

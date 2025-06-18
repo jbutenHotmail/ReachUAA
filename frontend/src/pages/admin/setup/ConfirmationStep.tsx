@@ -39,7 +39,7 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   const { t } = useTranslation();
   
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(undefined, {
+    return new Date(dateString).toLocaleDateString('es-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
@@ -48,13 +48,13 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
 
   const getDayName = (day: string) => {
     const days: Record<string, string> = {
-      monday: 'Monday',
-      tuesday: 'Tuesday',
-      wednesday: 'Wednesday',
-      thursday: 'Thursday',
-      friday: 'Friday',
-      saturday: 'Saturday',
-      sunday: 'Sunday'
+      monday: t('programSettings.days.monday'),
+      tuesday: t('programSettings.days.tuesday'),
+      wednesday: t('programSettings.days.wednesday'),
+      thursday: t('programSettings.days.thursday'),
+      friday: t('programSettings.days.friday'),
+      saturday: t('programSettings.days.saturday'),
+      sunday: t('programSettings.days.sunday')
     };
     return days[day] || day;
   };
@@ -64,62 +64,61 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
           <Check className="text-primary-600" size={24} />
-          Confirm Program Setup
+          {t('confirmationStep.title')}
         </h2>
         <div className="flex gap-2">
           <Button
             variant="outline"
             onClick={onBack}
           >
-            Back
+            {t('common.back')}
           </Button>
           <Button
             variant="primary"
             onClick={onSubmit}
             isLoading={isLoading}
           >
-            Create Program
+            {t('confirmationStep.createProgram')}
           </Button>
         </div>
       </div>
 
       <p className="text-gray-600">
-        Please review the program details below before creating the program.
+        {t('confirmationStep.description')}
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Program Information */}
-        <Card title="Program Information" icon={<Calendar size={20} />}>
+        <Card title={t('confirmationStep.programInformation')} icon={<Calendar size={20} />}>
           <div className="space-y-4">
             <div>
-              <p className="text-sm font-medium text-gray-500">Program Name</p>
+              <p className="text-sm font-medium text-gray-500">{t('confirmationStep.programName')}</p>
               <p className="text-lg font-semibold text-gray-900">{formData.name}</p>
             </div>
             
             <div>
-              <p className="text-sm font-medium text-gray-500">Motto</p>
+              <p className="text-sm font-medium text-gray-500">{t('confirmationStep.motto')}</p>
               <p className="text-gray-900">{formData.motto}</p>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm font-medium text-gray-500">Start Date</p>
+                <p className="text-sm font-medium text-gray-500">{t('confirmationStep.startDate')}</p>
                 <p className="text-gray-900">{formatDate(formData.startDate)}</p>
               </div>
               
               <div>
-                <p className="text-sm font-medium text-gray-500">End Date</p>
+                <p className="text-sm font-medium text-gray-500">{t('confirmationStep.endDate')}</p>
                 <p className="text-gray-900">{formatDate(formData.endDate)}</p>
               </div>
             </div>
             
             <div>
-              <p className="text-sm font-medium text-gray-500">Financial Goal</p>
+              <p className="text-sm font-medium text-gray-500">{t('confirmationStep.financialGoal')}</p>
               <p className="text-lg font-semibold text-primary-600">${formData.goal.toLocaleString()}</p>
             </div>
             
             <div>
-              <p className="text-sm font-medium text-gray-500">Working Days</p>
+              <p className="text-sm font-medium text-gray-500">{t('confirmationStep.workingDays')}</p>
               <div className="flex flex-wrap gap-2 mt-1">
                 {formData.workingDays.map(day => (
                   <Badge key={day} variant="primary" size="sm">
@@ -131,47 +130,48 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
           </div>
         </Card>
 
-        {/* Financial Configuration */}
-        <Card title="Financial Configuration" icon={<DollarSign size={20} />}>
+        <Card title={t('confirmationStep.financialConfiguration')} icon={<DollarSign size={20} />}>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm font-medium text-gray-500">Colporter Percentage</p>
+                <p className="text-sm font-medium text-gray-500">{t('confirmationStep.colporterPercentage')}</p>
                 <p className="text-lg font-semibold text-primary-600">{formData.colporterPercentage}%</p>
               </div>
               
               <div>
-                <p className="text-sm font-medium text-gray-500">Leader Percentage</p>
+                <p className="text-sm font-medium text-gray-500">{t('confirmationStep.leaderPercentage')}</p>
                 <p className="text-lg font-semibold text-primary-600">{formData.leaderPercentage}%</p>
               </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm font-medium text-gray-500">Colporter Cash Advance</p>
+                <p className="text-sm font-medium text-gray-500">{t('confirmationStep.colporterCashAdvance')}</p>
                 <p className="text-gray-900">{formData.colporterCashAdvancePercentage}%</p>
               </div>
               
               <div>
-                <p className="text-sm font-medium text-gray-500">Leader Cash Advance</p>
+                <p className="text-sm font-medium text-gray-500">{t('confirmationStep.leaderCashAdvance')}</p>
                 <p className="text-gray-900">{formData.leaderCashAdvancePercentage}%</p>
               </div>
             </div>
             
             <div className="p-3 bg-primary-50 rounded-lg">
               <p className="text-sm text-primary-700">
-                <strong>Distribution Summary:</strong> For each $100 in sales, colporters will receive ${formData.colporterPercentage} and leaders will receive ${formData.leaderPercentage}.
+                <strong>{t('confirmationStep.distributionSummary', {
+                  colporterPercentage: formData.colporterPercentage,
+                  leaderPercentage: formData.leaderPercentage
+                })}</strong>
               </p>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* Books */}
-      <Card title="Program Books" icon={<BookText size={20} />}>
+      <Card title={t('confirmationStep.programBooks')} icon={<BookText size={20} />}>
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
-            {formData.books.length} books have been added to the program.
+            {t('confirmationStep.booksAdded', { count: formData.books.length })}
           </p>
           
           <div className="overflow-x-auto">
@@ -179,16 +179,16 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
               <thead>
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Book
+                    {t('confirmationStep.book')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
+                    {t('confirmationStep.category')}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Price
+                    {t('confirmationStep.price')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Initial Stock
+                    {t('confirmationStep.initialStock')}
                   </th>
                 </tr>
               </thead>
@@ -199,7 +199,7 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                       <div className="flex items-center">
                         <div className="h-10 w-7 flex-shrink-0 mr-3">
                           <img
-                            src={book.imageUrl || 'https://images.pexels.com/photos/159711/books-bookstore-book-reading-159711.jpeg'}
+                            src={book.image_url || 'https://images.pexels.com/photos/159711/books-bookstore-book-reading-159711.jpeg'}
                             alt={book.title}
                             className="h-10 w-7 object-cover rounded shadow-sm"
                           />
@@ -209,7 +209,7 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                             {book.title}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {book.author || 'Unknown author'}
+                            {book.author || t('confirmationStep.unknownAuthor')}
                           </div>
                         </div>
                       </div>
@@ -235,12 +235,11 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         </div>
       </Card>
 
-      {/* People */}
-      <Card title="Program People" icon={<Users size={20} />}>
+      <Card title={t('confirmationStep.programPeople')} icon={<Users size={20} />}>
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Colporters ({formData.colporters.length})</h3>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">{t('confirmationStep.colporters', { count: formData.colporters.length })}</h3>
               {formData.colporters.length > 0 ? (
                 <ul className="divide-y divide-gray-200 border border-gray-200 rounded-md overflow-hidden">
                   {formData.colporters.map((colporter) => (
@@ -256,7 +255,7 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                           </div>
                         </div>
                         <Badge variant="primary" size="sm">
-                          Age: {colporter.age}
+                          {t('confirmationStep.age')}: {colporter.age}
                         </Badge>
                       </div>
                     </li>
@@ -264,13 +263,13 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                 </ul>
               ) : (
                 <div className="text-center py-4 bg-gray-50 rounded-md">
-                  <p className="text-sm text-gray-500">No colporters added</p>
+                  <p className="text-sm text-gray-500">{t('confirmationStep.noColporters')}</p>
                 </div>
               )}
             </div>
             
             <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Leaders ({formData.leaders.length})</h3>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">{t('confirmationStep.leaders', { count: formData.leaders.length })}</h3>
               {formData.leaders.length > 0 ? (
                 <ul className="divide-y divide-gray-200 border border-gray-200 rounded-md overflow-hidden">
                   {formData.leaders.map((leader) => (
@@ -291,7 +290,7 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                 </ul>
               ) : (
                 <div className="text-center py-4 bg-gray-50 rounded-md">
-                  <p className="text-sm text-gray-500">No leaders added</p>
+                  <p className="text-sm text-gray-500">{t('confirmationStep.noLeaders')}</p>
                 </div>
               )}
             </div>
@@ -299,19 +298,18 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         </div>
       </Card>
 
-      {/* Important Notes */}
       <Card>
         <div className="flex items-start gap-4">
           <AlertTriangle className="text-warning-500 flex-shrink-0 mt-1" size={24} />
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Important Notes</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('confirmationStep.importantNotes')}</h3>
             <ul className="text-sm text-gray-600 space-y-2">
-              <li>• Once created, the program will be set as active.</li>
-              <li>• You can modify most settings after creation in the Program Settings section.</li>
-              <li>• Financial percentages can be adjusted, but it may affect existing calculations.</li>
-              <li>• Books can be added, removed, or modified after program creation.</li>
-              <li>• Additional colporters and leaders can be added later.</li>
-              <li>• Make sure all information is correct before proceeding.</li>
+              <li>{t('confirmationStep.noteProgramActive')}</li>
+              <li>{t('confirmationStep.noteSettingsModifiable')}</li>
+              <li>{t('confirmationStep.noteFinancialImpact')}</li>
+              <li>{t('confirmationStep.noteBooksModifiable')}</li>
+              <li>{t('confirmationStep.notePeopleAddLater')}</li>
+              <li>{t('confirmationStep.noteVerifyInformation')}</li>
             </ul>
           </div>
         </div>
@@ -322,14 +320,14 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
           variant="outline"
           onClick={onBack}
         >
-          Back
+          {t('common.back')}
         </Button>
         <Button
           variant="primary"
           onClick={onSubmit}
           isLoading={isLoading}
         >
-          Create Program
+          {t('confirmationStep.createProgram')}
         </Button>
       </div>
     </div>

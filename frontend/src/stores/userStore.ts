@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { User, UserRole, Person } from '../types';
+import { User, Person } from '../types';
 import { api } from '../api';
 
 interface UserState {

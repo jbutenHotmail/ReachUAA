@@ -6,11 +6,11 @@ import { useDashboardStore } from '../../stores/dashboardStore';
 import { api } from '../../api';
 import GoalProgress from '../../components/dashboard/GoalProgress';
 import Card from '../../components/ui/Card';
-import Spinner from '../../components/ui/Spinner';
 import { FileText, DollarSign, Calendar, BookText, TrendingUp, ChevronRight } from 'lucide-react';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import { useNavigate } from 'react-router-dom';
+import LoadingScreen from '../../components/ui/LoadingScreen';
 
 interface PersonalStats {
   person: {
@@ -117,10 +117,10 @@ const ViewerDashboard: React.FC = () => {
     endDate: program.end_date
   } : null;
   
-  if (isLoading && !stats) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
+        <LoadingScreen message='Loading stats...' />
       </div>
     );
   }

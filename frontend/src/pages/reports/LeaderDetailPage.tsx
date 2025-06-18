@@ -5,8 +5,8 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import { useProgramStore } from '../../stores/programStore';
-import Spinner from '../../components/ui/Spinner';
 import { api } from '../../api';
+import LoadingScreen from '../../components/ui/LoadingScreen';
 
 const LeaderDetailPage: React.FC = () => {
   const { name } = useParams<{ name: string }>();
@@ -92,18 +92,14 @@ const LeaderDetailPage: React.FC = () => {
   }, [leaderId]);
 
   // Process transaction data to get statistics
-  const processTransactionData = (leaderTransactions: any[], totalProgramSales: number) => {
+  const processTransactionData = (leaderTransactions: any[] ) => {
     if (!leaderTransactions.length) {
       setLeaderStats(null);
       setColporterStats([]);
       setMonthlyData({});
       return;
     }
-    
-    // Get the leader percentage from program config
-    const leaderPercentage = program?.financialConfig?.leader_percentage 
-      ? parseFloat(program.financialConfig.leader_percentage) 
-      : 15;
+        // Get the leader percentage from program config
     
     // Calculate total sales and books
     const totalSales = leaderTransactions.reduce((sum, t) => sum + t.total, 0);
@@ -264,7 +260,7 @@ const LeaderDetailPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
+        <LoadingScreen message='Loading leader...' />
       </div>
     );
   }
