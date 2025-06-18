@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
-  UserPlus, Search, Download, Filter, 
+  Search, Download, Filter, 
   Mail, Phone, School, MapPin, User,
   Pencil, Trash2
 } from 'lucide-react';
@@ -18,7 +18,7 @@ import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Badge from '../../../components/ui/Badge';
-import AddColporterForm from './AddColporterForm';
+import AddPersonForm from './AddPersonForm';
 import { useUserStore } from '../../../stores/userStore';
 import { Person } from '../../../types';
 import Spinner from '../../../components/ui/Spinner';
@@ -37,19 +37,25 @@ const ColportersPage: React.FC = () => {
     isLoading, 
     error,
     fetchPeople,
+    createPerson,
+    updatePerson,
+    deletePerson,
+    werePeopleFetched
   } = useUserStore();
 
   useEffect(() => {
-    fetchPeople();
-  }, [fetchPeople]);
+    !werePeopleFetched && fetchPeople();
+  }, [fetchPeople, werePeopleFetched]);
 
   // Filter only colporters
   const colporters = people.filter(person => person.personType === 'COLPORTER');
 
   const handleAddColporter = async (data: any) => {
     try {
-      // In a real implementation, this would call an API to create a colporter
-      console.log('Creating colporter:', data);
+      await createPerson({
+        ...data,
+        personType: 'COLPORTER'
+      });
       setShowAddForm(false);
     } catch (error) {
       console.error('Error creating colporter:', error);
@@ -59,8 +65,10 @@ const ColportersPage: React.FC = () => {
   const handleEditColporter = async (data: any) => {
     if (!editingColporter) return;
     try {
-      // In a real implementation, this would call an API to update a colporter
-      console.log('Updating colporter:', data);
+      await updatePerson(editingColporter.id, {
+        ...data,
+        personType: 'COLPORTER'
+      });
       setEditingColporter(null);
     } catch (error) {
       console.error('Error updating colporter:', error);
@@ -70,8 +78,7 @@ const ColportersPage: React.FC = () => {
   const handleDeleteColporter = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this colporter?')) return;
     try {
-      // In a real implementation, this would call an API to delete a colporter
-      console.log('Deleting colporter:', id);
+      await deletePerson(id, 'COLPORTER');
     } catch (error) {
       console.error('Error deleting colporter:', error);
     }
@@ -239,13 +246,6 @@ const ColportersPage: React.FC = () => {
                 Export
               </Button>
               
-              <Button
-                variant="primary"
-                leftIcon={<UserPlus size={18} />}
-                onClick={() => setShowAddForm(true)}
-              >
-                Add Colporter
-              </Button>
             </div>
           </div>
 
@@ -305,13 +305,14 @@ const ColportersPage: React.FC = () => {
       </Card>
 
       {(showAddForm || editingColporter) && (
-        <AddColporterForm
+        <AddPersonForm
           onClose={() => {
             setShowAddForm(false);
             setEditingColporter(null);
           }}
           onSubmit={editingColporter ? handleEditColporter : handleAddColporter}
           initialData={editingColporter || undefined}
+          initialPersonType="COLPORTER"
         />
       )}
     </div>

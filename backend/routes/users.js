@@ -20,7 +20,7 @@ router.get('/', authenticateToken, authorizeRoles(['ADMIN']), getUsers);
 router.get('/:id', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR', 'VIEWER']), getUserById);
 
 // Create new user (admin only)
-router.post('/', authorizeRoles(['ADMIN']), createUser);
+router.post('/', authenticateToken, authorizeRoles(['ADMIN']), createUser);
 
 // Update user (admin only)
 router.put('/:id', authenticateToken, authorizeRoles(['ADMIN']), updateUser);

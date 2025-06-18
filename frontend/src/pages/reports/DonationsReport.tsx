@@ -7,7 +7,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { clsx } from 'clsx';
 import { useTransactionStore } from '../../stores/transactionStore';
-import Spinner from '../../components/ui/Spinner';
+import LoadingScreen from '../../components/ui/LoadingScreen';
 
 type TimePeriod = 'day' | 'week' | 'month' | 'all';
 
@@ -18,22 +18,23 @@ const DonationsReport: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const location = useLocation();
   const navigate = useNavigate();
-  const { transactions, isLoading, error, fetchAllTransactions } = useTransactionStore();
+  const { transactions, isLoading, error, fetchAllTransactions, wereTransactionsFetched } = useTransactionStore();
 
   const isFinancesRoute = location.pathname.includes('/finances');
 
   useEffect(() => {
     const loadTransactionData = async () => {
       try {
-        // Fetch all APPROVED transactions without date filtering
-        await fetchAllTransactions('APPROVED');
+        if (!wereTransactionsFetched) {
+          await fetchAllTransactions();
+        }
       } catch (err) {
         console.error('Error fetching transaction data:', err);
       }
     };
 
     loadTransactionData();
-  }, [fetchAllTransactions]);
+  }, [fetchAllTransactions, wereTransactionsFetched]);
 
   const handleToggleView = () => {
     setShowColporters(!showColporters);
@@ -67,31 +68,34 @@ const DonationsReport: React.FC = () => {
   // Filter transactions based on selected time period
   // IMPORTANT: Only include APPROVED transactions
   const getFilteredTransactions = () => {
+    if (!transactions || transactions.length === 0) {
+      return [];
+    }
+    
+    // First filter to only include APPROVED transactions
+    const approvedTransactions = transactions.filter(t => t.status === 'APPROVED');
+    
     if (timePeriod === 'all') {
-      return transactions.filter(t => t.status === 'APPROVED');
+      return approvedTransactions;
     }
     
     const today = new Date(selectedDate);
     today.setHours(0, 0, 0, 0);
     
-    return transactions.filter(transaction => {
-      // Only include APPROVED transactions
-      if (transaction.status !== 'APPROVED') return false;
-      
+    return approvedTransactions.filter(transaction => {
       const transactionDate = new Date(transaction.date);
       transactionDate.setHours(0, 0, 0, 0);
       
       if (timePeriod === 'day') {
         return transactionDate.getTime() === today.getTime();
       } else if (timePeriod === 'week') {
-        // Get start of week (Monday)
+        // Get start of week (Sunday)
         const startOfWeek = new Date(today);
-        const day = today.getDay();
-        const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
-        startOfWeek.setDate(diff);
+        const day = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        startOfWeek.setDate(today.getDate() - day); // Go back to Sunday
         startOfWeek.setHours(0, 0, 0, 0);
         
-        // Get end of week (Sunday)
+        // Get end of week (Saturday)
         const endOfWeek = new Date(startOfWeek);
         endOfWeek.setDate(startOfWeek.getDate() + 6);
         endOfWeek.setHours(23, 59, 59, 999);
@@ -124,7 +128,13 @@ const DonationsReport: React.FC = () => {
       }
       
       const colporterData = colporterMap.get(transaction.studentId);
-      colporterData.dailySales[transaction.date] = transaction.total;
+      
+      // Initialize the date if it doesn't exist
+      if (!colporterData.dailySales[transaction.date]) {
+        colporterData.dailySales[transaction.date] = 0;
+      }
+      
+      colporterData.dailySales[transaction.date] += transaction.total;
       colporterData.totalSales += transaction.total;
     });
     
@@ -151,13 +161,14 @@ const DonationsReport: React.FC = () => {
       
       // Process books for this transaction
       if (transaction.books && transaction.books.length > 0) {
+        // Initialize the date if it doesn't exist
         if (!colporterData.dailyBooks[transaction.date]) {
           colporterData.dailyBooks[transaction.date] = { large: 0, small: 0 };
         }
         
         transaction.books.forEach(book => {
-          // Assuming books with price >= 20 are large books
-          if (book.price >= 20) {
+          
+          if (book.size === 'LARGE') {
             colporterData.dailyBooks[transaction.date].large += book.quantity;
             colporterData.totalBooks.large += book.quantity;
           } else {
@@ -177,7 +188,6 @@ const DonationsReport: React.FC = () => {
     }
     
     const startDate = selectedDate;
-    let endDate = new Date(selectedDate);
     
     if (timePeriod === 'day') {
       return startDate.toLocaleDateString('en-US', {
@@ -187,17 +197,16 @@ const DonationsReport: React.FC = () => {
         day: 'numeric'
       });
     } else if (timePeriod === 'week') {
-      // Get start of week (Monday)
-      const day = startDate.getDay();
-      const diff = startDate.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
-      const monday = new Date(startDate);
-      monday.setDate(diff);
+      // Get start of week (Sunday)
+      const day = startDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      const sunday = new Date(startDate);
+      sunday.setDate(startDate.getDate() - day); // Go back to Sunday
       
-      // Get end of week (Sunday)
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
+      // Get end of week (Saturday)
+      const saturday = new Date(sunday);
+      saturday.setDate(sunday.getDate() + 6);
       
-      return `${monday.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${sunday.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+      return `${sunday.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${saturday.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
     } else if (timePeriod === 'month') {
       return startDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     }
@@ -210,9 +219,7 @@ const DonationsReport: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
-      </div>
+      <LoadingScreen message="Loading donation report..." />
     );
   }
 

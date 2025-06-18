@@ -8,7 +8,6 @@ export const getDashboardStats = async (req, res) => {
     
     // Use the date from the request if provided, otherwise use server date
     const today = req.query.date || new Date().toISOString().split('T')[0];
-    console.log('Using date for dashboard stats:', today);
     
     // Calculate start dates for week and month
     // Modified to use Sunday as start of week and Saturday as end of week
@@ -26,13 +25,6 @@ export const getDashboardStats = async (req, res) => {
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6); // Sunday + 6 days = Saturday
     const weekEndStr = weekEnd.toISOString().split('T')[0];
-    
-    console.log('Week calculation:', {
-      today: currentDate.toISOString().split('T')[0],
-      dayOfWeek,
-      weekStart: weekStartStr,
-      weekEnd: weekEndStr
-    });
     
     // Calculate month dates (unchanged)
     const monthStart = new Date(today);
@@ -61,14 +53,14 @@ export const getDashboardStats = async (req, res) => {
     // Fix the GROUP BY clause to avoid SQL error
     const todayBooks = await db.query(
       `SELECT 
-         CASE WHEN b.price >= 20 THEN 'large' ELSE 'small' END as book_size, 
+         CASE WHEN b.size = 'LARGE' THEN 'large' ELSE 'small' END as book_size, 
          SUM(tb.quantity) as quantity
        FROM transaction_books tb
        JOIN books b ON tb.book_id = b.id
        JOIN transactions t ON tb.transaction_id = t.id
        WHERE t.transaction_date = ?
        AND t.status IN ('APPROVED')
-       GROUP BY CASE WHEN b.price >= 20 THEN 'large' ELSE 'small' END`,
+       GROUP BY CASE WHEN b.size = 'LARGE' THEN 'large' ELSE 'small' END`,
       [today]
     );
     
@@ -91,14 +83,14 @@ export const getDashboardStats = async (req, res) => {
     // Updated to use weekStartStr and weekEndStr
     const weeklyBooks = await db.query(
       `SELECT 
-         CASE WHEN b.price >= 20 THEN 'large' ELSE 'small' END as book_size, 
+         CASE WHEN b.size = 'LARGE' THEN 'large' ELSE 'small' END as book_size, 
          SUM(tb.quantity) as quantity
        FROM transaction_books tb
        JOIN books b ON tb.book_id = b.id
        JOIN transactions t ON tb.transaction_id = t.id
        WHERE t.transaction_date BETWEEN ? AND ?
        AND t.status IN ('APPROVED')
-       GROUP BY CASE WHEN b.price >= 20 THEN 'large' ELSE 'small' END`,
+       GROUP BY CASE WHEN b.size = 'LARGE' THEN 'large' ELSE 'small' END`,
       [weekStartStr, weekEndStr]
     );
     
@@ -119,14 +111,14 @@ export const getDashboardStats = async (req, res) => {
     // Fix the GROUP BY clause to avoid SQL error
     const monthlyBooks = await db.query(
       `SELECT 
-         CASE WHEN b.price >= 20 THEN 'large' ELSE 'small' END as book_size, 
+         CASE WHEN b.size = 'LARGE' THEN 'large' ELSE 'small' END as book_size, 
          SUM(tb.quantity) as quantity
        FROM transaction_books tb
        JOIN books b ON tb.book_id = b.id
        JOIN transactions t ON tb.transaction_id = t.id
        WHERE t.transaction_date BETWEEN ? AND ?
        AND t.status IN ('APPROVED')
-       GROUP BY CASE WHEN b.price >= 20 THEN 'large' ELSE 'small' END`,
+       GROUP BY CASE WHEN b.size = 'LARGE' THEN 'large' ELSE 'small' END`,
       [monthStartStr, today]
     );
     

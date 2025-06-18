@@ -5,18 +5,19 @@ import { Plus, ChevronLeft, ChevronRight, Calendar, DollarSign, BookText } from 
 import { useTransactionStore } from '../../stores/transactionStore';
 import DailyTransactions from '../../components/dashboard/DailyTransactions';
 import Button from '../../components/ui/Button';
-import Spinner from '../../components/ui/Spinner';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import { clsx } from 'clsx';
 import { useUserStore } from '../../stores/userStore';
-import { getCurrentDate, formatDateToString } from '../../utils/dateUtils';
+import { formatDateToString } from '../../utils/dateUtils';
+import LoadingScreen from '../../components/ui/LoadingScreen';
+import { BookSize } from '../../types';
 
 const Transactions: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { people, fetchPeople } = useUserStore();
+  const { fetchPeople, werePeopleFetched } = useUserStore();
   const { transactions, isLoading, fetchTransactions } = useTransactionStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedLeader, setSelectedLeader] = useState<string>('');
@@ -50,9 +51,9 @@ const Transactions: React.FC = () => {
   }, [fetchTransactions, selectedDate]);
 
   useEffect(() => {
-    people && people.length > 0 && fetchPeople();
+    !werePeopleFetched && fetchPeople();
 
-  }, [fetchPeople]);
+  }, [fetchPeople, werePeopleFetched]);
 
   const navigateDate = (days: number) => {
     const newDate = new Date(selectedDate);
@@ -100,8 +101,9 @@ const Transactions: React.FC = () => {
   const bookTotals = React.useMemo(() => {
     return validTransactions.reduce((acc, transaction) => {
       transaction.books?.forEach(book => {
-        // Assuming books with price >= 20 are large books
-        if (book.price >= 20) {
+        // Use the book's size field if available, otherwise determine by price
+        const bookSize = book.size;
+        if (bookSize === BookSize.LARGE) {
           acc.large += book.quantity;
         } else {
           acc.small += book.quantity;
@@ -115,6 +117,10 @@ const Transactions: React.FC = () => {
     { id: 'finances', label: 'Finances', icon: <DollarSign size={18} />, path: '/transactions/finances' },
     { id: 'delivered-books', label: 'Delivered Books', icon: <BookText size={18} />, path: '/transactions/delivered-books' },
   ];
+
+  if (isLoading) {
+    return <LoadingScreen message="Loading transactions..." />;
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -212,147 +218,147 @@ const Transactions: React.FC = () => {
         </nav>
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <Spinner size="lg" />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
-          <div className="lg:col-span-3">
-            {activeTab === 'finances' ? (
-              <DailyTransactions 
-                transactions={filteredTransactions} 
-                date={formatDateToString(selectedDate)} 
-              />
-            ) : (
-              <Card>
-                {/* Books view */}
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead>
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0">
-                          Colporter
-                        </th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-primary-700">
-                          Large Books
-                        </th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-success-600">
-                          Small Books
-                        </th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85]">
-                          Total Books
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {validTransactions.map((transaction, index) => {
-                        // Calculate book counts for this transaction
-                        const largeBooks = transaction.books?.reduce((sum, book) => 
-                          sum + (book.price >= 20 ? book.quantity : 0), 0) || 0;
-                        const smallBooks = transaction.books?.reduce((sum, book) => 
-                          sum + (book.price < 20 ? book.quantity : 0), 0) || 0;
-                        const totalBooks = largeBooks + smallBooks;
-                        
-                        return (
-                          <tr 
-                            key={transaction.id}
-                            className={index % 2 === 0 ? 'bg-yellow-50' : 'bg-white'}
-                          >
-                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-white bg-[#0052B4] sticky left-0">
-                              {transaction.studentName}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <Badge variant="primary">{largeBooks}</Badge>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <Badge variant="success">{smallBooks}</Badge>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <Badge variant="secondary">{totalBooks}</Badge>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      <tr>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-white bg-[#0052B4] sticky left-0">
-                          TOTALES
-                        </td>
-                        <td className="px-4 py-3 text-center bg-primary-900 text-white">
-                          <Badge variant="primary" className="bg-white">
-                            {bookTotals.large}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 text-center bg-success-900 text-white">
-                          <Badge variant="success" className="bg-white">
-                            {bookTotals.small}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 text-center bg-[#003D85] text-white">
-                          <Badge variant="secondary" className="bg-white">
-                            {bookTotals.large + bookTotals.small}
-                          </Badge>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            )}
-          </div>
-
-          <div className="lg:col-span-1">
-            <Card title={t('common.totals')}>
-              <div className="space-y-3 sm:space-y-4">
-                {activeTab === 'finances' ? (
-                  <>
-                    {leaderTotals.map((leader) => (
-                      <div 
-                        key={leader.id}
-                        className="flex justify-between items-center p-3 bg-primary-50 rounded-lg"
-                      >
-                        <div className="min-w-0">
-                          <span className="text-sm font-medium text-primary-700 block truncate">{leader.name}</span>
-                          <span className="text-xs text-primary-600 block">
-                            {leader.transactions} {t('dashboard.dailyTransactions').toLowerCase()}
-                          </span>
-                        </div>
-                        <Badge variant="primary" size="lg" className="ml-2 flex-shrink-0">
-                          ${Number(leader.total).toFixed(2)}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="lg:col-span-3">
+          {activeTab === 'finances' ? (
+            <DailyTransactions 
+              transactions={filteredTransactions} 
+              date={formatDateToString(selectedDate)} 
+            />
+          ) : (
+            <Card>
+              {/* Books view */}
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0">
+                        Colporter
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-primary-700">
+                        Large Books
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-success-600">
+                        Small Books
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85]">
+                        Total Books
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {validTransactions.map((transaction, index) => {
+                      // Calculate book counts for this transaction
+                      const largeBooks = transaction.books?.reduce((sum, book) => {
+                        const bookSize = book.size;
+                        return sum + (bookSize === BookSize.LARGE ? book.quantity : 0);
+                      }, 0) || 0;
+                      
+                      const smallBooks = transaction.books?.reduce((sum, book) => {
+                        const bookSize = book.size;
+                        return sum + (bookSize === BookSize.SMALL ? book.quantity : 0);
+                      }, 0) || 0;
+                      
+                      const totalBooks = largeBooks + smallBooks;
+                      
+                      return (
+                        <tr 
+                          key={transaction.id}
+                          className={index % 2 === 0 ? 'bg-yellow-50' : 'bg-white'}
+                        >
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-white bg-[#0052B4] sticky left-0">
+                            {transaction.studentName}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <Badge variant="primary">{largeBooks}</Badge>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <Badge variant="success">{smallBooks}</Badge>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <Badge variant="secondary">{totalBooks}</Badge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    <tr>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-white bg-[#0052B4] sticky left-0">
+                        TOTALES
+                      </td>
+                      <td className="px-4 py-3 text-center bg-primary-900 text-white">
+                        <Badge variant="primary" className="bg-white">
+                          {bookTotals.large}
                         </Badge>
-                      </div>
-                    ))}
-                    
-                    <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg border-t-2 border-blue-100 mt-4">
-                      <span className="text-sm font-medium text-blue-700">{t('common.total')}</span>
-                      <Badge variant="primary" size="lg">
-                        ${Number(dayTotal).toFixed(2)}
-                      </Badge>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex justify-between items-center p-3 bg-primary-50 rounded-lg">
-                      <span className="text-sm font-medium text-primary-700">Large Books</span>
-                      <Badge variant="primary" size="lg">{bookTotals.large}</Badge>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-success-50 rounded-lg">
-                      <span className="text-sm font-medium text-success-700">Small Books</span>
-                      <Badge variant="success" size="lg">{bookTotals.small}</Badge>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-[#0052B4] rounded-lg border-t-2 border-[#003D85]">
-                      <span className="text-sm font-medium text-white">Total Books</span>
-                      <Badge variant="primary" size="lg" className="bg-white text-[#0052B4]">
-                        {bookTotals.large + bookTotals.small}
-                      </Badge>
-                    </div>
-                  </>
-                )}
+                      </td>
+                      <td className="px-4 py-3 text-center bg-success-900 text-white">
+                        <Badge variant="success" className="bg-white">
+                          {bookTotals.small}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-center bg-[#003D85] text-white">
+                        <Badge variant="secondary" className="bg-white">
+                          {bookTotals.large + bookTotals.small}
+                        </Badge>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </Card>
-          </div>
+          )}
         </div>
-      )}
+
+        <div className="lg:col-span-1">
+          <Card title={t('common.totals')}>
+            <div className="space-y-3 sm:space-y-4">
+              {activeTab === 'finances' ? (
+                <>
+                  {leaderTotals.map((leader) => (
+                    <div 
+                      key={leader.id}
+                      className="flex justify-between items-center p-3 bg-primary-50 rounded-lg"
+                    >
+                      <div className="min-w-0">
+                        <span className="text-sm font-medium text-primary-700 block truncate">{leader.name}</span>
+                        <span className="text-xs text-primary-600 block">
+                          {leader.transactions} {t('dashboard.dailyTransactions').toLowerCase()}
+                        </span>
+                      </div>
+                      <Badge variant="primary" size="lg" className="ml-2 flex-shrink-0">
+                        ${Number(leader.total).toFixed(2)}
+                      </Badge>
+                    </div>
+                  ))}
+                  
+                  <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg border-t-2 border-blue-100 mt-4">
+                    <span className="text-sm font-medium text-blue-700">{t('common.total')}</span>
+                    <Badge variant="primary" size="lg">
+                      ${Number(dayTotal).toFixed(2)}
+                    </Badge>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center p-3 bg-primary-50 rounded-lg">
+                    <span className="text-sm font-medium text-primary-700">Large Books</span>
+                    <Badge variant="primary" size="lg">{bookTotals.large}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-success-50 rounded-lg">
+                    <span className="text-sm font-medium text-success-700">Small Books</span>
+                    <Badge variant="success" size="lg">{bookTotals.small}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-[#0052B4] rounded-lg border-t-2 border-[#003D85]">
+                    <span className="text-sm font-medium text-white">Total Books</span>
+                    <Badge variant="primary" size="lg" className="bg-white text-[#0052B4]">
+                      {bookTotals.large + bookTotals.small}
+                    </Badge>
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };

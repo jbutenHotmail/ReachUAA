@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
-  UserPlus, Search, Download, Filter, 
-  Mail, Phone, Building2, MapPin, User,
+  Search, Download, Filter, 
+  Mail, Phone, Building2, MapPin, UserCog,
   Pencil, Trash2
 } from 'lucide-react';
 import {
@@ -18,9 +18,9 @@ import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Badge from '../../../components/ui/Badge';
-import AddLeaderForm from './AddLeaderForm';
-import { Person } from '../../../types';
+import AddPersonForm from './AddPersonForm';
 import { useUserStore } from '../../../stores/userStore';
+import { Person } from '../../../types';
 import Spinner from '../../../components/ui/Spinner';
 
 const columnHelper = createColumnHelper<Person>();
@@ -31,25 +31,31 @@ const LeadersPage: React.FC = () => {
   const [globalFilter, setGlobalFilter] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingLeader, setEditingLeader] = useState<Person | null>(null);
-  
+
   const { 
     people, 
     isLoading, 
     error,
-    fetchPeople
+    fetchPeople,
+    createPerson,
+    updatePerson,
+    deletePerson,
+    werePeopleFetched
   } = useUserStore();
 
   useEffect(() => {
-    fetchPeople();
-  }, [fetchPeople]);
+    !werePeopleFetched && fetchPeople();
+  }, [fetchPeople, werePeopleFetched]);
 
   // Filter only leaders
   const leaders = people.filter(person => person.personType === 'LEADER');
 
   const handleAddLeader = async (data: any) => {
     try {
-      // In a real implementation, this would call an API to create a leader
-      console.log('Creating leader:', data);
+      await createPerson({
+        ...data,
+        personType: 'LEADER'
+      });
       setShowAddForm(false);
     } catch (error) {
       console.error('Error creating leader:', error);
@@ -59,8 +65,10 @@ const LeadersPage: React.FC = () => {
   const handleEditLeader = async (data: any) => {
     if (!editingLeader) return;
     try {
-      // In a real implementation, this would call an API to update a leader
-      console.log('Updating leader:', data);
+      await updatePerson(editingLeader.id, {
+        ...data,
+        personType: 'LEADER'
+      });
       setEditingLeader(null);
     } catch (error) {
       console.error('Error updating leader:', error);
@@ -70,8 +78,7 @@ const LeadersPage: React.FC = () => {
   const handleDeleteLeader = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this leader?')) return;
     try {
-      // In a real implementation, this would call an API to delete a leader
-      console.log('Deleting leader:', id);
+      await deletePerson(id, 'LEADER');
     } catch (error) {
       console.error('Error deleting leader:', error);
     }
@@ -82,8 +89,8 @@ const LeadersPage: React.FC = () => {
       header: 'Name',
       cell: info => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700">
-            <User size={20} />
+          <div className="h-10 w-10 rounded-full bg-success-100 flex items-center justify-center text-success-700">
+            <UserCog size={20} />
           </div>
           <div>
             <div className="font-medium text-gray-900">{`${info.getValue()} ${info.row.original.apellido}`}</div>
@@ -108,11 +115,11 @@ const LeadersPage: React.FC = () => {
       ),
     }),
     columnHelper.accessor('institution', {
-      header: 'Organization',
+      header: 'Institution',
       cell: info => (
         <div className="flex items-center gap-1">
           <Building2 size={16} className="text-gray-400" />
-          <span>{info.getValue()}</span>
+          <span className="text-sm">{info.getValue()}</span>
         </div>
       ),
     }),
@@ -121,7 +128,7 @@ const LeadersPage: React.FC = () => {
       cell: info => (
         <div className="flex items-center gap-1">
           <MapPin size={16} className="text-gray-400" />
-          <span>{info.getValue()}</span>
+          <span className="text-sm">{info.getValue()}</span>
         </div>
       ),
     }),
@@ -144,7 +151,7 @@ const LeadersPage: React.FC = () => {
       id: 'actions',
       header: 'Actions',
       cell: info => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center gap-2">
           <Button
             variant="ghost"
             size="sm"
@@ -230,14 +237,6 @@ const LeadersPage: React.FC = () => {
               >
                 Export
               </Button>
-              
-              <Button
-                variant="primary"
-                leftIcon={<UserPlus size={18} />}
-                onClick={() => setShowAddForm(true)}
-              >
-                Add Leader
-              </Button>
             </div>
           </div>
 
@@ -297,13 +296,14 @@ const LeadersPage: React.FC = () => {
       </Card>
 
       {(showAddForm || editingLeader) && (
-        <AddLeaderForm
+        <AddPersonForm
           onClose={() => {
             setShowAddForm(false);
             setEditingLeader(null);
           }}
           onSubmit={editingLeader ? handleEditLeader : handleAddLeader}
           initialData={editingLeader || undefined}
+          initialPersonType="LEADER"
         />
       )}
     </div>

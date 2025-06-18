@@ -7,6 +7,7 @@ interface CashAdvanceState {
   weeklySales: WeeklySales[];
   isLoading: boolean;
   error: string | null;
+  wereAdvancesFetched: boolean;
   fetchWeeklySales: (colporterId: string, weekStartDate?: string, weekEndDate?: string) => Promise<void>;
   createCashAdvance: (advanceData: Omit<CashAdvance, 'id' | 'status' | 'requestDate' | 'approvedDate' | 'approvedBy' | 'approvedByName'>) => Promise<void>;
   approveAdvance: (id: string) => Promise<void>;
@@ -26,7 +27,7 @@ export const useCashAdvanceStore = create<CashAdvanceStore>((set) => ({
   weeklySales: [],
   isLoading: false,
   error: null,
-
+  wereAdvancesFetched: false,
   fetchAdvances: async (colporterId) => {
     set({ isLoading: true, error: null });
     try {
@@ -36,7 +37,7 @@ export const useCashAdvanceStore = create<CashAdvanceStore>((set) => ({
       }
       
       const advances = await api.get<CashAdvance[]>('/cash-advance', { params });
-      set({ advances, isLoading: false });
+      set({ advances, isLoading: false, wereAdvancesFetched: true });
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred',

@@ -12,8 +12,8 @@ import SalesChart from '../../components/dashboard/SalesChart';
 import GoalProgress from '../../components/dashboard/GoalProgress';
 import ProgramProjections from '../../components/dashboard/ProgramProjections';
 import FinancialBreakdown from '../../components/dashboard/FinancialBreakdown';
-import Spinner from '../../components/ui/Spinner';
 import { useProgramStore } from '../../stores/programStore';
+import LoadingScreen from '../../components/ui/LoadingScreen';
 
 const Dashboard: React.FC = () => {
   const { t } = useTranslation();
@@ -21,58 +21,62 @@ const Dashboard: React.FC = () => {
   const { 
     isLoading: isFinancialLoading,
     fetchSummary,
-    fetchSalesHistory
+    fetchSalesHistory,
+    wasSummaryFetched,
+    wasSalesHistoryFetched
   } = useFinancialStore();
   
   const {
-    transactions,
     isLoading: isTransactionsLoading,
     fetchTransactions,
-    fetchAllTransactions
+    fetchAllTransactions,
+    wereTransactionsFetched
   } = useTransactionStore();
 
   const {
-    fetchAdvances
+    fetchAdvances,
+    wereAdvancesFetched
   } = useCashAdvanceStore();
   
   const {
     stats,
     isLoading: isDashboardLoading,
-    fetchDashboardStats
+    fetchDashboardStats,
+    wereStatsFetched
   } = useDashboardStore();
 
-  const { program, fetchProgram } = useProgramStore();
+  const { program, fetchProgram, wasProgramFetched } = useProgramStore();
   
-  const [selectedPeriod, setSelectedPeriod] = useState('30d');
+  const selectedPeriod = 'all'
   
   useEffect(() => {
     if (user) {
-      fetchSummary(user.id);
-      fetchSalesHistory(user.id, selectedPeriod);
-      fetchDashboardStats();
-      fetchAdvances();
-      fetchProgram();
+      !wasSummaryFetched && fetchSummary(user.id);
+      !wasSalesHistoryFetched && fetchSalesHistory(user.id, selectedPeriod);
+      !wereStatsFetched && fetchDashboardStats();
+      !wereAdvancesFetched && fetchAdvances();
+      !wasProgramFetched && fetchProgram();
       
       // Fetch today's transactions using the consistent date format
       const today = getCurrentDate();
       console.log('Frontend today date:', today);
-      fetchTransactions(today);
+      !wereTransactionsFetched && fetchTransactions(today);
     }
-  }, [user, fetchSummary, fetchSalesHistory, fetchTransactions, fetchDashboardStats, fetchAdvances, selectedPeriod, fetchProgram]);
+  }, [user, fetchSummary, fetchSalesHistory, fetchTransactions, fetchDashboardStats, fetchAdvances, selectedPeriod, fetchProgram, wasSummaryFetched, wasSalesHistoryFetched, wereStatsFetched, wereAdvancesFetched, wasProgramFetched, wereTransactionsFetched]);
 
 
   useEffect(() => {
     const loadTransactionData = async () => {
       try {
         // Fetch all APPROVED transactions without date filtering
-        await fetchAllTransactions('APPROVED');
+        !wereTransactionsFetched && await fetchAllTransactions();
       } catch (err) {
         console.error('Error fetching transaction data:', err);
       }
     };
 
     loadTransactionData();
-  }, [fetchAllTransactions]);
+  }, [fetchAllTransactions, wereTransactionsFetched]);
   
 
   const isLoading = isFinancialLoading || isTransactionsLoading || isDashboardLoading;
@@ -138,7 +142,7 @@ const Dashboard: React.FC = () => {
   if (isLoading && (!stats || !program)) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
+        <LoadingScreen message="Loading dashboard stats..." />
       </div>
     );
   }
@@ -161,18 +165,6 @@ const Dashboard: React.FC = () => {
           </p>
         </div>
         
-        <div className="mt-4 md:mt-0 flex items-center space-x-2">
-          <select
-            value={selectedPeriod}
-            onChange={(e) => setSelectedPeriod(e.target.value)}
-            className="block rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-          >
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="90d">Last 90 days</option>
-            <option value="all">All time</option>
-          </select>
-        </div>
       </div>
 
       {stats && (

@@ -56,10 +56,19 @@ const SummerReport: React.FC<SummerReportProps> = ({
   const filteredDays = React.useMemo(() => {
     if (sales.length === 0) return [];
     
-    const allDays = Object.keys(sales[0].dailySales).sort();
+    // Get all unique dates from all colporters' dailySales
+    const allDates = new Set<string>();
+    sales.forEach(sale => {
+      Object.keys(sale.dailySales).forEach(date => {
+        allDates.add(date);
+      });
+    });
+    
+    // Convert to array and sort
+    const allDaysArray = Array.from(allDates).sort();
     
     if (timePeriod === 'all') {
-      return allDays;
+      return allDaysArray;
     }
     
     const today = selectedDate;
@@ -67,23 +76,22 @@ const SummerReport: React.FC<SummerReportProps> = ({
     
     if (timePeriod === 'day') {
       const dateStr = today.toISOString().split('T')[0];
-      return allDays.filter(day => day === dateStr);
+      return allDaysArray.filter(day => day === dateStr);
     }
     
     if (timePeriod === 'week') {
-      // Get start of week (Monday)
+      // Get start of week (Sunday)
       const startOfWeek = new Date(today);
-      const day = today.getDay();
-      const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
-      startOfWeek.setDate(diff);
+      const day = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      startOfWeek.setDate(today.getDate() - day); // Go back to Sunday
       startOfWeek.setHours(0, 0, 0, 0);
       
-      // Get end of week (Sunday)
+      // Get end of week (Saturday)
       const endOfWeek = new Date(startOfWeek);
       endOfWeek.setDate(startOfWeek.getDate() + 6);
       endOfWeek.setHours(23, 59, 59, 999);
       
-      return allDays.filter(day => {
+      return allDaysArray.filter(day => {
         const date = new Date(day);
         return date >= startOfWeek && date <= endOfWeek;
       });
@@ -93,13 +101,13 @@ const SummerReport: React.FC<SummerReportProps> = ({
       const currentMonth = today.getMonth();
       const currentYear = today.getFullYear();
       
-      return allDays.filter(day => {
+      return allDaysArray.filter(day => {
         const date = new Date(day);
         return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
       });
     }
     
-    return allDays;
+    return allDaysArray;
   }, [sales, timePeriod, selectedDate]);
 
   // Group sales by leader if needed

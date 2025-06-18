@@ -7,6 +7,8 @@ interface UserState {
   people: Person[];
   isLoading: boolean;
   error: string | null;
+  werePeopleFetched: boolean;
+  wereUsersFetched: boolean;
 }
 
 interface UserStore extends UserState {
@@ -20,6 +22,9 @@ interface UserStore extends UserState {
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   getRolePermissions: () => Promise<any[]>;
   updateRolePermissions: (permissions: any[]) => Promise<void>;
+  createPerson: (personData: Partial<Person>) => Promise<Person>;
+  updatePerson: (id: string, personData: Partial<Person>) => Promise<Person>;
+  deletePerson: (id: string, personType: 'COLPORTER' | 'LEADER') => Promise<void>;
 }
 
 export const useUserStore = create<UserStore>((set, get) => ({
@@ -27,12 +32,14 @@ export const useUserStore = create<UserStore>((set, get) => ({
   people: [],
   isLoading: false,
   error: null,
-
+  werePeopleFetched: false,
+  wereUsersFetched: false,
+  
   fetchUsers: async () => {
     set({ isLoading: true, error: null });
     try {
       const users = await api.get<User[]>('/users');
-      set({ users, isLoading: false });
+      set({ users, isLoading: false, wereUsersFetched: true });
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred',
@@ -45,7 +52,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const people = await api.get<Person[]>('/people');
-      set({ people, isLoading: false });
+      set({ people, isLoading: false, werePeopleFetched: true });
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred',
@@ -151,6 +158,85 @@ export const useUserStore = create<UserStore>((set, get) => ({
     try {
       await api.put('/users/roles/permissions', { permissions });
       set({ isLoading: false });
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        isLoading: false 
+      });
+      throw error;
+    }
+  },
+
+  // New methods for person management
+  createPerson: async (personData) => {
+    set({ isLoading: true, error: null });
+    try {
+      let newPerson;
+      
+      if (personData.personType === 'COLPORTER') {
+        newPerson = await api.post<Person>('/people/colporters', personData);
+      } else {
+        newPerson = await api.post<Person>('/people/leaders', personData);
+      }
+      
+      set(state => ({
+        people: [...state.people, newPerson],
+        isLoading: false,
+      }));
+      
+      return newPerson;
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        isLoading: false 
+      });
+      throw error;
+    }
+  },
+
+  updatePerson: async (id, personData) => {
+    set({ isLoading: true, error: null });
+    try {
+      let updatedPerson;
+      
+      if (personData.personType === 'COLPORTER') {
+        updatedPerson = await api.put<Person>(`/people/colporters/${id}`, personData);
+      } else {
+        updatedPerson = await api.put<Person>(`/people/leaders/${id}`, personData);
+      }
+      
+      set(state => ({
+        people: state.people.map(person => 
+          person.id === id 
+            ? updatedPerson
+            : person
+        ),
+        isLoading: false,
+      }));
+      
+      return updatedPerson;
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        isLoading: false 
+      });
+      throw error;
+    }
+  },
+
+  deletePerson: async (id, personType) => {
+    set({ isLoading: true, error: null });
+    try {
+      if (personType === 'COLPORTER') {
+        await api.delete(`/people/colporters/${id}`);
+      } else {
+        await api.delete(`/people/leaders/${id}`);
+      }
+      
+      set(state => ({
+        people: state.people.filter(person => person.id !== id),
+        isLoading: false,
+      }));
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred',

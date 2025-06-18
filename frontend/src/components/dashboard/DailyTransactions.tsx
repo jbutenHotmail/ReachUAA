@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DollarSign, CreditCard, Wallet, CheckCircle, Clock, XCircle, BookText, ChevronRight } from 'lucide-react';
-import { Transaction } from '../../types';
+import { Transaction, BookSize } from '../../types';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
@@ -21,11 +21,17 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
 }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { updateTransaction } = useTransactionStore();
+  const { approveTransaction, rejectTransaction } = useTransactionStore();
   const { user } = useAuthStore();
+  const [statusFilter, setStatusFilter] = useState<string>('');
   
   // Check if user is admin (only admins can approve/reject)
   const isAdmin = user?.role === UserRole.ADMIN;
+  
+  // Filter transactions based on status filter
+  const filteredTransactions = statusFilter 
+    ? transactions.filter(t => t.status === statusFilter)
+    : transactions;
   
   // Filter out rejected transactions for totals
   // IMPORTANT: Only count APPROVED transactions for totals
@@ -45,9 +51,31 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
     total: 0
   });
 
+  // Calculate book totals
+  const bookTotals = validTransactions.reduce((acc, transaction) => {
+    transaction.books?.forEach(book => {
+      // Use the book's size field if available, otherwise determine by price
+      const bookSize = book.size;
+      if (bookSize === BookSize.LARGE) {
+        acc.large += book.quantity;
+      } else {
+        acc.small += book.quantity;
+      }
+    });
+    return acc;
+  }, { large: 0, small: 0, total: 0 });
+  
+  // Update total books
+  bookTotals.total = bookTotals.large + bookTotals.small;
+
   const handleStatusChange = async (id: string, status: 'APPROVED' | 'REJECTED') => {
     try {
-      await updateTransaction(id, { status });
+      console.log('status', status);
+      if (status === 'APPROVED') {
+        await approveTransaction(id);
+      } else {
+        await rejectTransaction(id);
+      }
     } catch (error) {
       console.error('Error updating transaction status:', error);
     }
@@ -67,13 +95,27 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
   return (
     <Card
       title={t('dashboard.dailyTransactions')}
-      subtitle={new Date(date).toLocaleDateString()}
+      subtitle={date}
       icon={<DollarSign size={20} />}
+      actions={
+        <div className="flex items-center gap-2">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">All Status</option>
+            <option value="PENDING">Pending</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+          </select>
+        </div>
+      }
     >
       <div className="space-y-4">
         {/* Mobile-first table */}
         <div className="block lg:hidden space-y-3">
-          {transactions.map((transaction) => (
+          {filteredTransactions.map((transaction) => (
             <div 
               key={transaction.id}
               className={`p-4 rounded-lg border ${
@@ -114,9 +156,24 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
               </div>
               
               <div className="flex justify-between items-center">
-                <Badge variant="primary">
-                  {transaction.books?.reduce((sum, book) => sum + book.quantity, 0) || 0} books
-                </Badge>
+                <div className="flex gap-2">
+                  {transaction.books && transaction.books.length > 0 && (
+                    <>
+                      <Badge variant="primary" size="sm">
+                        {transaction.books.reduce((sum, book) => {
+                          const bookSize = book.size;
+                          return sum + (bookSize === BookSize.LARGE ? book.quantity : 0);
+                        }, 0)} large
+                      </Badge>
+                      <Badge variant="success" size="sm">
+                        {transaction.books.reduce((sum, book) => {
+                          const bookSize = book.size;
+                          return sum + (bookSize === BookSize.SMALL ? book.quantity : 0);
+                        }, 0)} small
+                      </Badge>
+                    </>
+                  )}
+                </div>
                 
                 {transaction.status === 'PENDING' && isAdmin ? (
                   <div className="flex space-x-2">
@@ -176,7 +233,16 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                   {t('common.total')}
                 </th>
                 <th className="px-3 lg:px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <BookText size={14} className="inline" />
+                  <div className="flex items-center justify-center gap-1">
+                    <BookText size={14} className="text-primary-600" />
+                    <span>Large</span>
+                  </div>
+                </th>
+                <th className="px-3 lg:px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center justify-center gap-1">
+                    <BookText size={14} className="text-success-600" />
+                    <span>Small</span>
+                  </div>
                 </th>
                 <th className="px-3 lg:px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   {t('transactions.status')}
@@ -187,73 +253,91 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {transactions.map((transaction) => (
-                <tr key={transaction.id} className={
-                  transaction.status === 'PENDING' 
-                    ? 'bg-yellow-50/50' 
-                    : transaction.status === 'REJECTED'
-                      ? 'bg-red-50/50'
-                      : ''
-                }>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                    {transaction.studentName}
-                  </td>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                    {transaction.leaderName}
-                  </td>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                    ${Number(transaction.cash).toFixed(2)}
-                  </td>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                    ${Number(transaction.checks).toFixed(2)}
-                  </td>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                    ${Number(transaction.atmMobile).toFixed(2)}
-                  </td>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                    ${Number(transaction.paypal).toFixed(2)}
-                  </td>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                    ${Number(transaction.total).toFixed(2)}
-                  </td>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center">
-                    <Badge variant="primary">
-                      {transaction.books?.reduce((sum, book) => sum + book.quantity, 0) || 0}
-                    </Badge>
-                  </td>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center">
-                    {getStatusBadge(transaction.status)}
-                  </td>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center">
-                    {transaction.status === 'PENDING' && isAdmin ? (
-                      <div className="flex items-center justify-center space-x-2">
+              {filteredTransactions.map((transaction) => {
+                // Calculate book counts for this transaction
+                const largeBooks = transaction.books?.reduce((sum, book) => {
+                  const bookSize = book.size;
+                  return sum + (bookSize === BookSize.LARGE ? book.quantity : 0);
+                }, 0) || 0;
+                
+                const smallBooks = transaction.books?.reduce((sum, book) => {
+                  const bookSize = book.size;
+                  return sum + (bookSize === BookSize.SMALL ? book.quantity : 0);
+                }, 0) || 0;
+                
+                return (
+                  <tr key={transaction.id} className={
+                    transaction.status === 'PENDING' 
+                      ? 'bg-yellow-50/50' 
+                      : transaction.status === 'REJECTED'
+                        ? 'bg-red-50/50'
+                        : ''
+                  }>
+                    <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                      {transaction.studentName}
+                    </td>
+                    <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      {transaction.leaderName}
+                    </td>
+                    <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
+                      ${Number(transaction.cash).toFixed(2)}
+                    </td>
+                    <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
+                      ${Number(transaction.checks).toFixed(2)}
+                    </td>
+                    <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
+                      ${Number(transaction.atmMobile).toFixed(2)}
+                    </td>
+                    <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
+                      ${Number(transaction.paypal).toFixed(2)}
+                    </td>
+                    <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                      ${Number(transaction.total).toFixed(2)}
+                    </td>
+                    <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center">
+                      <Badge variant="primary">
+                        {largeBooks}
+                      </Badge>
+                    </td>
+                    <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center">
+                      <Badge variant="success">
+                        {smallBooks}
+                      </Badge>
+                    </td>
+                    <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center">
+                      {getStatusBadge(transaction.status)}
+                    </td>
+                    <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center">
+                      {transaction.status === 'PENDING' && isAdmin ? (
+                        <div className="flex items-center justify-center space-x-2">
+                          <Button
+                            variant="success"
+                            size="sm"
+                            onClick={() => handleStatusChange(transaction.id, 'APPROVED')}
+                          >
+                            <CheckCircle size={16} />
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => handleStatusChange(transaction.id, 'REJECTED')}
+                          >
+                            <XCircle size={16} />
+                          </Button>
+                        </div>
+                      ) : (
                         <Button
-                          variant="success"
+                          variant="ghost"
                           size="sm"
-                          onClick={() => handleStatusChange(transaction.id, 'APPROVED')}
+                          onClick={() => navigate(`/transactions/${transaction.id}`)}
                         >
-                          <CheckCircle size={16} />
+                          <ChevronRight size={16} />
                         </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => handleStatusChange(transaction.id, 'REJECTED')}
-                        >
-                          <XCircle size={16} />
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`/transactions/${transaction.id}`)}
-                      >
-                        <ChevronRight size={16} />
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
             <tfoot>
               <tr className="bg-gray-50">
@@ -276,7 +360,13 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                 <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                   ${Number(totals.total).toFixed(2)}
                 </td>
-                <td colSpan={3}></td>
+                <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center font-medium">
+                  <Badge variant="primary">{bookTotals.large}</Badge>
+                </td>
+                <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center font-medium">
+                  <Badge variant="success">{bookTotals.small}</Badge>
+                </td>
+                <td colSpan={2}></td>
               </tr>
             </tfoot>
           </table>

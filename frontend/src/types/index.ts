@@ -102,10 +102,11 @@ export interface InventoryCount {
   id: string;
   book_id: string;
   book_title?: string;
+  book_size?: string;
   system_count: number;
   manual_count: number | null;
   discrepancy: number;
-  lastUpdated?: string;
+  updated_at?: string;
   updatedBy?: string;
   count_date: string;
   status?: 'PENDING' | 'VERIFIED' | 'DISCREPANCY';
@@ -118,13 +119,20 @@ export interface Book {
   author: string;
   publisher: string;
   price: number;
+  size: string;
   category: string;
   description: string;
-  imageUrl?: string;
+  image_url?: string;
   stock: number;
   sold: number;
   is_active: boolean;
   programId?: string; // New field to associate books with programs
+}
+
+// Book size classification
+export enum BookSize {
+  LARGE = 'LARGE',
+  SMALL = 'SMALL'
 }
 
 // New interface for program-specific book details
@@ -179,6 +187,7 @@ export interface Transaction {
     title: string;
     price: number;
     quantity: number;
+    size: string;
   }>;
 }
 

@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Upload } from 'lucide-react';
+import { X } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import ImageUpload from '../../components/ui/ImageUpload';
-import { Book } from '../../types';
+import { Book, BookSize } from '../../types';
 
 interface AddBookFormProps {
   onClose: () => void;
@@ -27,11 +27,12 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
     author: initialData?.author || '',
     publisher: initialData?.publisher || '',
     price: initialData?.price || 0,
+    size: initialData?.size || BookSize.SMALL, // Default to SMALL if not specified
     category: initialData?.category || '',
     description: initialData?.description || '',
     stock: initialData?.stock || 0,
     sold: initialData?.sold || 0,
-    imageUrl: initialData?.imageUrl || '',
+    imageUrl: initialData?.image_url || '',
     is_active: initialData?.is_active ?? true, // Default to active for new books
   });
 
@@ -184,6 +185,22 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
                     step="0.01"
                     required
                   />
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Book Size
+                    </label>
+                    <select
+                      name="size"
+                      value={formData.size}
+                      onChange={handleChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                      required
+                    >
+                      <option value={BookSize.LARGE}>Large</option>
+                      <option value={BookSize.SMALL}>Small</option>
+                    </select>
+                  </div>
 
                   {isProgramSetup ? (
                     <Input

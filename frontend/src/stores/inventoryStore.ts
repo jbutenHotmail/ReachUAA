@@ -9,6 +9,7 @@ interface InventoryState {
   inventoryCounts: InventoryCount[];
   isLoading: boolean;
   error: string | null;
+  wereBooksLoaded: boolean;
 }
 
 interface InventoryStore extends InventoryState {
@@ -22,6 +23,7 @@ interface InventoryStore extends InventoryState {
   createMovement: (bookId: string, movement: { quantity: number; movementType: 'IN' | 'OUT' | 'SALE' | 'RETURN'; notes?: string }) => Promise<void>;
   fetchInventoryCounts: (date?: string) => Promise<void>;
   updateInventoryCount: (bookId: string, data: { manualCount: number; countDate: string; systemCount: number; confirmDiscrepancy?: boolean; setVerified?: boolean }) => Promise<void>;
+  updateBooksAfterTransaction: (transaction: any, isApproval: boolean) => void;
 }
 
 export const useInventoryStore = create<InventoryStore>((set, get) => ({
@@ -31,12 +33,13 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   inventoryCounts: [],
   isLoading: false,
   error: null,
+  wereBooksLoaded: false,
 
   fetchBooks: async () => {
     set({ isLoading: true, error: null });
     try {
       const books = await api.get<Book[]>('/books');
-      set({ books, isLoading: false });
+      set({ books, isLoading: false, wereBooksLoaded: true });
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'An unknown error occurred',
@@ -209,10 +212,8 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
           // Update existing count
           const updatedCounts = [...state.inventoryCounts];
           updatedCounts[existingIndex] = count;
-          console.log(updatedCounts)
           return { inventoryCounts: updatedCounts, isLoading: false };
         } else {
-          console.log(count)
           // Add new count
           return { 
             inventoryCounts: [...state.inventoryCounts, count], 
@@ -240,4 +241,46 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
       throw error;
     }
   },
+
+  // Method to update books after a transaction is approved or rejected
+  updateBooksAfterTransaction: (transaction, isApproval) => {
+    // Only process if we have books in the transaction
+    if (!transaction.books || transaction.books.length === 0) return;
+    
+    // Get current books
+    const currentBooks = get().books;
+    if (currentBooks.length === 0) return;
+    
+    // Create a copy of the current books
+    const updatedBooks = [...currentBooks];
+    
+    // Update each book's stock and sold counts
+    transaction.books.forEach(transactionBook => {
+      const bookIndex = updatedBooks.findIndex(b => b.id === transactionBook.id);
+      if (bookIndex >= 0) {
+        const book = updatedBooks[bookIndex];
+        
+        // If approving, increase sold count
+        // If rejecting a previously approved transaction, decrease sold count
+        if (isApproval) {
+          updatedBooks[bookIndex] = {
+            ...book,
+            sold: book.sold + transactionBook.quantity
+          };
+        } else {
+          updatedBooks[bookIndex] = {
+            ...book,
+            sold: Math.max(0, book.sold - transactionBook.quantity) // Ensure we don't go below 0
+          };
+        }
+      }
+    });
+    
+    // Update the state with the new books
+    set({ books: updatedBooks });
+    
+    // After updating books, refresh inventory counts for today
+    const today = new Date().toISOString().split('T')[0];
+    get().fetchInventoryCounts(today);
+  }
 }));

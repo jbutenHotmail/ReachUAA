@@ -47,7 +47,7 @@ const MobileNav: React.FC = () => {
           icon: <BookText size={18} />, 
         },
         { 
-          path: '/transactions', 
+          path: '/transactions/finances', 
           label: 'Transactions', 
           icon: <PiggyBank size={18} />, 
         },
@@ -68,13 +68,13 @@ const MobileNav: React.FC = () => {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 md:hidden safe-area-pb">
-      <div className={`grid gap-0 grid-cols-${navItems.length}`}>
+      <div className="flex justify-around">
         {navItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
             className={({ isActive }) => `
-              flex flex-col items-center justify-center p-2 min-h-[60px]
+              flex flex-col items-center justify-center p-2 min-h-[60px] flex-1
               text-xs font-medium transition-colors
               ${isActive ? 'text-primary-600 bg-primary-50' : 'text-gray-500 hover:text-gray-900'}
             `}

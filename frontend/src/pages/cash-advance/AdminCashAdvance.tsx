@@ -5,21 +5,26 @@ import { clsx } from 'clsx';
 import { useUserStore } from '../../stores/userStore';
 import { useCashAdvanceStore } from '../../stores/cashAdvanceStore';
 import { useProgramStore } from '../../stores/programStore';
+import { useTransactionStore } from '../../stores/transactionStore';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
 import Spinner from '../../components/ui/Spinner';
+import LoadingScreen from '../../components/ui/LoadingScreen';
 
 const AdminCashAdvance: React.FC = () => {
   const { t } = useTranslation();
-  const { people, fetchPeople} = useUserStore();
-  const { program, fetchProgram } = useProgramStore();
+  const { people, fetchPeople, werePeopleFetched } = useUserStore();
+  const { program, fetchProgram, wasProgramFetched } = useProgramStore();
+  const { transactions, fetchAllTransactions, wereTransactionsFetched } = useTransactionStore();
   const { 
     weeklySales,
     isLoading,
     fetchWeeklySales,
     createCashAdvance,
+    wereAdvancesFetched,
+    fetchAdvances
   } = useCashAdvanceStore();
 
   // Person selection state
@@ -32,32 +37,110 @@ const AdminCashAdvance: React.FC = () => {
   const [confirmationText, setConfirmationText] = useState('');
   const [isEditingPercentage, setIsEditingPercentage] = useState(false);
   const [customPercentage, setCustomPercentage] = useState<number>(0); // Will be set from program config
+  const [localWeeklySales, setLocalWeeklySales] = useState<any>(null);
+  const [isCalculatingLocally, setIsCalculatingLocally] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchProgram();
-    fetchPeople();
-  }, [fetchProgram, fetchPeople]);
+    !wasProgramFetched && fetchProgram();
+    !werePeopleFetched && fetchPeople();
+    !wereAdvancesFetched && fetchAdvances();
+    !wereTransactionsFetched && fetchAllTransactions('APPROVED');
+  }, [fetchProgram, fetchPeople, fetchAdvances, fetchAllTransactions, wasProgramFetched, werePeopleFetched, wereAdvancesFetched, wereTransactionsFetched]);
 
   useEffect(() => {
     if (selectedPerson) {
-      fetchWeeklySales(selectedPerson.id)
-        .catch(err => {
-          setError(err.message || 'Failed to fetch weekly sales');
-        });
-      setAdvanceAmount(0); // Reset amount when person changes
       setError('');
       setSuccess('');
       setConfirmationText('');
+      setLocalWeeklySales(null);
       
       // Set default percentage based on person type
       const defaultPercentage = selectedPerson.personType === 'COLPORTER' 
         ? program?.financialConfig?.colporter_cash_advance_percentage || 20
-        : program?.financialConfig?.leader_cash_advance_percentage || 25;
+        : program?.financialConfig?.leader_percentage || 25;
       setCustomPercentage(defaultPercentage);
       setIsEditingPercentage(false);
+      
+      // Calculate weekly sales locally if we have transactions and advances
+      if (wereTransactionsFetched && wereAdvancesFetched) {
+        setIsCalculatingLocally(true);
+        calculateWeeklySalesLocally(selectedPerson.id, selectedPerson.personType);
+      } else {
+        // Otherwise fetch from API
+        fetchWeeklySales(selectedPerson.id)
+          .catch(err => {
+            setError(err.message || 'Failed to fetch weekly sales');
+          });
+      }
     }
-  }, [selectedPerson, fetchWeeklySales, program]);
+  }, [selectedPerson, fetchWeeklySales, program, wereTransactionsFetched, wereAdvancesFetched]);
+
+  // Calculate weekly sales locally
+  const calculateWeeklySalesLocally = (personId: string, personType: 'COLPORTER' | 'LEADER') => {
+    // Get current date
+    const today = new Date();
+    
+    // Calculate start of week (Sunday)
+    const startOfWeek = new Date(today);
+    const day = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    startOfWeek.setDate(today.getDate() - day); // Go back to Sunday
+    
+    // Calculate end of week (Saturday)
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6); // Sunday + 6 days = Saturday
+    
+    const weekStartDate = startOfWeek.toISOString().split('T')[0];
+    const weekEndDate = endOfWeek.toISOString().split('T')[0];
+    
+    // Filter transactions for this person and this week
+    const personTransactions = transactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      const isInDateRange = transactionDate >= startOfWeek && transactionDate <= endOfWeek;
+      
+      if (personType === 'COLPORTER') {
+        return t.studentId === personId && isInDateRange && t.status === 'APPROVED';
+      } else {
+        return t.leaderId === personId && isInDateRange && t.status === 'APPROVED';
+      }
+    });
+    
+    // Calculate total sales and transaction count
+    const totalSales = personTransactions.reduce((sum, t) => sum + t.total, 0);
+    const transactionCount = personTransactions.length;
+    
+    // Calculate daily sales
+    const dailySales: Record<string, number> = {};
+    personTransactions.forEach(t => {
+      const date = t.date;
+      dailySales[date] = (dailySales[date] || 0) + t.total;
+    });
+    
+    // Get financial configuration
+    const maxPercentage = personType === 'COLPORTER' 
+      ? program?.financialConfig?.colporter_cash_advance_percentage || 20
+      : program?.financialConfig?.leader_cash_advance_percentage || 25;
+    
+    // Calculate maximum advance amount
+    const maxAdvanceAmount = totalSales * (maxPercentage / 100);
+    
+    // Create weekly sales object
+    const calculatedWeeklySales = {
+      colporterId: personId,
+      colporterName: selectedPerson?.name || '',
+      weekStartDate,
+      weekEndDate,
+      totalSales,
+      transactionCount,
+      dailySales,
+      maxAdvanceAmount,
+      maxAdvancePercentage: maxPercentage
+    };
+    
+    setLocalWeeklySales(calculatedWeeklySales);
+    setAdvanceAmount(0);
+    setIsCalculatingLocally(false);
+  };
 
   // Handle outside click to close dropdown
   useEffect(() => {
@@ -81,8 +164,8 @@ const AdminCashAdvance: React.FC = () => {
      person.apellido.toLowerCase().includes(personSearch.toLowerCase()))
   );
 
-  // Get current week sales data
-  const currentWeekSales = weeklySales[0];
+  // Get current week sales data - either from API or calculated locally
+  const currentWeekSales = isCalculatingLocally ? null : (localWeeklySales || weeklySales[0]);
   
   const maxAdvanceAmount = currentWeekSales ? currentWeekSales.totalSales * (customPercentage / 100) : 0;
 
@@ -164,11 +247,9 @@ const AdminCashAdvance: React.FC = () => {
     };
   };
 
-  if (isLoading && !currentWeekSales) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
-      </div>
+      <LoadingScreen message="Creating cash advance..." />
     );
   }
 
@@ -298,6 +379,12 @@ const AdminCashAdvance: React.FC = () => {
           </div>
         </div>
       </Card>
+
+      {isCalculatingLocally && (
+        <div className="flex items-center justify-center h-64">
+          <Spinner size="lg" />
+        </div>
+      )}
 
       {selectedPerson && currentWeekSales && (
         <>

@@ -30,7 +30,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
   initialData,
 }) => {
   const { t } = useTranslation();
-  const { users, fetchUsers, getLeaders } = useUserStore();
+  const { fetchUsers, getLeaders, werePeopleFetched, fetchPeople } = useUserStore();
   const [formData, setFormData] = React.useState<ExpenseFormData>(
     initialData || {
       date: new Date().toISOString().split('T')[0],
@@ -53,6 +53,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
   const leaderDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    !werePeopleFetched && fetchPeople();
     fetchUsers();
   }, [fetchUsers]);
 

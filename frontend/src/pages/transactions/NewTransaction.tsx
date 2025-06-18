@@ -12,17 +12,18 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
+import LoadingScreen from '../../components/ui/LoadingScreen';
 import { getCurrentDate } from '../../utils/dateUtils';
 import { isColportableDay, getNextColportableDay } from '../../utils/programUtils';
-import { UserRole } from '../../types';
+import { UserRole, BookSize } from '../../types';
 
 const NewTransaction: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { fetchUsers, fetchPeople, getLeaders, getColporters, people } = useUserStore();
+  const { fetchUsers, fetchPeople, people, werePeopleFetched, wereUsersFetched } = useUserStore();
   const { createTransaction } = useTransactionStore();
-  const { books, fetchBooks } = useInventoryStore();
-  const { program, fetchProgram } = useProgramStore();
+  const { books, fetchBooks, wereBooksLoaded } = useInventoryStore();
+  const { fetchProgram, wasProgramFetched, program } = useProgramStore();
   const { user } = useAuthStore();
 
   const [leaderSearch, setLeaderSearch] = useState('');
@@ -38,6 +39,7 @@ const NewTransaction: React.FC = () => {
   const [bookQuantities, setBookQuantities] = useState<Record<string, number>>({});
   const [stayOnPage, setStayOnPage] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const leaderDropdownRef = useRef<HTMLDivElement>(null);
   const colporterDropdownRef = useRef<HTMLDivElement>(null);
@@ -48,12 +50,24 @@ const NewTransaction: React.FC = () => {
   const nextColportableDay = getNextColportableDay(today);
   const isAdmin = user?.role === UserRole.ADMIN;
 
-  React.useEffect(() => {
-    fetchUsers();
-    fetchBooks();
-    fetchProgram();
-    people && people.length === 0 && fetchPeople();
-  }, [fetchUsers, fetchBooks, fetchProgram, fetchPeople, people]);
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        !wereUsersFetched && await fetchUsers();
+        !wereBooksLoaded && await fetchBooks();
+        !wasProgramFetched && await fetchProgram();
+        !werePeopleFetched && await fetchPeople();
+      } catch (error) {
+        console.error("Error loading data:", error);
+      } finally {
+        // Add a small delay to ensure the loading screen is visible
+        setTimeout(() => setIsLoading(false), 800);
+      }
+    };
+    
+    loadData();
+  }, [fetchUsers, fetchBooks, fetchProgram, fetchPeople, wereUsersFetched, wereBooksLoaded, wasProgramFetched, werePeopleFetched]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -71,8 +85,8 @@ const NewTransaction: React.FC = () => {
     };
   }, []);
 
-  const leaders = getLeaders();
-  const colporters = getColporters();
+  const leaders = people.filter(person => person.personType === 'LEADER');
+  const colporters = people.filter(person => person.personType === 'COLPORTER');
 
   const filteredLeaders = leaders.filter((leader) =>
     leader.name.toLowerCase().includes(leaderSearch.toLowerCase())
@@ -115,12 +129,16 @@ const NewTransaction: React.FC = () => {
         date: todayFormatted,
         books: Object.entries(bookQuantities)
           .filter(([_, quantity]) => quantity > 0)
-          .map(([id, quantity]) => ({
-            id,
-            quantity,
-            title: books.find(b => b.id === id)?.title || '',
-            price: books.find(b => b.id === id)?.price || 0,
-          })),
+          .map(([id, quantity]) => {
+            const book = books.find(b => b.id === id);
+            return {
+              id,
+              quantity,
+              title: book?.title || '',
+              price: book?.price || 0,
+              size: book?.size,
+            };
+          }),
       });
 
       if (stayOnPage) {
@@ -153,7 +171,13 @@ const NewTransaction: React.FC = () => {
   // Filter only active books
   const activeBooks = books.filter(book => book.is_active);
 
-  console.log('Active books:', isToday);
+  // If loading, show loading screen
+  if (isLoading) {
+    return (
+      <LoadingScreen message="Preparing transaction form..." />
+    );
+  }
+
   // If today is not a colportable day and user is not admin, show restriction screen
   if (!isToday) {
     return (
@@ -467,7 +491,15 @@ const NewTransaction: React.FC = () => {
                   <div key={book.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="min-w-0 flex-1 mr-2">
                       <p className="font-medium text-gray-900 text-sm truncate">{book.title}</p>
-                      <p className="text-xs text-gray-500">${Number(book.price).toFixed(2)}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-gray-500">${Number(book.price).toFixed(2)}</p>
+                        <Badge 
+                          variant={book.size === BookSize.LARGE ? "primary" : "success"}
+                          size="sm"
+                        >
+                          {book.size === BookSize.LARGE ? "Large" : "Small"}
+                        </Badge>
+                      </div>
                     </div>
                     <div className="flex items-center gap-1 sm:gap-2">
                       <Button

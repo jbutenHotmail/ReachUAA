@@ -10,7 +10,6 @@ import {
   Calendar,
   PieChart,
   BarChart3,
-  Filter,
   Download,
   ChevronDown,
   X
@@ -18,13 +17,12 @@ import {
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
-import Input from '../../components/ui/Input';
 import { clsx } from 'clsx';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useChargeStore } from '../../stores/chargeStore';
 import { useCashAdvanceStore } from '../../stores/cashAdvanceStore';
 import { useProgramStore } from '../../stores/programStore';
-import Spinner from '../../components/ui/Spinner';
+
 import {
   Chart as ChartJS,
   ArcElement,
@@ -36,7 +34,8 @@ import {
   Title
 } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
-import { api } from '../../api';
+import { useExpenseStore } from '../../stores/expenseStore';
+import LoadingScreen from '../../components/ui/LoadingScreen';
 
 // Register ChartJS components
 ChartJS.register(
@@ -86,55 +85,33 @@ interface ColporterFinancials {
   earnings: number;
 }
 
-interface Expense {
-  id: string;
-  leaderId: string | null;
-  leaderName: string;
-  amount: number;
-  motivo: string;
-  category: string;
-  notes?: string;
-  date: string;
-  createdBy: string;
-  createdByName: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 const ProgramReport: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('all');
   const [viewType, setViewType] = useState<'summary' | 'detailed'>('summary');
   const [programFinancials, setProgramFinancials] = useState<ProgramFinancials | null>(null);
   const [colporterFinancials, setColporterFinancials] = useState<ColporterFinancials[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
   const [leaderFilter, setLeaderFilter] = useState<string>('');
-  const [dateRange, setDateRange] = useState<{start: string, end: string}>({
-    start: '',
-    end: ''
-  });
   const [selectedDate, setSelectedDate] = useState(new Date());
-
-  const { transactions, fetchAllTransactions } = useTransactionStore();
-  const { charges, fetchCharges } = useChargeStore();
-  const { advances, fetchAdvances } = useCashAdvanceStore();
-  const { program, fetchProgram } = useProgramStore();
-
+  const { expenses, fetchExpenses, wereExpensesFetched } = useExpenseStore();
+  const { transactions, fetchAllTransactions, wereTransactionsFetched } = useTransactionStore();
+  const { charges, fetchCharges, wereChargesFetched } = useChargeStore();
+  const { advances, fetchAdvances, wereAdvancesFetched } = useCashAdvanceStore();
+  const { program, fetchProgram, wasProgramFetched } = useProgramStore();
   useEffect(() => {
     const loadReportData = async () => {
       setIsLoading(true);
       setError(null);
+      let dataToFetch: any[] = [];
+      !wereExpensesFetched && dataToFetch.push(fetchExpenses());
+      !wereTransactionsFetched && dataToFetch.push(fetchAllTransactions());
+      !wereChargesFetched && dataToFetch.push(fetchCharges());
+      !wereAdvancesFetched && dataToFetch.push(fetchAdvances());
+      !wasProgramFetched && dataToFetch.push(fetchProgram());
       try {
         // Fetch all required data
-        await Promise.all([
-          fetchAllTransactions('APPROVED'), // Only fetch approved transactions
-          fetchCharges(),
-          fetchAdvances(),
-          fetchProgram(),
-          fetchExpenses()
-        ]);
+        await Promise.all(dataToFetch);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load report data');
       } finally {
@@ -144,21 +121,6 @@ const ProgramReport: React.FC = () => {
 
     loadReportData();
   }, [fetchAllTransactions, fetchCharges, fetchAdvances, fetchProgram]);
-
-  // Fetch expenses data
-  const fetchExpenses = async () => {
-    try {
-      // Fetch program expenses (where leaderId is 'program')
-      const fetchedExpenses = await api.get<Expense[]>('/expenses', { 
-        params: { leaderId: 'program', status: 'APPROVED' }
-      });
-      setExpenses(fetchedExpenses);
-      return fetchedExpenses;
-    } catch (error) {
-      console.error('Error fetching expenses:', error);
-      return [];
-    }
-  };
 
   // Filter expenses based on selected time period
   const getFilteredExpenses = () => {
@@ -553,9 +515,7 @@ const ProgramReport: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
-      </div>
+      <LoadingScreen message="Loading program report..." />
     );
   }
 
@@ -695,77 +655,8 @@ const ProgramReport: React.FC = () => {
             {viewType === 'summary' ? 'Detailed View' : 'Summary View'}
           </Button>
           
-          <Button
-            variant="outline"
-            size="sm"
-            leftIcon={<Filter size={16} />}
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            {showFilters ? 'Hide Filters' : 'Filters'}
-          </Button>
         </div>
       </div>
-
-      {/* Filters */}
-      {showFilters && (
-        <Card>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Leader
-              </label>
-              <select
-                value={leaderFilter}
-                onChange={(e) => setLeaderFilter(e.target.value)}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              >
-                <option value="">All Leaders</option>
-                {uniqueLeaders.map(leader => (
-                  <option key={leader} value={leader}>
-                    {leader}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Start Date
-              </label>
-              <Input
-                type="date"
-                value={dateRange.start}
-                onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                End Date
-              </label>
-              <Input
-                type="date"
-                value={dateRange.end}
-                onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
-              />
-            </div>
-          </div>
-          
-          <div className="flex justify-end mt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setLeaderFilter('');
-                setDateRange({start: '', end: ''});
-              }}
-              leftIcon={<X size={16} />}
-            >
-              Clear Filters
-            </Button>
-          </div>
-        </Card>
-      )}
 
       {/* Financial Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

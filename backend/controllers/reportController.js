@@ -64,7 +64,7 @@ export const getDailyReport = async (req, res) => {
     
     transactionBooks.forEach(transaction => {
       transaction.books.forEach(book => {
-        if (book.price >= 20) {
+        if (book.size === 'LARGE') {
           bookTotals.large += book.quantity;
         } else {
           bookTotals.small += book.quantity;
@@ -172,7 +172,7 @@ export const getWeeklyReport = async (req, res) => {
         dailyTransactions[date].transactions[i].books = books;
         
         books.forEach(book => {
-          if (book.price >= 20) {
+          if (book.size === 'LARGE') {
             dailyTransactions[date].bookTotals.large += book.quantity;
           } else {
             dailyTransactions[date].bookTotals.small += book.quantity;
@@ -303,7 +303,7 @@ export const getMonthlyReport = async (req, res) => {
         weeklyTransactions[weekKey].transactions[i].books = books;
         
         books.forEach(book => {
-          if (book.price >= 20) {
+          if (book.size === 'LARGE') {
             weeklyTransactions[weekKey].bookTotals.large += book.quantity;
           } else {
             weeklyTransactions[weekKey].bookTotals.small += book.quantity;
@@ -442,7 +442,7 @@ export const getColporterReport = async (req, res) => {
     
     transactionBooks.forEach(transaction => {
       transaction.books.forEach(book => {
-        if (book.price >= 20) {
+        if (book.size === 'LARGE') {
           bookTotals.large += book.quantity;
         } else {
           bookTotals.small += book.quantity;
@@ -603,7 +603,7 @@ export const getLeaderReport = async (req, res) => {
     
     transactionBooks.forEach(transaction => {
       transaction.books.forEach(book => {
-        if (book.price >= 20) {
+        if (book.size === 'LARGE') {
           bookTotals.large += book.quantity;
         } else {
           bookTotals.small += book.quantity;
@@ -698,7 +698,7 @@ export const getLeaderReport = async (req, res) => {
         };
         
         colporterBooks.forEach(book => {
-          if (book.price >= 20) {
+          if (book.size === 'LARGE') {
             colporterBookTotals.large += book.quantity;
           } else {
             colporterBookTotals.small += book.quantity;
@@ -818,7 +818,7 @@ export const getProgramReport = async (req, res) => {
     };
     
     books.forEach(book => {
-      if (book.price >= 20) {
+      if (book.size === 'LARGE') {
         bookTotals.large += book.quantity;
       } else {
         bookTotals.small += book.quantity;

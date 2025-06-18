@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TrendingUp, Calendar, DollarSign, Target } from 'lucide-react';
 import Card from '../ui/Card';
-import Badge from '../ui/Badge';
 import { useProgramStore } from '../../stores/programStore';
 import { useTransactionStore } from '../../stores/transactionStore';
 
@@ -80,24 +79,6 @@ const ProgramProjections: React.FC = () => {
       minimumFractionDigits: 2,
     }).format(amount);
   };
-
-  // Calculate program progress percentage
-  const calculateProgramProgress = () => {
-    if (!program) return 0;
-    
-    const startDate = new Date(program.start_date);
-    const endDate = new Date(program.end_date);
-    const today = new Date();
-    
-    const totalDuration = endDate.getTime() - startDate.getTime();
-    const elapsedDuration = today.getTime() - startDate.getTime();
-    
-    const progressPercentage = Math.min(100, Math.max(0, (elapsedDuration / totalDuration) * 100));
-    
-    return Math.round(progressPercentage);
-  };
-
-  const programProgress = calculateProgramProgress();
 
   return (
     <Card
@@ -215,20 +196,6 @@ const ProgramProjections: React.FC = () => {
                 {formatCurrency(projectionData.breakdown.programProfit)}
               </span>
             </div>
-          </div>
-        </div>
-
-        {/* Progress Indicator */}
-        <div className="pt-4 border-t border-gray-200">
-          <div className="flex justify-between text-xs text-gray-500 mb-2">
-            <span>Program Progress</span>
-            <span>~{programProgress || 0}% Complete</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-gradient-to-r from-primary-500 to-primary-600 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${programProgress || 0}%` }}
-            ></div>
           </div>
         </div>
       </div>

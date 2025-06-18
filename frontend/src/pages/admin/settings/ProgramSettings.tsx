@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Calendar,
-  Clock,
   Save,
   AlertCircle,
   CheckCircle,
@@ -21,8 +19,8 @@ import Input from "../../../components/ui/Input";
 import Badge from "../../../components/ui/Badge";
 import { useProgramStore } from "../../../stores/programStore";
 import { WorkingDay, CustomDay } from "../../../types";
-import Spinner from "../../../components/ui/Spinner";
 import { api } from "../../../api";
+import LoadingScreen from "../../../components/ui/LoadingScreen";
 
 interface ConfirmationModal {
   isOpen: boolean;
@@ -58,7 +56,7 @@ const MONTHS = [
 
 const ProgramSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { program, fetchProgram, updateProgram } = useProgramStore();
+  const { program, fetchProgram, wasProgramFetched } = useProgramStore();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [error, setError] = useState<string>("");
@@ -84,23 +82,12 @@ const ProgramSettings: React.FC = () => {
   const [workingDays, setWorkingDays] = useState<WorkingDay[]>([]);
   const [customDays, setCustomDays] = useState<CustomDay[]>([]);
 
-  // Program info state
-  const [programInfo, setProgramInfo] = useState({
-    id: "",
-    name: "",
-    motto: "",
-    startDate: "",
-    endDate: "",
-    goal: 0,
-    logo: "",
-  });
-
   // Load program data
   useEffect(() => {
     const loadProgramData = async () => {
       setIsLoading(true);
       try {
-        await fetchProgram();
+        !wasProgramFetched && await fetchProgram();
       } catch (error) {
         console.error("Error fetching program:", error);
         setError("Failed to load program data");
@@ -115,16 +102,6 @@ const ProgramSettings: React.FC = () => {
   // Update local state when program data changes
   useEffect(() => {
     if (program) {
-      // Update program info
-      setProgramInfo({
-        id: program.id.toString(),
-        name: program.name,
-        motto: program.motto || "",
-        startDate: program.start_date,
-        endDate: program.end_date,
-        goal: parseFloat(program.financial_goal),
-        logo: program.logo_url || "",
-      });
 
       // Update financial config
       if (program.financialConfig) {
@@ -281,7 +258,6 @@ const ProgramSettings: React.FC = () => {
     const month = currentDate.getMonth();
 
     const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
     const startDate = new Date(firstDay);
     startDate.setDate(startDate.getDate() - firstDay.getDay()); // Start from Sunday
 
@@ -360,10 +336,10 @@ const ProgramSettings: React.FC = () => {
   const totalWorkDays = calculateWorkDays();
   const calendarDays = generateCalendarDays();
 
-  if (isLoading && !program) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
+        <LoadingScreen message="Loading program settings..." />
       </div>
     );
   }

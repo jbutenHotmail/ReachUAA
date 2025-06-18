@@ -82,14 +82,14 @@ export const createUser = async (req, res) => {
         return res.status(400).json({ message: 'Person already has a user account' });
       }
     }
-    
     // Hash password
+    console.log(personId, email, password, role,)
     const passwordHash = await bcrypt.hash(password, 10);
     
     // Insert user
     const userId = await db.insert(
       'INSERT INTO users (person_id, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)',
-      [personId || null, email, passwordHash, role, 'ACTIVE']
+      [personId, email, passwordHash, role, 'ACTIVE']
     );
     
     // Get the created user

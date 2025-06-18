@@ -21,6 +21,7 @@ interface ExpenseState {
   expenses: Expense[];
   isLoading: boolean;
   error: string | null;
+  wereExpensesFetched: boolean;
 }
 
 interface ExpenseStore extends ExpenseState {
@@ -36,12 +37,12 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
   expenses: [],
   isLoading: false,
   error: null,
-
+  wereExpensesFetched: false,
   fetchExpenses: async (params) => {
     set({ isLoading: true, error: null });
     try {
       const expenses = await api.get<Expense[]>('/expenses', { params });
-      set({ expenses, isLoading: false });
+      set({ expenses, isLoading: false, wereExpensesFetched: true });
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred',
@@ -113,7 +114,7 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
       const updatedExpense = await api.patch<Expense>(`/expenses/${id}/approve`);
       set(state => ({
         expenses: state.expenses.map(e => 
-          e.id === id 
+          Number(e.id) === Number(id) 
             ? updatedExpense
             : e
         ),

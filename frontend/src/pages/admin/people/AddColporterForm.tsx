@@ -46,21 +46,21 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
   };
 
   const handleImageChange = (file: File | null) => {
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({
-          ...prev,
-          profileImage: reader.result as string
-        }));
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        profileImage: undefined
-      }));
-    }
+    // if (file) {
+    //   const reader = new FileReader();
+    //   reader.onloadend = () => {
+    //     setFormData(prev => ({
+    //       ...prev,
+    //       profileImage: reader.result as string
+    //     }));
+    //   };
+    //   reader.readAsDataURL(file);
+    // } else {
+    //   setFormData(prev => ({
+    //     ...prev,
+    //     profileImage: undefined
+    //   }));
+    // }
   };
 
   const defaultPassword = formData.name && formData.apellido 

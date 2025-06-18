@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Calendar, TrendingUp, BookOpen, DollarSign, Users, ChevronRight } from 'lucide-react';
+import { ChevronLeft, Calendar, BookText, DollarSign, Users, ChevronRight, TrendingUp } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
-import { useTransactionStore } from '../../stores/transactionStore';
 import { useProgramStore } from '../../stores/programStore';
 import Spinner from '../../components/ui/Spinner';
 import { api } from '../../api';
@@ -22,6 +21,7 @@ const LeaderDetailPage: React.FC = () => {
   const [colporterStats, setColporterStats] = useState<any[]>([]);
   const [monthlyData, setMonthlyData] = useState<Record<string, { sales: number; days: number; books: { large: number; small: number } }>>({});
   const [programTotalSales, setProgramTotalSales] = useState<number>(0);
+  const [totalLeadersCount, setTotalLeadersCount] = useState<number>(1);
 
   // Fetch leader ID by name
   useEffect(() => {
@@ -57,20 +57,24 @@ const LeaderDetailPage: React.FC = () => {
       
       setIsLoading(true);
       try {
-        // Get all transactions for this leader's team
+        // Get all transactions for this leader's team - ONLY APPROVED TRANSACTIONS
         const leaderTransactions = await api.get('/transactions', { 
-          params: { leaderId } 
+          params: { leaderId, status: 'APPROVED' } 
         });
         
-        // Get all program transactions to calculate total program sales
-        const allTransactions = await api.get('/transactions');
-        
-        // Filter out rejected transactions
-        const validAllTransactions = allTransactions.filter((t: any) => t.status !== 'REJECTED');
+        // Get all program transactions to calculate total program sales - ONLY APPROVED TRANSACTIONS
+        const allTransactions = await api.get('/transactions', {
+          params: { status: 'APPROVED' }
+        });
         
         // Calculate total program sales
-        const totalProgramSales = validAllTransactions.reduce((sum: number, t: any) => sum + t.total, 0);
+        const totalProgramSales = allTransactions.reduce((sum: number, t: any) => sum + t.total, 0);
         setProgramTotalSales(totalProgramSales);
+        
+        // Get total number of leaders in the program
+        const leaders = await api.get('/people/leaders');
+        const activeLeaders = leaders.filter((l: any) => l.status === 'ACTIVE');
+        setTotalLeadersCount(activeLeaders.length || 1); // Ensure we don't divide by zero
         
         // Process the transactions to get statistics
         processTransactionData(leaderTransactions, totalProgramSales);
@@ -96,26 +100,23 @@ const LeaderDetailPage: React.FC = () => {
       return;
     }
     
-    // Filter out rejected transactions
-    const validTransactions = leaderTransactions.filter(t => t.status !== 'REJECTED');
-    
     // Get the leader percentage from program config
     const leaderPercentage = program?.financialConfig?.leader_percentage 
       ? parseFloat(program.financialConfig.leader_percentage) 
       : 15;
     
     // Calculate total sales and books
-    const totalSales = validTransactions.reduce((sum, t) => sum + t.total, 0);
+    const totalSales = leaderTransactions.reduce((sum, t) => sum + t.total, 0);
     const totalBooks = {
       large: 0,
       small: 0
     };
     
     // Process books
-    validTransactions.forEach(transaction => {
+    leaderTransactions.forEach(transaction => {
       if (transaction.books && transaction.books.length > 0) {
         transaction.books.forEach((book: any) => {
-          if (book.price >= 20) {
+          if (book.size === 'LARGE') {
             totalBooks.large += book.quantity;
           } else {
             totalBooks.small += book.quantity;
@@ -127,7 +128,7 @@ const LeaderDetailPage: React.FC = () => {
     // Group transactions by colporter
     const colporterMap = new Map();
     
-    validTransactions.forEach(transaction => {
+    leaderTransactions.forEach(transaction => {
       if (!colporterMap.has(transaction.studentId)) {
         colporterMap.set(transaction.studentId, {
           id: transaction.studentId,
@@ -160,7 +161,7 @@ const LeaderDetailPage: React.FC = () => {
       // Process books for this transaction
       if (transaction.books && transaction.books.length > 0) {
         transaction.books.forEach((book: any) => {
-          if (book.price >= 20) {
+          if (book.size === 'LARGE') {
             colporter.books.large += book.quantity;
           } else {
             colporter.books.small += book.quantity;
@@ -178,7 +179,7 @@ const LeaderDetailPage: React.FC = () => {
     // Group data by months
     const monthlyDataObj: Record<string, { sales: number; days: number; books: { large: number; small: number } }> = {};
     
-    validTransactions.forEach(transaction => {
+    leaderTransactions.forEach(transaction => {
       const date = new Date(transaction.date);
       const month = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
       
@@ -192,7 +193,7 @@ const LeaderDetailPage: React.FC = () => {
       
       // Check if this is a new day for this month
       const dateStr = transaction.date;
-      const isNewDay = !validTransactions.some(t => 
+      const isNewDay = !leaderTransactions.some(t => 
         t.date === dateStr && 
         t.id !== transaction.id && 
         new Date(t.date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) === month
@@ -207,7 +208,7 @@ const LeaderDetailPage: React.FC = () => {
       // Process books for this transaction
       if (transaction.books && transaction.books.length > 0) {
         transaction.books.forEach((book: any) => {
-          if (book.price >= 20) {
+          if (book.size === 'LARGE') {
             monthlyDataObj[month].books.large += book.quantity;
           } else {
             monthlyDataObj[month].books.small += book.quantity;
@@ -217,7 +218,7 @@ const LeaderDetailPage: React.FC = () => {
     });
     
     // Find best and worst days
-    const salesByDay = validTransactions.reduce((acc: Record<string, number>, transaction) => {
+    const salesByDay = leaderTransactions.reduce((acc: Record<string, number>, transaction) => {
       const date = transaction.date;
       acc[date] = (acc[date] || 0) + transaction.total;
       return acc;
@@ -293,10 +294,10 @@ const LeaderDetailPage: React.FC = () => {
     );
   }
 
-  // Calculate leader earnings based on total program sales
-  const leaderEarnings = programTotalSales * (program?.financialConfig?.leader_percentage 
+  // Calculate leader earnings based on total program sales divided by number of leaders
+  const leaderEarnings = (programTotalSales * (program?.financialConfig?.leader_percentage 
     ? parseFloat(program.financialConfig.leader_percentage) / 100 
-    : 0.15);
+    : 0.15)) / totalLeadersCount;
 
   return (
     <div className="space-y-6">
@@ -348,7 +349,7 @@ const LeaderDetailPage: React.FC = () => {
         <Card>
           <div className="text-center">
             <div className="flex items-center justify-center mb-2">
-              <BookOpen className="text-warning-600" size={24} />
+              <BookText className="text-warning-600" size={24} />
             </div>
             <p className="text-sm font-medium text-gray-500">Total Books</p>
             <p className="mt-1 text-2xl font-bold text-warning-600">
@@ -393,7 +394,7 @@ const LeaderDetailPage: React.FC = () => {
             
             <div className="mt-4 p-3 bg-white rounded-lg border border-purple-100">
               <p className="text-sm text-purple-800">
-                <strong>Important:</strong> Leader earnings are calculated as {program?.financialConfig?.leader_percentage || 15}% of the <strong>total program sales</strong>. ({formatCurrency(programTotalSales)})
+                <strong>Important:</strong> Leader earnings are calculated as {program?.financialConfig?.leader_percentage || 15}% of the <strong>total program sales</strong> ({formatCurrency(programTotalSales)}), divided by the total number of leaders ({totalLeadersCount}).
               </p>
             </div>
           </div>
@@ -414,12 +415,18 @@ const LeaderDetailPage: React.FC = () => {
               <p className="text-lg font-bold text-gray-900">
                 {formatCurrency(leaderEarnings / leaderStats.colporterCount)}
               </p>
+              <p className="text-xs text-gray-500">
+                Earnings divided by team size
+              </p>
             </div>
             
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="text-sm font-medium text-gray-700">Per Working Day</p>
               <p className="text-lg font-bold text-gray-900">
                 {formatCurrency(leaderEarnings / leaderStats.workingDays)}
+              </p>
+              <p className="text-xs text-gray-500">
+                Earnings per day worked
               </p>
             </div>
           </div>

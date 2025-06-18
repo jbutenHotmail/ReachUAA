@@ -22,7 +22,7 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
 }) => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const { users, fetchUsers, getLeaders, getColporters } = useUserStore();
+  const { werePeopleFetched, fetchPeople, getLeaders, getColporters } = useUserStore();
   
   const [formData, setFormData] = React.useState({
     personId: initialData?.personId || '',
@@ -49,8 +49,8 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
   const personDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    !werePeopleFetched && fetchPeople();
+  }, [fetchPeople]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

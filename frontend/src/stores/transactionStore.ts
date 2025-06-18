@@ -2,16 +2,20 @@ import { create } from 'zustand';
 import { Transaction } from '../types';
 import { api } from '../api';
 import { getCurrentDate } from '../utils/dateUtils';
+import { useDashboardStore } from './dashboardStore';
+import { useFinancialStore } from './financialStore';
+import { useInventoryStore } from './inventoryStore';
 
 interface TransactionState {
   transactions: Transaction[];
   isLoading: boolean;
   error: string | null;
+  wereTransactionsFetched: boolean;
 }
 
 interface TransactionStore extends TransactionState {
   fetchTransactions: (date?: string) => Promise<void>;
-  fetchAllTransactions: (status?: string) => Promise<void>;
+  fetchAllTransactions: (status?: string) => Promise<Transaction[]>;
   createTransaction: (transaction: any) => Promise<void>;
   updateTransaction: (id: string, transaction: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
@@ -23,6 +27,7 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
   transactions: [],
   isLoading: false,
   error: null,
+  wereTransactionsFetched: false,
 
   fetchTransactions: async (date) => {
     set({ isLoading: true, error: null });
@@ -35,7 +40,7 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
       const transactions = await api.get<Transaction[]>('/transactions', { 
         params: params as Record<string, string>
       });
-      set({ transactions, isLoading: false });
+      set({ transactions, isLoading: false, wereTransactionsFetched: false });
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred', 
@@ -44,7 +49,7 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
     }
   },
 
-  fetchAllTransactions: async (status: string) => {
+  fetchAllTransactions: async (status?: string) => {
     set({ isLoading: true, error: null });
     try {
       // Fetch all transactions with optional status filtering
@@ -54,12 +59,14 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
       }
       
       const transactions = await api.get<Transaction[]>('/transactions', { params });
-      set({ transactions, isLoading: false });
+      set({ transactions, isLoading: false, wereTransactionsFetched: true });
+      return transactions;
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred', 
         isLoading: false 
       });
+      return [];
     }
   },
 
@@ -67,10 +74,13 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const newTransaction = await api.post<Transaction>('/transactions', transactionData);
+      
       set((state) => ({ 
         transactions: [...state.transactions, newTransaction], 
         isLoading: false 
       }));
+
+      return newTransaction;
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred', 
@@ -84,12 +94,35 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const updatedTransaction = await api.put<Transaction>(`/transactions/${id}`, transactionData);
+      
       set((state) => ({
         transactions: state.transactions.map(t => 
           t.id === id ? updatedTransaction : t
         ),
         isLoading: false,
       }));
+
+      // If the transaction status is being updated to APPROVED, update the dashboard stats
+      if (transactionData.status === 'APPROVED') {
+        // Get the dashboard store and update the stats
+        const dashboardStore = useDashboardStore.getState();
+        dashboardStore.updateStatsAfterTransaction(updatedTransaction);
+        
+        // Get the financial store and update the summary and sales history
+        const financialStore = useFinancialStore.getState();
+        financialStore.updateSummaryAfterTransaction(updatedTransaction);
+        financialStore.updateSalesHistoryAfterTransaction(updatedTransaction);
+        
+        // Get the inventory store and update the books
+        const inventoryStore = useInventoryStore.getState();
+        inventoryStore.updateBooksAfterTransaction(updatedTransaction, true);
+      } else if (transactionData.status === 'REJECTED' && updatedTransaction.status === 'REJECTED') {
+        // If rejecting a previously approved transaction, update the books
+        const inventoryStore = useInventoryStore.getState();
+        inventoryStore.updateBooksAfterTransaction(updatedTransaction, false);
+      }
+
+      return updatedTransaction;
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred', 
@@ -119,12 +152,28 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { transaction } = await api.patch<{ message: string; transaction: Transaction }>(`/transactions/${id}/approve`);
+      
       set((state) => ({
         transactions: state.transactions.map(t => 
-          t.id === id ? transaction : t
+          Number(t.id) === Number(id) ? transaction : t
         ),
         isLoading: false,
       }));
+
+      // Update the dashboard stats
+      const dashboardStore = useDashboardStore.getState();
+      dashboardStore.updateStatsAfterTransaction(transaction);
+      
+      // Update the financial summary and sales history
+      const financialStore = useFinancialStore.getState();
+      financialStore.updateSummaryAfterTransaction(transaction);
+      financialStore.updateSalesHistoryAfterTransaction(transaction);
+      
+      // Update the inventory (books)
+      const inventoryStore = useInventoryStore.getState();
+      inventoryStore.updateBooksAfterTransaction(transaction, true);
+
+      return transaction;
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred', 
@@ -137,12 +186,25 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const { transaction } = await api.patch<{ message: string; transaction: Transaction }>(`/transactions/${id}/reject`);
+      
+      // Check if this was previously approved (we need to update book counts)
+      const prevTransaction = get().transactions.find(t => t.id === id);
+      const wasApproved = prevTransaction?.status === 'APPROVED';
+      
       set((state) => ({
         transactions: state.transactions.map(t => 
           t.id === id ? transaction : t
         ),
         isLoading: false,
       }));
+      
+      // If the transaction was previously approved, update the books
+      if (wasApproved) {
+        const inventoryStore = useInventoryStore.getState();
+        inventoryStore.updateBooksAfterTransaction(transaction, false);
+      }
+      
+      return transaction;
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred', 

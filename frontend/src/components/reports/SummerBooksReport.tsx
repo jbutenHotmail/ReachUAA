@@ -47,15 +47,24 @@ const SummerBooksReport: React.FC<SummerBooksReportProps> = ({
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const daysPerPage = 8; // Show 8 days at a time for books (need more space for large/small columns)
-
+  console.log('booksData', booksData)
   // Filter days based on selected time period
   const filteredDays = React.useMemo(() => {
     if (booksData.length === 0) return [];
     
-    const allDays = Object.keys(booksData[0].dailyBooks).sort();
+    // Get all unique dates from all colporters' dailyBooks
+    const allDates = new Set<string>();
+    booksData.forEach(data => {
+      Object.keys(data.dailyBooks).forEach(date => {
+        allDates.add(date);
+      });
+    });
+    
+    // Convert to array and sort
+    const allDaysArray = Array.from(allDates).sort();
     
     if (timePeriod === 'all') {
-      return allDays;
+      return allDaysArray;
     }
     
     const today = selectedDate;
@@ -63,23 +72,22 @@ const SummerBooksReport: React.FC<SummerBooksReportProps> = ({
     
     if (timePeriod === 'day') {
       const dateStr = today.toISOString().split('T')[0];
-      return allDays.filter(day => day === dateStr);
+      return allDaysArray.filter(day => day === dateStr);
     }
     
     if (timePeriod === 'week') {
-      // Get start of week (Monday)
+      // Get start of week (Sunday)
       const startOfWeek = new Date(today);
-      const day = today.getDay();
-      const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
-      startOfWeek.setDate(diff);
+      const day = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      startOfWeek.setDate(today.getDate() - day); // Go back to Sunday
       startOfWeek.setHours(0, 0, 0, 0);
       
-      // Get end of week (Sunday)
+      // Get end of week (Saturday)
       const endOfWeek = new Date(startOfWeek);
       endOfWeek.setDate(startOfWeek.getDate() + 6);
       endOfWeek.setHours(23, 59, 59, 999);
       
-      return allDays.filter(day => {
+      return allDaysArray.filter(day => {
         const date = new Date(day);
         return date >= startOfWeek && date <= endOfWeek;
       });
@@ -89,13 +97,13 @@ const SummerBooksReport: React.FC<SummerBooksReportProps> = ({
       const currentMonth = today.getMonth();
       const currentYear = today.getFullYear();
       
-      return allDays.filter(day => {
+      return allDaysArray.filter(day => {
         const date = new Date(day);
         return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
       });
     }
     
-    return allDays;
+    return allDaysArray;
   }, [booksData, timePeriod, selectedDate]);
 
   // Group books by leader if needed

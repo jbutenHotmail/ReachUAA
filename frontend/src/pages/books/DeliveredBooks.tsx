@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Calendar, ChevronLeft, ChevronRight, Users, Download } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
+import { BookSize } from '../../types';
 
 interface DeliveredBook {
   id: string;
@@ -13,7 +13,8 @@ interface DeliveredBook {
   student: string;
   leader: string;
   date: string;
-  isLarge: boolean;
+  price: number;
+  size: string;
 }
 
 const mockData: DeliveredBook[] = [
@@ -24,7 +25,8 @@ const mockData: DeliveredBook[] = [
     student: 'Amy Buten',
     leader: 'Odrie Aponte',
     date: '2025-03-20',
-    isLarge: false,
+    price: 15,
+    size: 'LARGE',
   },
   {
     id: '2',
@@ -33,7 +35,8 @@ const mockData: DeliveredBook[] = [
     student: 'Carlo Bravo',
     leader: 'Odrie Aponte',
     date: '2025-03-20',
-    isLarge: true,
+    price: 25,
+    size: 'SMALL',
   },
 ];
 
@@ -59,7 +62,10 @@ const DeliveredBooks: React.FC = () => {
 
   // Calculate totals - only from APPROVED transactions
   const totals = mockData.reduce((acc, book) => {
-    if (book.isLarge) {
+    // Use the getBookSize function to determine if the book is large or small
+    const bookSize = book.size;
+    
+    if (bookSize === BookSize.LARGE) {
       acc.large += book.quantity;
     } else {
       acc.small += book.quantity;
@@ -164,30 +170,35 @@ const DeliveredBooks: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {mockData.map((book) => (
-                    <tr key={book.id}>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        {book.title}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                        <Badge 
-                          variant={book.isLarge ? "primary" : "success"} 
-                          className="inline-flex justify-center min-w-[2.5rem]"
-                        >
-                          {book.quantity}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        {book.student}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                        {book.leader}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(book.date).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
+                  {mockData.map((book) => {
+                    // Use the getBookSize function to determine if the book is large or small
+                    const bookSize = book.size;
+                    
+                    return (
+                      <tr key={book.id}>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {book.title}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                          <Badge 
+                            variant={bookSize === BookSize.LARGE ? "primary" : "success"} 
+                            className="inline-flex justify-center min-w-[2.5rem]"
+                          >
+                            {book.quantity}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {book.student}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                          {book.leader}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(book.date).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

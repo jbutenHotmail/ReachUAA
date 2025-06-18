@@ -5,15 +5,18 @@ import bcrypt from 'bcryptjs';
 export const getPeople = async (req, res) => {
   try {
     const people = await db.query(
-      `SELECT id, first_name as name, last_name as apellido, email, phone, 
-       address, profile_image_url as profileImage, status, person_type as personType,
-       school, age, institution, created_at as createdAt, 
-       updated_at as updatedAt, 
-       (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
-       FROM people
-       ORDER BY first_name, last_name`
+      `SELECT p.id, p.first_name as name, p.last_name as apellido, p.email, p.phone, 
+              p.address, p.profile_image_url as profileImage, p.status, p.person_type as personType,
+              p.school, p.age, p.institution, p.created_at as createdAt, 
+              p.updated_at as updatedAt, 
+              CASE WHEN u.person_id IS NOT NULL THEN true ELSE false END as hasUser
+       FROM people p
+       LEFT JOIN users u ON u.person_id = p.id
+       GROUP BY p.id
+       ORDER BY p.first_name, p.last_name`
     );
     
+    console.log('people', people)
     res.json(people);
   } catch (error) {
     console.error('Error getting people:', error);

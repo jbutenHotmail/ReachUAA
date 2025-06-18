@@ -6,6 +6,7 @@ interface ChargeState {
   charges: Charge[];
   isLoading: boolean;
   error: string | null;
+  wereChargesFetched: boolean;
 }
 
 interface ChargeStore extends ChargeState {
@@ -21,12 +22,12 @@ export const useChargeStore = create<ChargeStore>((set) => ({
   charges: [],
   isLoading: false,
   error: null,
-
+  wereChargesFetched: false,
   fetchCharges: async () => {
     set({ isLoading: true, error: null });
     try {
       const charges = await api.get<Charge[]>('/charges');
-      set({ charges, isLoading: false });
+      set({ charges, isLoading: false, wereChargesFetched: true });
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred',

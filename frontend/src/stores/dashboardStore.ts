@@ -43,16 +43,19 @@ interface DashboardState {
   stats: DashboardStats | null;
   isLoading: boolean;
   error: string | null;
+  wereStatsFetched: boolean;
 }
 
 interface DashboardStore extends DashboardState {
   fetchDashboardStats: () => Promise<void>;
+  updateStatsAfterTransaction: (transaction: any) => void;
 }
 
-export const useDashboardStore = create<DashboardStore>((set) => ({
+export const useDashboardStore = create<DashboardStore>((set, get) => ({
   stats: null,
   isLoading: false,
   error: null,
+  wereStatsFetched: false,
 
   fetchDashboardStats: async () => {
     set({ isLoading: true, error: null });
@@ -103,7 +106,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
           salesChart: stats.salesChart || []
         };
         
-        set({ stats: validatedStats, isLoading: false });
+        set({ stats: validatedStats, isLoading: false, wereStatsFetched: true });
       } else {
         // If API fails or returns invalid data, generate mock data for development
         const salesChart = Array.from({ length: 30 }, (_, i) => {
@@ -157,7 +160,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
         mockStats.program.remaining = mockStats.program.goal - mockStats.program.achieved;
         mockStats.program.percentageAchieved = (mockStats.program.achieved / mockStats.program.goal) * 100;
         
-        set({ stats: mockStats, isLoading: false });
+        set({ stats: mockStats, isLoading: false, wereStatsFetched: true });
       }
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -167,4 +170,104 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       });
     }
   },
+
+  // New method to update stats after a transaction is approved
+  updateStatsAfterTransaction: (transaction) => {
+    const currentStats = get().stats;
+    if (!currentStats) return;
+
+    // Only update if the transaction is APPROVED
+    if (transaction.status !== 'APPROVED') return;
+
+    // Get transaction date and amount
+    const transactionDate = transaction.date;
+    const transactionAmount = transaction.total;
+    const today = getCurrentDate();
+
+    // Create a copy of the current stats
+    const updatedStats = { ...currentStats };
+
+    // Update today's sales if the transaction is from today
+    if (transactionDate === today) {
+      updatedStats.today.sales += transactionAmount;
+
+      // Update today's books
+      if (transaction.books && transaction.books.length > 0) {
+        transaction.books.forEach(book => {
+          if (book.size === 'LARGE') {
+            updatedStats.today.books.large += book.quantity;
+          } else {
+            updatedStats.today.books.small += book.quantity;
+          }
+        });
+        updatedStats.today.books.total = updatedStats.today.books.large + updatedStats.today.books.small;
+      }
+    }
+
+    // Check if transaction is within the current week
+    const weekStartDate = new Date();
+    weekStartDate.setDate(weekStartDate.getDate() - weekStartDate.getDay()); // Start of week (Sunday)
+    const weekEndDate = new Date(weekStartDate);
+    weekEndDate.setDate(weekEndDate.getDate() + 6); // End of week (Saturday)
+    
+    const transactionDateObj = new Date(transactionDate);
+    if (transactionDateObj >= weekStartDate && transactionDateObj <= weekEndDate) {
+      updatedStats.week.sales += transactionAmount;
+
+      // Update weekly books
+      if (transaction.books && transaction.books.length > 0) {
+        transaction.books.forEach(book => {
+          if (book.size === 'LARGE') {
+            updatedStats.week.books.large += book.quantity;
+          } else {
+            updatedStats.week.books.small += book.quantity;
+          }
+        });
+        updatedStats.week.books.total = updatedStats.week.books.large + updatedStats.week.books.small;
+      }
+    }
+
+    // Check if transaction is within the current month
+    const monthStartDate = new Date();
+    monthStartDate.setDate(1); // Start of month
+    const monthEndDate = new Date(monthStartDate.getFullYear(), monthStartDate.getMonth() + 1, 0); // End of month
+    
+    if (transactionDateObj >= monthStartDate && transactionDateObj <= monthEndDate) {
+      updatedStats.month.sales += transactionAmount;
+
+      // Update monthly books
+      if (transaction.books && transaction.books.length > 0) {
+        transaction.books.forEach(book => {
+          if (book.size === 'LARGE') {
+            updatedStats.month.books.large += book.quantity;
+          } else {
+            updatedStats.month.books.small += book.quantity;
+          }
+        });
+        updatedStats.month.books.total = updatedStats.month.books.large + updatedStats.month.books.small;
+      }
+    }
+
+    // Update program achieved amount
+    updatedStats.program.achieved += transactionAmount;
+    updatedStats.program.remaining = updatedStats.program.goal - updatedStats.program.achieved;
+    updatedStats.program.percentageAchieved = (updatedStats.program.achieved / updatedStats.program.goal) * 100;
+
+    // Update sales chart
+    const chartDateIndex = updatedStats.salesChart.findIndex(item => item.date === transactionDate);
+    if (chartDateIndex >= 0) {
+      updatedStats.salesChart[chartDateIndex].amount += transactionAmount;
+    } else {
+      // If the date doesn't exist in the chart, add it
+      updatedStats.salesChart.push({
+        date: transactionDate,
+        amount: transactionAmount
+      });
+      // Sort the chart by date
+      updatedStats.salesChart.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }
+
+    // Update the state with the new stats
+    set({ stats: updatedStats });
+  }
 }));

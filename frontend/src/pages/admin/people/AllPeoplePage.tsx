@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { 
   UserPlus, Search, Download, Filter, 
   Mail, Phone, Building2, MapPin, User,
-  Pencil, Trash2
+  Pencil, Trash2, UserCog
 } from 'lucide-react';
 import {
   createColumnHelper,
@@ -18,8 +18,7 @@ import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Badge from '../../../components/ui/Badge';
-import AddColporterForm from './AddColporterForm';
-import AddLeaderForm from './AddLeaderForm';
+import AddPersonForm from './AddPersonForm';
 import { useUserStore } from '../../../stores/userStore';
 import { Person } from '../../../types';
 import Spinner from '../../../components/ui/Spinner';
@@ -32,7 +31,6 @@ const AllPeoplePage: React.FC = () => {
   const [globalFilter, setGlobalFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState<'COLPORTER' | 'LEADER' | ''>('');
   const [showAddForm, setShowAddForm] = useState(false);
-  const [addPersonType, setAddPersonType] = useState<'COLPORTER' | 'LEADER'>('COLPORTER');
   const [editingPerson, setEditingPerson] = useState<Person | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +39,11 @@ const AllPeoplePage: React.FC = () => {
     people, 
     fetchPeople,
     isLoading: peopleLoading,
-    error: peopleError
+    error: peopleError,
+    werePeopleFetched,
+    createPerson,
+    updatePerson,
+    deletePerson
   } = useUserStore();
 
   useEffect(() => {
@@ -49,7 +51,7 @@ const AllPeoplePage: React.FC = () => {
       setIsLoading(true);
       setError(null);
       try {
-        await fetchPeople();
+        !werePeopleFetched && await fetchPeople();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load people data');
       } finally {
@@ -58,48 +60,39 @@ const AllPeoplePage: React.FC = () => {
     };
 
     loadData();
-  }, [fetchPeople]);
+  }, [fetchPeople, werePeopleFetched]);
 
   const handleAddPerson = () => {
     setShowAddForm(true);
-    setAddPersonType('COLPORTER'); // Default to colporter
+    setEditingPerson(null);
   };
 
-  const handleAddPersonTypeSelect = (type: 'COLPORTER' | 'LEADER') => {
-    setAddPersonType(type);
-  };
-
-  const handleAddColporter = async (data: any) => {
+  const handleAddOrEditPerson = async (data: any) => {
     try {
-      // In a real implementation, this would call an API to create a colporter
-      console.log('Creating colporter:', data);
+      if (editingPerson) {
+        // Update existing person
+        await updatePerson(editingPerson.id, data);
+      } else {
+        // Create new person
+        await createPerson(data);
+      }
+      
       setShowAddForm(false);
+      setEditingPerson(null);
     } catch (error) {
-      console.error('Error creating colporter:', error);
-    }
-  };
-
-  const handleAddLeader = async (data: any) => {
-    try {
-      // In a real implementation, this would call an API to create a leader
-      console.log('Creating leader:', data);
-      setShowAddForm(false);
-    } catch (error) {
-      console.error('Error creating leader:', error);
+      console.error('Error saving person:', error);
     }
   };
 
   const handleEditPerson = (person: Person) => {
     setEditingPerson(person);
-    setAddPersonType(person.personType);
     setShowAddForm(true);
   };
 
   const handleDeletePerson = async (id: string, type: 'COLPORTER' | 'LEADER') => {
     if (window.confirm('Are you sure you want to delete this person?')) {
       try {
-        // In a real implementation, this would call an API to delete a person
-        console.log(`Deleting ${type.toLowerCase()}:`, id);
+        await deletePerson(id, type);
       } catch (error) {
         console.error(`Error deleting ${type.toLowerCase()}:`, error);
       }
@@ -111,8 +104,15 @@ const AllPeoplePage: React.FC = () => {
       header: 'Name',
       cell: info => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700">
-            <User size={20} />
+          <div className={`h-10 w-10 rounded-full flex items-center justify-center text-white ${
+            info.row.original.personType === 'COLPORTER' 
+              ? 'bg-primary-600' 
+              : 'bg-success-600'
+          }`}>
+            {info.row.original.personType === 'COLPORTER' 
+              ? <User size={20} /> 
+              : <UserCog size={20} />
+            }
           </div>
           <div>
             <div className="font-medium text-gray-900">{`${info.getValue()} ${info.row.original.apellido}`}</div>
@@ -185,7 +185,7 @@ const AllPeoplePage: React.FC = () => {
       id: 'actions',
       header: 'Actions',
       cell: info => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center gap-2">
           <Button
             variant="ghost"
             size="sm"
@@ -350,94 +350,16 @@ const AllPeoplePage: React.FC = () => {
         </div>
       </Card>
 
-      {/* Add Person Type Selection Modal */}
-      {showAddForm && !editingPerson && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <Card>
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Select Person Type
-                </h2>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    onClick={() => handleAddPersonTypeSelect('COLPORTER')}
-                    className={`p-4 rounded-lg border-2 flex flex-col items-center justify-center gap-2 transition-colors ${
-                      addPersonType === 'COLPORTER' 
-                        ? 'border-primary-500 bg-primary-50 text-primary-700' 
-                        : 'border-gray-200 hover:border-primary-200 hover:bg-primary-50/50'
-                    }`}
-                  >
-                    <User size={24} className={addPersonType === 'COLPORTER' ? 'text-primary-600' : 'text-gray-400'} />
-                    <span className="font-medium">Colporter</span>
-                  </button>
-                  
-                  <button
-                    onClick={() => handleAddPersonTypeSelect('LEADER')}
-                    className={`p-4 rounded-lg border-2 flex flex-col items-center justify-center gap-2 transition-colors ${
-                      addPersonType === 'LEADER' 
-                        ? 'border-success-500 bg-success-50 text-success-700' 
-                        : 'border-gray-200 hover:border-success-200 hover:bg-success-50/50'
-                    }`}
-                  >
-                    <User size={24} className={addPersonType === 'LEADER' ? 'text-success-600' : 'text-gray-400'} />
-                    <span className="font-medium">Leader</span>
-                  </button>
-                </div>
-                
-                <div className="flex justify-end gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowAddForm(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={() => {
-                      // Continue to the appropriate form based on selection
-                      if (addPersonType === 'COLPORTER') {
-                        // Show colporter form directly
-                        setShowAddForm(true);
-                      } else {
-                        // Show leader form directly
-                        setShowAddForm(true);
-                      }
-                    }}
-                  >
-                    Continue
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          </div>
-        </div>
-      )}
-
-      {/* Render the appropriate form based on selection */}
       {showAddForm && (
-        <>
-          {addPersonType === 'COLPORTER' ? (
-            <AddColporterForm
-              onClose={() => {
-                setShowAddForm(false);
-                setEditingPerson(null);
-              }}
-              onSubmit={handleAddColporter}
-              initialData={editingPerson?.personType === 'COLPORTER' ? editingPerson : undefined}
-            />
-          ) : (
-            <AddLeaderForm
-              onClose={() => {
-                setShowAddForm(false);
-                setEditingPerson(null);
-              }}
-              onSubmit={handleAddLeader}
-              initialData={editingPerson?.personType === 'LEADER' ? editingPerson : undefined}
-            />
-          )}
-        </>
+        <AddPersonForm
+          onClose={() => {
+            setShowAddForm(false);
+            setEditingPerson(null);
+          }}
+          onSubmit={handleAddOrEditPerson}
+          initialData={editingPerson || undefined}
+          initialPersonType={editingPerson?.personType}
+        />
       )}
     </div>
   );

@@ -44,11 +44,12 @@ const UsersPage: React.FC = () => {
     fetchUsers, 
     updateUser, 
     deleteUser,
-    createUser
+    createUser,
+    wereUsersFetched
   } = useUserStore();
 
   useEffect(() => {
-    fetchUsers();
+    !wereUsersFetched && fetchUsers();
   }, [fetchUsers]);
 
   const getRoleIcon = (role: UserRole) => {

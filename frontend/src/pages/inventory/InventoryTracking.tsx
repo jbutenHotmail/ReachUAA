@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   AlertTriangle, 
   CheckCircle, 
+  XCircle, 
+  Calendar, 
   TrendingDown, 
   TrendingUp,
   Package,
@@ -17,14 +19,14 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
-import Spinner from '../../components/ui/Spinner';
-import { UserRole } from '../../types';
+import LoadingScreen from '../../components/ui/LoadingScreen';
+import { UserRole, InventoryCount, BookSize } from '../../types';
 
 const InventoryTracking: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const { books, fetchBooks, updateInventoryCount, inventoryCounts: storedCounts, fetchInventoryCounts, isLoading } = useInventoryStore();
-  const { transactions, fetchTransactions } = useTransactionStore();
+  const { books, fetchBooks, updateInventoryCount, inventoryCounts: storedCounts, fetchInventoryCounts, isLoading, wereBooksLoaded } = useInventoryStore();
+  const { transactions, fetchTransactions, wereTransactionsFetched } = useTransactionStore();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<number>(0);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -33,10 +35,14 @@ const InventoryTracking: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchBooks();
-    fetchTransactions(selectedDate);
+    if (!wereBooksLoaded) {
+      fetchBooks();
+    }
+    if (!wereTransactionsFetched) {
+      fetchTransactions(selectedDate);
+    }
     fetchInventoryCounts(selectedDate);
-  }, [fetchBooks, fetchTransactions, fetchInventoryCounts, selectedDate]);
+  }, [fetchBooks, fetchTransactions, fetchInventoryCounts, selectedDate, wereBooksLoaded, wereTransactionsFetched]);
 
   // Filter only active books
   const activeBooks = books.filter(book => book.is_active);
@@ -57,6 +63,7 @@ const InventoryTracking: React.FC = () => {
             ...existingCount,
             id: book.id,
             book_title: book.title,
+            book_size: book.size,
             // Status is now determined by the database status if available, or calculated
             status: existingCount.status || 
               (existingCount.manual_count === null 
@@ -82,6 +89,7 @@ const InventoryTracking: React.FC = () => {
             id: book.id,
             book_id: book.id,
             book_title: book.title,
+            book_size: book.size,
             system_count: systemCount,
             manual_count: null,
             discrepancy: 0,
@@ -110,6 +118,7 @@ const InventoryTracking: React.FC = () => {
           id: book.id,
           book_id: book.id,
           book_title: book.title,
+          book_size: book.size,
           system_count: systemCount,
           manual_count: null,
           discrepancy: 0,
@@ -141,7 +150,7 @@ const InventoryTracking: React.FC = () => {
         countDate: selectedDate,
         systemCount: countToUpdate.system_count,
         confirmDiscrepancy: false, // Don't update the book stock yet
-        setVerified: true // Don't mark as verified yet
+        setVerified: editValue === countToUpdate.system_count // Mark as verified if counts match
       });
       
       setEditingId(null);
@@ -217,11 +226,9 @@ const InventoryTracking: React.FC = () => {
 
   const canEdit = user?.role === UserRole.ADMIN || user?.role === UserRole.SUPERVISOR;
 
-  if (isLoading && inventoryCounts.length === 0) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
-      </div>
+      <LoadingScreen message="Loading inventory data..." />
     );
   }
 
@@ -299,6 +306,9 @@ const InventoryTracking: React.FC = () => {
                   Book Title
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Size
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   System Count
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -330,6 +340,14 @@ const InventoryTracking: React.FC = () => {
                         <div className="text-sm font-medium text-gray-900">{count.book_title}</div>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center">
+                    <Badge 
+                      variant={count.book_size === BookSize.LARGE ? "primary" : "success"}
+                      size="sm"
+                    >
+                      {count.book_size === BookSize.LARGE ? "Large" : "Small"}
+                    </Badge>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-center">
                     <Badge variant="primary">{count.system_count}</Badge>

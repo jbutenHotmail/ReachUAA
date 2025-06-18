@@ -20,7 +20,6 @@ export const createProgram = async (req, res) => {
       colporters,
       leaders
     } = req.body;
-    console.log(req.body)
     // Start a transaction
     const result = await db.transaction(async (connection) => {
       // Insert program
@@ -30,7 +29,6 @@ export const createProgram = async (req, res) => {
       );
       
       const programId = programResult.insertId;
-      console.log(programId)
       // Insert working days
       for (const day of workingDays) {
         await connection.execute(

@@ -154,7 +154,7 @@ const BookSetupStep: React.FC<BookSetupStepProps> = ({
                       <div className="flex items-center">
                         <div className="h-12 w-8 flex-shrink-0 mr-3">
                           <img
-                            src={book.imageUrl || 'https://images.pexels.com/photos/159711/books-bookstore-book-reading-159711.jpeg'}
+                            src={book.image_url || 'https://images.pexels.com/photos/159711/books-bookstore-book-reading-159711.jpeg'}
                             alt={book.title}
                             className="h-12 w-8 object-cover rounded shadow-sm"
                           />

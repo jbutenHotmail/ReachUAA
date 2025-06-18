@@ -356,7 +356,7 @@ const ViewerDashboard: React.FC = () => {
                       </div>
                       <div className="flex flex-col items-center p-1 bg-purple-50 rounded">
                         <span className="text-purple-600">ATM</span>
-                        <span className="font-medium">${transaction.atmMobile.toFixed(2)}</span>
+                        <span className="font-medium">${transaction.atmMobile?.toFixed(2)}</span>
                       </div>
                       <div className="flex flex-col items-center p-1 bg-indigo-50 rounded">
                         <span className="text-indigo-600">PayPal</span>

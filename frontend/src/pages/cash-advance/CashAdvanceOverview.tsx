@@ -19,11 +19,12 @@ import { CashAdvance } from '../../types';
 import { clsx } from 'clsx';
 import { useAuthStore } from '../../stores/authStore';
 import { UserRole } from '../../types';
+import LoadingScreen from '../../components/ui/LoadingScreen';
 
 const CashAdvanceOverview: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const { advances, isLoading, error, fetchAdvances, approveAdvance, rejectAdvance } = useCashAdvanceStore();
+  const { advances, isLoading, error, fetchAdvances, approveAdvance, rejectAdvance, wereAdvancesFetched } = useCashAdvanceStore();
   const [selectedAdvance, setSelectedAdvance] = useState<CashAdvance | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -39,7 +40,7 @@ const CashAdvanceOverview: React.FC = () => {
   const [weekFilter, setWeekFilter] = useState<string>('');
 
   useEffect(() => {
-    fetchAdvances();
+    !wereAdvancesFetched && fetchAdvances();
   }, [fetchAdvances]);
 
   const handleApprove = async (id: string) => {
@@ -138,11 +139,9 @@ const CashAdvanceOverview: React.FC = () => {
     setWeekFilter('');
   };
 
-  if (isLoading && advances.length === 0) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
-      </div>
+      <LoadingScreen message="Loading cash advances..." />
     );
   }
 

@@ -4,22 +4,27 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Clock, CheckCircle, XCircle, DollarSign, BookText } from 'lucide-react';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useAuthStore } from '../../stores/authStore';
-import { UserRole } from '../../types';
+import { UserRole, BookSize } from '../../types';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
+import LoadingScreen from '../../components/ui/LoadingScreen';
 
 const TransactionDetails: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { transactions, updateTransaction } = useTransactionStore();
+  const { transactions, approveTransaction, rejectTransaction, isLoading } = useTransactionStore();
   const { user } = useAuthStore();
   
   // Check if user is admin (only admins can approve/reject)
   const isAdmin = user?.role === UserRole.ADMIN;
 
-  const transaction = transactions.find(t =>  Number(t.id) === Number(id));
+  const transaction = transactions.find(t => Number(t.id) === Number(id));
+
+  if (isLoading) {
+    return <LoadingScreen message="Loading transaction details..." />;
+  }
 
   if (!transaction) {
     return (
@@ -51,11 +56,33 @@ const TransactionDetails: React.FC = () => {
 
   const handleStatusChange = async (status: 'APPROVED' | 'REJECTED') => {
     try {
-      await updateTransaction(transaction.id, { status });
+      if (status === 'APPROVED') {
+        await approveTransaction(transaction.id);
+      } else {
+        await rejectTransaction(transaction.id);
+      }
     } catch (error) {
       console.error('Error updating transaction status:', error);
     }
   };
+
+  // Calculate book totals by size
+  const bookTotals = {
+    large: 0,
+    small: 0,
+    total: 0
+  };
+
+  transaction.books?.forEach(book => {
+    // Use the book's size field if available, otherwise determine by price
+    const bookSize = book.size;
+    if (bookSize === BookSize.LARGE) {
+      bookTotals.large += book.quantity;
+    } else {
+      bookTotals.small += book.quantity;
+    }
+    bookTotals.total += book.quantity;
+  });
 
   return (
     <div className="space-y-6">
@@ -166,22 +193,52 @@ const TransactionDetails: React.FC = () => {
 
         <Card title="Books Delivered" icon={<BookText size={20} />}>
           <div className="space-y-4">
-            {transaction.books?.map((book) => (
-              <div key={book.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">{book.title}</p>
-                  <p className="text-sm text-gray-500">${book.price.toFixed(2)}</p>
-                </div>
-                <Badge variant="primary">
-                  {book.quantity}
-                </Badge>
+            {/* Book size summary */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="p-3 bg-primary-50 rounded-lg text-center">
+                <p className="text-sm font-medium text-primary-700">Large Books</p>
+                <p className="text-xl font-bold text-primary-800">{bookTotals.large}</p>
               </div>
-            ))}
+              <div className="p-3 bg-success-50 rounded-lg text-center">
+                <p className="text-sm font-medium text-success-700">Small Books</p>
+                <p className="text-xl font-bold text-success-800">{bookTotals.small}</p>
+              </div>
+            </div>
+
+            {/* Book list */}
+            {transaction.books?.map((book) => {
+              // Use the book's size field if available, otherwise determine by price
+              const bookSize = book.size;
+              return (
+                <div 
+                  key={book.id} 
+                  className={`flex justify-between items-center p-3 rounded-lg ${
+                    bookSize === BookSize.LARGE ? 'bg-primary-50' : 'bg-success-50'
+                  }`}
+                >
+                  <div>
+                    <p className="font-medium text-gray-900">{book.title}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-gray-500">${book.price.toFixed(2)}</p>
+                      <Badge 
+                        variant={bookSize === BookSize.LARGE ? "primary" : "success"}
+                        size="sm"
+                      >
+                        {bookSize === BookSize.LARGE ? "Large" : "Small"}
+                      </Badge>
+                    </div>
+                  </div>
+                  <Badge variant={bookSize === BookSize.LARGE ? "primary" : "success"}>
+                    {book.quantity}
+                  </Badge>
+                </div>
+              );
+            })}
 
             <div className="flex justify-between items-center pt-4 border-t border-gray-200">
               <span className="font-medium text-gray-700">Total Books:</span>
               <Badge variant="primary" size="lg">
-                {transaction.books?.reduce((sum, book) => sum + book.quantity, 0) || 0}
+                {bookTotals.total}
               </Badge>
             </div>
           </div>

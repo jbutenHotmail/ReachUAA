@@ -7,6 +7,7 @@ import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Badge from '../../../components/ui/Badge';
 import { UserRole } from '../../../types';
+import { useUserStore } from '../../../stores/userStore';
 
 interface AddUserFormProps {
   onClose: () => void;
@@ -20,6 +21,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
   initialData 
 }) => {
   const { t } = useTranslation();
+  const { people, fetchPeople, werePeopleFetched } = useUserStore();
   
   // Form state
   const [formData, setFormData] = useState({
@@ -41,14 +43,12 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
   const [isPersonDropdownOpen, setIsPersonDropdownOpen] = useState(false);
   const personDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Mock people data - in a real app, this would come from an API
-  const mockPeople = [
-    { id: 'c1', name: 'Amy Buten', email: 'amy.buten@example.com', type: 'COLPORTER', hasUser: false },
-    { id: 'c2', name: 'Carlo Bravo', email: 'carlo.bravo@example.com', type: 'COLPORTER', hasUser: true },
-    { id: 'c3', name: 'Ambar de Jesus', email: 'ambar.dejesus@example.com', type: 'COLPORTER', hasUser: false },
-    { id: 'l1', name: 'Odrie Aponte', email: 'odrie.aponte@example.com', type: 'LEADER', hasUser: true },
-    { id: 'l2', name: 'Moises Amador', email: 'moises.amador@example.com', type: 'LEADER', hasUser: true },
-  ];
+  // Fetch people data if not already loaded
+  useEffect(() => {
+    if (!werePeopleFetched) {
+      fetchPeople();
+    }
+  }, [fetchPeople, werePeopleFetched]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -64,10 +64,11 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
   }, []);
 
   // Filter people based on search and type
-  const filteredPeople = mockPeople
+  const filteredPeople = people
     .filter(person => 
-      person.name.toLowerCase().includes(personSearch.toLowerCase()) &&
-      person.type === formData.personType &&
+      (person.name.toLowerCase().includes(personSearch.toLowerCase()) ||
+       person.apellido.toLowerCase().includes(personSearch.toLowerCase())) &&
+      person.personType === formData.personType &&
       !person.hasUser // Only show people without users if creating new
     );
 
@@ -80,6 +81,8 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
       personId: selectedPerson?.id,
       personName: selectedPerson?.name,
       email: selectedPerson?.email,
+      // Generate default password based on name
+      password: !initialData ? getDefaultPassword(selectedPerson?.name || '') : undefined
     };
     
     onSubmit(submitData);
@@ -220,21 +223,23 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                               onClick={() => {
                                 setSelectedPerson({ 
                                   id: person.id, 
-                                  name: person.name, 
+                                  name: `${person.name} ${person.apellido}`, 
                                   email: person.email,
-                                  type: person.type
+                                  type: person.personType
                                 });
                                 setPersonSearch('');
                                 setIsPersonDropdownOpen(false);
                               }}
                             >
-                              <div className="font-medium text-sm">{person.name}</div>
+                              <div className="font-medium text-sm">{person.name} {person.apellido}</div>
                               <div className="text-xs text-gray-500">{person.email}</div>
                             </button>
                           ))
                         ) : (
                           <div className="px-4 py-2 text-sm text-gray-500">
-                            No {formData.personType.toLowerCase()}s found without user accounts
+                            {personSearch ? 
+                              "No matching people found" : 
+                              `No ${formData.personType.toLowerCase()}s found without user accounts`}
                           </div>
                         )}
                       </div>

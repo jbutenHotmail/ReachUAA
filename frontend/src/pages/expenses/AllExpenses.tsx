@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Download, Utensils, ChevronFirst as FirstAid, ShoppingBag, Wrench, Car, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Plus, Search, Utensils, ChevronFirst as FirstAid, ShoppingBag, Wrench, Car, CheckCircle, XCircle, Clock } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
 import AddExpenseForm from './AddExpenseForm';
-import Spinner from '../../components/ui/Spinner';
-import { api } from '../../api';
 import { useAuthStore } from '../../stores/authStore';
 import { UserRole } from '../../types';
+import { useExpenseStore } from '../../stores/expenseStore';
+import LoadingScreen from '../../components/ui/LoadingScreen';
 
 interface Expense {
   id: string;
@@ -43,49 +43,54 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
   const [categoryFilter, setSelectedCategory] = useState(defaultCategory || '');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
+  const { wereExpensesFetched, fetchExpenses, expenses, createExpense, updateExpense, deleteExpense, approveExpense, rejectExpense, isLoading } = useExpenseStore();
   const isAdmin = user?.role === UserRole.ADMIN;
 
   useEffect(() => {
-    const fetchExpenses = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const params: Record<string, string> = {};
-        if (categoryFilter) {
-          params.category = categoryFilter;
-        }
-        if (leaderFilter) {
-          params.leaderId = leaderFilter;
-        }
-        if (dateFilter) {
-          params.date = dateFilter;
-        }
-        if (statusFilter) {
-          params.status = statusFilter;
-        }
-        
-        const fetchedExpenses = await api.get<Expense[]>('/expenses', { params });
-        setExpenses(fetchedExpenses);
-      } catch (err) {
-        console.error('Error fetching expenses:', err);
-        setError('Failed to load expenses');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    !wereExpensesFetched && fetchExpenses();
+  }, []);
 
-    fetchExpenses();
-  }, [categoryFilter, leaderFilter, dateFilter, statusFilter]);
+  //useeffect para el filtro
 
-  const filteredExpenses = searchTerm
-    ? expenses.filter(expense => 
-        expense.motivo.toLowerCase().includes(searchTerm.toLowerCase()))
-    : expenses;
+  const filteredExpenses = expenses.filter((expense) => {
+  // Search term filter
+  const matchesSearchTerm = searchTerm
+    ? expense.motivo.toLowerCase().includes(searchTerm.toLowerCase())
+    : true;
+
+  // Category filter
+  const matchesCategory = categoryFilter
+    ? expense.category === categoryFilter
+    : true;
+
+  // Date filter
+  const matchesDate = dateFilter
+    ? new Date(expense.date).toISOString().split('T')[0] === dateFilter
+    : true;
+
+  // Leader filter
+  const matchesLeader = leaderFilter
+    ? leaderFilter === 'program'
+      ? !expense.leaderId // Program expenses have no leaderId
+      : expense.leaderId === leaderFilter
+    : true;
+
+  // Status filter
+  const matchesStatus = statusFilter
+    ? expense.status === statusFilter ||
+      (!expense.status && statusFilter === 'APPROVED') // Handle backward compatibility
+    : true;
+
+  return (
+    matchesSearchTerm &&
+    matchesCategory &&
+    matchesDate &&
+    matchesLeader &&
+    matchesStatus
+  );
+});
 
   // Calculate totals - ONLY APPROVED EXPENSES
   const approvedExpenses = filteredExpenses.filter(e => e.status === 'APPROVED' || !e.status);
@@ -132,10 +137,9 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
     }
   };
 
-  const handleAddExpense = async (data: Omit<Expense, 'id' | 'createdBy' | 'createdByName' | 'createdAt' | 'updatedAt'>) => {
+  const handleAddExpense = async (data: Omit<Expense, 'id' | 'createdBy' | 'createdByName' | 'createdAt' | 'updatedAt' >) => {
     try {
-      const newExpense = await api.post<Expense>('/expenses', data);
-      setExpenses(prev => [...prev, newExpense]);
+      await createExpense(data);
       setShowAddForm(false);
       setSuccess('Expense created successfully. It will be reviewed by an administrator.');
       setTimeout(() => setSuccess(null), 5000);
@@ -148,88 +152,25 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
 
   const handleEditExpense = async (data: Omit<Expense, 'id' | 'createdBy' | 'createdByName' | 'createdAt' | 'updatedAt'>) => {
     if (editingExpense) {
-      try {
-        const updatedExpense = await api.put<Expense>(`/expenses/${editingExpense.id}`, data);
-        setExpenses(prev =>
-          prev.map(expense =>
-            expense.id === editingExpense.id
-              ? updatedExpense
-              : expense
-          )
-        );
-        setEditingExpense(null);
-        setSuccess('Expense updated successfully');
-        setTimeout(() => setSuccess(null), 5000);
-      } catch (error) {
-        console.error('Error updating expense:', error);
-        setError('Failed to update expense');
-        setTimeout(() => setError(null), 5000);
-      }
-    }
-  };
-
-  const handleDeleteExpense = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this expense?')) {
-      try {
-        await api.delete(`/expenses/${id}`);
-        setExpenses(prev => prev.filter(expense => expense.id !== id));
-        setSuccess('Expense deleted successfully');
-        setTimeout(() => setSuccess(null), 5000);
-      } catch (error) {
-        console.error('Error deleting expense:', error);
-        setError('Failed to delete expense');
-        setTimeout(() => setError(null), 5000);
-      }
+      await updateExpense(editingExpense.id, data);
     }
   };
 
   const handleApproveExpense = async (id: string) => {
     if (!isAdmin) return;
     
-    try {
-      const updatedExpense = await api.patch<Expense>(`/expenses/${id}/approve`);
-      setExpenses(prev =>
-        prev.map(expense =>
-          expense.id === id
-            ? updatedExpense
-            : expense
-        )
-      );
-      setSuccess('Expense approved successfully');
-      setTimeout(() => setSuccess(null), 5000);
-    } catch (error) {
-      console.error('Error approving expense:', error);
-      setError('Failed to approve expense');
-      setTimeout(() => setError(null), 5000);
-    }
+    await approveExpense(id);
   };
 
   const handleRejectExpense = async (id: string) => {
     if (!isAdmin) return;
+    await rejectExpense(id);  
     
-    try {
-      const updatedExpense = await api.patch<Expense>(`/expenses/${id}/reject`);
-      setExpenses(prev =>
-        prev.map(expense =>
-          expense.id === id
-            ? updatedExpense
-            : expense
-        )
-      );
-      setSuccess('Expense rejected successfully');
-      setTimeout(() => setSuccess(null), 5000);
-    } catch (error) {
-      console.error('Error rejecting expense:', error);
-      setError('Failed to reject expense');
-      setTimeout(() => setError(null), 5000);
-    }
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
-      </div>
+      <LoadingScreen message="Loading expenses..." />
     );
   }
 
@@ -291,7 +232,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
       <Card>
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between gap-4">
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
               <Input
                 placeholder="Search expenses..."
                 value={searchTerm}
@@ -346,18 +287,12 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
               </select>
             </div>
             
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                leftIcon={<Download size={18} />}
-              >
-                Export
-              </Button>
-              
+            <div className="flex-shrink-0">
               <Button
                 variant="primary"
                 leftIcon={<Plus size={18} />}
                 onClick={() => setShowAddForm(true)}
+                className="w-full sm:w-auto"
               >
                 Add Expense
               </Button>
@@ -421,7 +356,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
                       {getStatusBadge(expense.status)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                      {expense.status === 'PENDING' && isAdmin ? (
+                      {expense.status === 'PENDING' && isAdmin && (
                         <div className="flex items-center justify-center gap-2">
                           <Button
                             variant="success"
@@ -436,23 +371,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
                             onClick={() => handleRejectExpense(expense.id)}
                           >
                             <XCircle size={16} />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditingExpense(expense)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteExpense(expense.id)}
-                          >
-                            Delete
                           </Button>
                         </div>
                       )}

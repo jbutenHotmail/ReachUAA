@@ -62,6 +62,7 @@ export const createBook = async (req, res) => {
       author,
       publisher,
       price,
+      size,
       category,
       description,
       imageUrl,
@@ -76,8 +77,8 @@ export const createBook = async (req, res) => {
     
     // Insert book
     const bookId = await db.insert(
-      'INSERT INTO books (isbn, title, author, publisher, price, category, description, image_url, stock, sold, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [isbn || null, title, author || null, publisher || null, price, category, description, imageUrl || null, stock || 0, 0, is_active !== false]
+      'INSERT INTO books (isbn, title, author, publisher, price, size, category, description, image_url, stock, sold, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [isbn || null, title, author || null, publisher || null, price, size || null, category, description, imageUrl || null, stock || 0, 0, is_active !== false]
     );
     
     // Get the created book
@@ -103,6 +104,7 @@ export const updateBook = async (req, res) => {
       author,
       publisher,
       price,
+      size,
       category,
       description,
       imageUrl,
@@ -122,8 +124,8 @@ export const updateBook = async (req, res) => {
     
     // Update book
     await db.update(
-      'UPDATE books SET isbn = ?, title = ?, author = ?, publisher = ?, price = ?, category = ?, description = ?, image_url = ?, stock = ?, is_active = ? WHERE id = ?',
-      [isbn || null, title, author || null, publisher || null, price, category, description, imageUrl || null, stock, is_active !== false, id]
+      'UPDATE books SET isbn = ?, title = ?, author = ?, publisher = ?, price = ?, size = ?, category = ?, description = ?, image_url = ?, stock = ?, is_active = ? WHERE id = ?',
+      [isbn || null, title, author || null, publisher || null, price, size || null, category, description, imageUrl || null, stock, is_active !== false, id]
     );
     
     // Get the updated book
@@ -317,6 +319,7 @@ export const getInventoryCounts = async (req, res) => {
       SELECT ic.*, 
       CONCAT(p.first_name, ' ', p.last_name) as user_name,
       b.title as book_title,
+      b.size as book_size,
       CASE 
         WHEN ic.manual_count IS NOT NULL AND ic.manual_count = ic.system_count THEN 'VERIFIED'
         WHEN ic.manual_count IS NOT NULL AND ic.manual_count != ic.system_count THEN 'DISCREPANCY'
@@ -376,7 +379,6 @@ export const updateInventoryCount = async (req, res) => {
       
       // Determine the status to save
       let status = null;
-      console.log('setVerified', setVerified)
       if (setVerified) {
         status = 'VERIFIED'; // Force verified status if requested
       } else if (manualCount === systemCount) {
@@ -424,7 +426,8 @@ export const updateInventoryCount = async (req, res) => {
     const updatedCount = await db.getOne(
       `SELECT ic.*, 
        CONCAT(p.first_name, ' ', p.last_name) as user_name,
-       b.title as book_title
+       b.title as book_title,
+       b.size as book_size
        FROM inventory_counts ic
        JOIN users u ON ic.user_id = u.id
        LEFT JOIN people p ON u.person_id = p.id
@@ -441,7 +444,7 @@ export const updateInventoryCount = async (req, res) => {
         [id]
       );
     }
-    console.log(updatedCount)
+    
     res.json({
       message: confirmDiscrepancy ? 'Inventory count updated and stock adjusted' : 'Inventory count updated',
       count: updatedCount,

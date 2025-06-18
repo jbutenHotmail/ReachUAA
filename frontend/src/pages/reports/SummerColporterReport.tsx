@@ -159,7 +159,7 @@ const SummerColporterReport: React.FC = () => {
         colporterTransactions.forEach(transaction => {
           if (transaction.books && transaction.books.length > 0) {
             transaction.books.forEach((book: any) => {
-              if (book.price >= 20) {
+              if (book.size === 'LARGE') {
                 books.large += book.quantity;
               } else {
                 books.small += book.quantity;
@@ -232,7 +232,7 @@ const SummerColporterReport: React.FC = () => {
       // Process books for this transaction
       if (transaction.books && transaction.books.length > 0) {
         transaction.books.forEach((book: any) => {
-          if (book.price >= 20) {
+          if (book.size === 'LARGE') {
             totalBooks.grandes += book.quantity;
             dailyBooksData[transaction.date].large += book.quantity;
           } else {
@@ -286,7 +286,7 @@ const SummerColporterReport: React.FC = () => {
       // Process books for this transaction
       if (transaction.books && transaction.books.length > 0) {
         transaction.books.forEach((book: any) => {
-          if (book.price >= 20) {
+          if (book.size === 'LARGE') {
             monthlyDataObj[month].books.large += book.quantity;
           } else {
             monthlyDataObj[month].books.small += book.quantity;

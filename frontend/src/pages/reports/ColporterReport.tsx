@@ -101,7 +101,7 @@ const ColporterReport: React.FC = () => {
     validTransactions.forEach(transaction => {
       if (transaction.books && transaction.books.length > 0) {
         transaction.books.forEach((book: any) => {
-          if (book.price >= 20) {
+          if (book.size === 'LARGE') {
             totalBooks.grandes += book.quantity;
           } else {
             totalBooks.pequenos += book.quantity;
@@ -157,7 +157,7 @@ const ColporterReport: React.FC = () => {
       // Process books for this transaction
       if (transaction.books && transaction.books.length > 0) {
         transaction.books.forEach((book: any) => {
-          if (book.price >= 20) {
+          if (book.size === 'LARGE') {
             weekData.books[transaction.date].large[book.title] = 
               (weekData.books[transaction.date].large[book.title] || 0) + book.quantity;
           } else {

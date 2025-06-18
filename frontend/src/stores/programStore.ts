@@ -1,12 +1,49 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { ProgramBook } from '../types';
 import { api } from '../api';
-import { ProgramConfig } from '../types';
+
+interface ProgramConfig {
+  id: number;
+  name: string;
+  motto: string;
+  start_date: string;
+  end_date: string;
+  financial_goal: string;
+  logo_url: string | null;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+  financialConfig: {
+    id: number;
+    program_id: number;
+    colporter_percentage: string;
+    leader_percentage: string;
+    colporter_cash_advance_percentage: string;
+    leader_cash_advance_percentage: string;
+    created_at: string;
+    updated_at: string;
+  };
+  workingDays: {
+    id: number;
+    program_id: number;
+    day_of_week: string;
+    is_working_day: number;
+  }[];
+  customDays: {
+    id: number;
+    program_id: number;
+    date: string;
+    is_working_day: number;
+  }[];
+  books: ProgramBook[];
+}
 
 interface ProgramState {
   program: ProgramConfig | null;
   isLoading: boolean;
   error: string | null;
+  wasProgramFetched: boolean;
 }
 
 interface ProgramStore extends ProgramState {
@@ -21,6 +58,7 @@ export const useProgramStore = create<ProgramStore>()(
       program: null,
       isLoading: false,
       error: null,
+      wasProgramFetched: false,
 
       createProgram: async (programData) => {
         set({ isLoading: true, error: null });
@@ -29,7 +67,8 @@ export const useProgramStore = create<ProgramStore>()(
           console.log(response);
           set({ 
             program: response.program, 
-            isLoading: false 
+            isLoading: false,
+            wasProgramFetched: true
           });
         } catch (error) {
           set({ 
@@ -60,12 +99,13 @@ export const useProgramStore = create<ProgramStore>()(
           const response = await api.get('/program');
           set({ 
             program: response?.program || null, 
-            isLoading: false 
+            isLoading: false,
+            wasProgramFetched: true
           });
         } catch (error) {
           // If 404, it means no program exists yet
           if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
-            set({ program: null, isLoading: false });
+            set({ program: null, isLoading: false, wasProgramFetched: true });
             return;
           }
           

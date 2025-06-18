@@ -9,7 +9,7 @@ import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
 import Spinner from '../../components/ui/Spinner';
 import AddBookForm from './AddBookForm';
-import { UserRole, Book } from '../../types';
+import { UserRole, Book, BookSize } from '../../types';
 
 interface ConfirmationModal {
   isOpen: boolean;
@@ -20,7 +20,7 @@ interface ConfirmationModal {
 const BookCatalog: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const { books, isLoading, fetchBooks, createBook, updateBook, deleteBook, toggleBookStatus } = useInventoryStore();
+  const { books, isLoading, fetchBooks, createBook, updateBook, deleteBook, toggleBookStatus, wereBooksLoaded } = useInventoryStore();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
@@ -31,8 +31,10 @@ const BookCatalog: React.FC = () => {
   });
 
   useEffect(() => {
-    fetchBooks();
-  }, [fetchBooks]);
+    if (!wereBooksLoaded) {
+      fetchBooks();
+    }
+  }, [fetchBooks, wereBooksLoaded]);
 
   const filteredBooks = searchTerm
     ? books.filter(book => 
@@ -105,6 +107,19 @@ const BookCatalog: React.FC = () => {
     setConfirmationModal({ isOpen: false, book: null, action: 'deactivate' });
   };
 
+  // Get book size badge
+  const getBookSizeBadge = (book: Book) => {
+    const size = book.size;
+    return (
+      <Badge 
+        variant={size === BookSize.LARGE ? "primary" : "success"}
+        size="sm"
+      >
+        {size === BookSize.LARGE ? "Large" : "Small"}
+      </Badge>
+    );
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
@@ -136,7 +151,7 @@ const BookCatalog: React.FC = () => {
         </div>
       </div>
 
-      {isLoading ? (
+      {isLoading && books.length === 0 ? (
         <div className="flex items-center justify-center h-64">
           <Spinner size="lg" />
         </div>
@@ -154,7 +169,7 @@ const BookCatalog: React.FC = () => {
                 <div className="flex items-start space-x-3">
                   <div className="h-16 w-12 flex-shrink-0">
                     <img
-                      src={book.imageUrl || 'https://images.pexels.com/photos/159711/books-bookstore-book-reading-159711.jpeg'}
+                      src={book.image_url || 'https://images.pexels.com/photos/159711/books-bookstore-book-reading-159711.jpeg'}
                       alt={book.title}
                       className="h-16 w-12 object-cover rounded shadow-sm"
                     />
@@ -184,6 +199,7 @@ const BookCatalog: React.FC = () => {
                         <Badge variant="primary" size="sm">
                           {book.category}
                         </Badge>
+                        {getBookSizeBadge(book)}
                         <Badge 
                           variant={book.stock > 10 ? "success" : book.stock > 0 ? "warning" : "danger"}
                           size="sm"
@@ -243,6 +259,9 @@ const BookCatalog: React.FC = () => {
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Category
                   </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Size
+                  </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Price
                   </th>
@@ -274,7 +293,7 @@ const BookCatalog: React.FC = () => {
                       <div className="flex items-center">
                         <div className="h-12 w-8 flex-shrink-0 mr-3">
                           <img
-                            src={book.imageUrl || 'https://images.pexels.com/photos/159711/books-bookstore-book-reading-159711.jpeg'}
+                            src={book.image_url || 'https://images.pexels.com/photos/159711/books-bookstore-book-reading-159711.jpeg'}
                             alt={book.title}
                             className="h-12 w-8 object-cover rounded shadow-sm"
                           />
@@ -299,6 +318,9 @@ const BookCatalog: React.FC = () => {
                       <Badge variant="primary" size="sm">
                         {book.category}
                       </Badge>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-center">
+                      {getBookSizeBadge(book)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end">

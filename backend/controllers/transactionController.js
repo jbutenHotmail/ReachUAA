@@ -1,10 +1,10 @@
-import * as db from "../config/database.js";
+import * as db from '../config/database.js';
 
 // Get all transactions
 export const getTransactions = async (req, res) => {
   try {
     const { date, studentId, leaderId, status } = req.query;
-
+    
     let query = `
       SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
       t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
@@ -14,59 +14,55 @@ export const getTransactions = async (req, res) => {
       JOIN people sp ON t.student_id = sp.id
       JOIN people lp ON t.leader_id = lp.id
     `;
-
+    
     const params = [];
     const conditions = [];
-
+    
     if (date) {
-      console.log('Filtering transactions by date:', date);
-      conditions.push("t.transaction_date = ?");
+      conditions.push('t.transaction_date = ?');
       params.push(date);
     }
-
+    
     if (studentId) {
-      conditions.push("t.student_id = ?");
+      conditions.push('t.student_id = ?');
       params.push(studentId);
     }
-
+    
     if (leaderId) {
-      conditions.push("t.leader_id = ?");
+      conditions.push('t.leader_id = ?');
       params.push(leaderId);
     }
-
+    
     if (status) {
-      conditions.push("t.status = ?");
+      conditions.push('t.status = ?');
       params.push(status);
-    } else {
-      // If no status filter is provided, include all statuses
-      // We don't filter by default anymore to show all transactions including REJECTED
     }
-
+    
     if (conditions.length > 0) {
-      query += " WHERE " + conditions.join(" AND ");
+      query += ' WHERE ' + conditions.join(' AND ');
     }
-
-    query += " ORDER BY t.transaction_date DESC, t.created_at DESC";
-
+    
+    query += ' ORDER BY t.transaction_date DESC, t.created_at DESC';
+    
     const transactions = await db.query(query, params);
-
+    
     // Get books for each transaction
     for (const transaction of transactions) {
       const books = await db.query(
-        `SELECT tb.book_id as id, b.title, tb.price, tb.quantity
+        `SELECT tb.book_id as id, b.title, tb.price, tb.quantity, b.size
          FROM transaction_books tb
          JOIN books b ON tb.book_id = b.id
          WHERE tb.transaction_id = ?`,
         [transaction.id]
       );
-
+      
       transaction.books = books;
     }
-
+    
     res.json(transactions);
   } catch (error) {
-    console.error("Error getting transactions:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error('Error getting transactions:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -74,7 +70,7 @@ export const getTransactions = async (req, res) => {
 export const getTransactionById = async (req, res) => {
   try {
     const { id } = req.params;
-
+    
     const transaction = await db.getOne(
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
        t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
@@ -86,26 +82,26 @@ export const getTransactionById = async (req, res) => {
        WHERE t.id = ?`,
       [id]
     );
-
+    
     if (!transaction) {
-      return res.status(404).json({ message: "Transaction not found" });
+      return res.status(404).json({ message: 'Transaction not found' });
     }
-
+    
     // Get books for the transaction
     const books = await db.query(
-      `SELECT tb.book_id as id, b.title, tb.price, tb.quantity
+      `SELECT tb.book_id as id, b.title, tb.price, tb.quantity, b.size
        FROM transaction_books tb
        JOIN books b ON tb.book_id = b.id
        WHERE tb.transaction_id = ?`,
       [id]
     );
-
+    
     transaction.books = books;
-
+    
     res.json(transaction);
   } catch (error) {
-    console.error("Error getting transaction:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error('Error getting transaction:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -120,61 +116,52 @@ export const createTransaction = async (req, res) => {
       atmMobile,
       paypal,
       date,
-      books,
+      books
     } = req.body;
-
+    
     const userId = req.user.id;
-
+    
+    // Validate required fields
+    if (!studentId || !leaderId || !date) {
+      return res.status(400).json({ message: 'Student, leader, and date are required' });
+    }
+    
     // Check if student already has a transaction for this date
     const existingTransaction = await db.getOne(
       "SELECT * FROM transactions WHERE student_id = ? AND transaction_date = ? AND (status = 'PENDING' OR status = 'APPROVED')",
       [studentId, date]
     );
-
+    
     if (existingTransaction) {
-      return res.status(400).json({
-        message: "Student already has a transaction for this date",
-      });
+      return res.status(400).json({ message: 'Student already has a transaction for this date' });
     }
-
+    
     // Calculate total
-    const total =
-      (cash || 0) + (checks || 0) + (atmMobile || 0) + (paypal || 0);
-
+    const total = (cash || 0) + (checks || 0) + (atmMobile || 0) + (paypal || 0);
+    
     // Start transaction
     const result = await db.transaction(async (connection) => {
       // Insert transaction
       const [transactionResult] = await connection.execute(
-        "INSERT INTO transactions (student_id, leader_id, cash, checks, atm_mobile, paypal, total, transaction_date, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [
-          studentId,
-          leaderId,
-          cash || 0,
-          checks || 0,
-          atmMobile || 0,
-          paypal || 0,
-          total,
-          date,
-          "PENDING",
-          userId,
-        ]
+        'INSERT INTO transactions (student_id, leader_id, cash, checks, atm_mobile, paypal, total, transaction_date, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [studentId, leaderId, cash || 0, checks || 0, atmMobile || 0, paypal || 0, total, date, 'PENDING', userId]
       );
-
+      
       const transactionId = transactionResult.insertId;
-
+      
       // Insert books
       if (books && books.length > 0) {
         for (const book of books) {
           await connection.execute(
-            "INSERT INTO transaction_books (transaction_id, book_id, quantity, price) VALUES (?, ?, ?, ?)",
+            'INSERT INTO transaction_books (transaction_id, book_id, quantity, price) VALUES (?, ?, ?, ?)',
             [transactionId, book.id, book.quantity, book.price]
           );
         }
       }
-
+      
       return { transactionId };
     });
-
+    
     // Get the created transaction
     const transaction = await db.getOne(
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
@@ -187,22 +174,22 @@ export const createTransaction = async (req, res) => {
        WHERE t.id = ?`,
       [result.transactionId]
     );
-
+    
     // Get books for the transaction
     const transactionBooks = await db.query(
-      `SELECT tb.book_id as id, b.title, tb.price, tb.quantity
+      `SELECT tb.book_id as id, b.title, tb.price, tb.quantity, b.size
        FROM transaction_books tb
        JOIN books b ON tb.book_id = b.id
        WHERE tb.transaction_id = ?`,
       [result.transactionId]
     );
-
+    
     transaction.books = transactionBooks;
-
+    
     res.status(201).json(transaction);
   } catch (error) {
-    console.error("Error creating transaction:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error('Error creating transaction:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -219,15 +206,15 @@ export const updateTransaction = async (req, res) => {
       paypal,
       date,
       status,
-      books,
+      books
     } = req.body;
-
+    
     // Check if transaction exists
     const existingTransaction = await db.getOne(
-      "SELECT * FROM transactions WHERE id = ?",
+      'SELECT * FROM transactions WHERE id = ?',
       [id]
     );
-    console.log(existingTransaction);
+    
     if (!existingTransaction) {
       return res.status(404).json({ message: "Transaction not found" });
     }
@@ -313,7 +300,7 @@ export const updateTransaction = async (req, res) => {
 
     // Get books for the transaction
     const transactionBooks = await db.query(
-      `SELECT tb.book_id as id, b.title, tb.price, tb.quantity
+      `SELECT tb.book_id as id, b.title, tb.price, tb.quantity, b.size
        FROM transaction_books tb
        JOIN books b ON tb.book_id = b.id
        WHERE tb.transaction_id = ?`,
@@ -420,6 +407,17 @@ export const approveTransaction = async (req, res) => {
       [id]
     );
 
+    // Get books for the transaction
+    const transactionBooks = await db.query(
+      `SELECT tb.book_id as id, b.title, tb.price, tb.quantity, b.size
+       FROM transaction_books tb
+       JOIN books b ON tb.book_id = b.id
+       WHERE tb.transaction_id = ?`,
+      [id]
+    );
+    
+    updatedTransaction.books = transactionBooks;
+
     res.json({
       message: "Transaction approved successfully",
       transaction: updatedTransaction,
@@ -495,6 +493,17 @@ export const rejectTransaction = async (req, res) => {
       [id]
     );
 
+    // Get books for the transaction
+    const transactionBooks = await db.query(
+      `SELECT tb.book_id as id, b.title, tb.price, tb.quantity, b.size
+       FROM transaction_books tb
+       JOIN books b ON tb.book_id = b.id
+       WHERE tb.transaction_id = ?`,
+      [id]
+    );
+    
+    updatedTransaction.books = transactionBooks;
+
     res.json({
       message: "Transaction rejected successfully",
       transaction: updatedTransaction,
@@ -522,7 +531,7 @@ export const getTransactionBooks = async (req, res) => {
 
     // Get books for the transaction
     const books = await db.query(
-      `SELECT tb.book_id as id, b.title, b.category, b.image_url as imageUrl, tb.price, tb.quantity
+      `SELECT tb.book_id as id, b.title, b.category, b.image_url as imageUrl, tb.price, tb.quantity, b.size
        FROM transaction_books tb
        JOIN books b ON tb.book_id = b.id
        WHERE tb.transaction_id = ?`,

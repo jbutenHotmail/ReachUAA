@@ -14,7 +14,7 @@ import { UserRole, Charge } from '../../types';
 const ChargesPage: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const { charges, isLoading, fetchCharges, createCharge, updateCharge, deleteCharge, applyCharge, cancelCharge } = useChargeStore();
+  const { charges, isLoading, fetchCharges, createCharge, updateCharge, deleteCharge, applyCharge, cancelCharge, wereChargesFetched } = useChargeStore();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCharge, setEditingCharge] = useState<Charge | null>(null);
@@ -23,7 +23,7 @@ const ChargesPage: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchCharges();
+    !wereChargesFetched && fetchCharges();
   }, [fetchCharges]);
 
   const filteredCharges = searchTerm
@@ -126,7 +126,7 @@ const ChargesPage: React.FC = () => {
     
     return <Badge variant={variants[category as keyof typeof variants] || 'secondary'}>{category}</Badge>;
   };
-
+  console.log(finalFilteredCharges);
   // Calculate totals - ONLY APPLIED CHARGES
   const appliedCharges = finalFilteredCharges.filter(c => c.status === 'APPLIED');
   const pendingCharges = finalFilteredCharges.filter(c => c.status === 'PENDING');  
@@ -306,7 +306,7 @@ const ChargesPage: React.FC = () => {
                       {getStatusBadge(charge.status)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                      {charge.status === 'PENDING' && canToggleChargeStatus ? (
+                      {charge.status === 'PENDING' && canToggleChargeStatus && (
                         <div className="flex items-center justify-center gap-2">
                           <Button
                             variant="success"
@@ -321,23 +321,6 @@ const ChargesPage: React.FC = () => {
                             onClick={() => handleCancelCharge(charge.id)}
                           >
                             <X size={14} />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditingCharge(charge)}
-                          >
-                            <Edit size={14} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteCharge(charge.id)}
-                          >
-                            Delete
                           </Button>
                         </div>
                       )}

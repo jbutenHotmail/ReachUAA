@@ -43,7 +43,7 @@ const LoginForm: React.FC = () => {
           label={t('auth.email')}
           type="email"
           autoComplete="email"
-          leftIcon={<Mail size={18} />}
+          leftIcon={<Mail size={18} className="text-[#0052B4]" />}
           fullWidth
           error={errors.email?.message}
           {...register('email', { 
@@ -53,6 +53,7 @@ const LoginForm: React.FC = () => {
               message: 'Invalid email address',
             }
           })}
+          className="focus:border-[#0052B4] focus:ring-[#0052B4] py-2"
         />
       </div>
       
@@ -61,7 +62,7 @@ const LoginForm: React.FC = () => {
           label={t('auth.password')}
           type="password"
           autoComplete="current-password"
-          leftIcon={<Lock size={18} />}
+          leftIcon={<Lock size={18} className="text-[#0052B4]" />}
           fullWidth
           error={errors.password?.message}
           {...register('password', { 
@@ -71,6 +72,7 @@ const LoginForm: React.FC = () => {
               message: 'Password must be at least 6 characters',
             }
           })}
+          className="focus:border-[#0052B4] focus:ring-[#0052B4] py-2"
         />
       </div>
       
@@ -80,17 +82,11 @@ const LoginForm: React.FC = () => {
             id="remember-me"
             name="remember-me"
             type="checkbox"
-            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+            className="h-4 w-4 text-[#0052B4] focus:ring-[#0052B4] border-gray-300 rounded"
           />
           <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
             Remember me
           </label>
-        </div>
-        
-        <div className="text-sm">
-          <Link to="/forgot-password" className="font-medium text-primary-600 hover:text-primary-500">
-            {t('auth.forgotPassword')}
-          </Link>
         </div>
       </div>
       
@@ -100,22 +96,12 @@ const LoginForm: React.FC = () => {
           fullWidth
           isLoading={isLoading}
           size="lg"
+          className="bg-[#ED0000] hover:bg-[#cc0000] focus:ring-[#ED0000] border-none"
         >
           {t('auth.login')}
         </Button>
       </div>
       
-      <p className="mt-8 text-center text-sm text-gray-500">
-        <span>Demo credentials:</span>
-        <br />
-        <code className="mt-1 block p-2 bg-gray-100 rounded text-xs">
-          Admin: admin@example.com / password
-          <br />
-          Supervisor: supervisor@example.com / password
-          <br />
-          Viewer: viewer@example.com / password
-        </code>
-      </p>
     </form>
   );
 };

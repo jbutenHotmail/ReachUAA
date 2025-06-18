@@ -123,7 +123,6 @@ export const createCharge = async (req, res) => {
       'INSERT INTO charges (person_id, amount, reason, description, category, status, applied_by, charge_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [personId, amount, reason, description || null, category, 'PENDING', userId, date]
     );
-    
     // Get the created charge
     const charge = await db.getOne(
       `SELECT c.id, c.person_id as personId, CONCAT(p.first_name, ' ', p.last_name) as personName,
@@ -133,11 +132,11 @@ export const createCharge = async (req, res) => {
        FROM charges c
        JOIN people p ON c.person_id = p.id
        JOIN users u ON c.applied_by = u.id
-       JOIN people ap ON u.person_id = p.id
+       JOIN people ap ON u.person_id = ap.id
        WHERE c.id = ?`,
       [chargeId]
     );
-    
+    console.log('charge', charge);
     res.status(201).json(charge);
   } catch (error) {
     console.error('Error creating charge:', error);

@@ -5,7 +5,7 @@ import Card from '../ui/Card';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useProgramStore } from '../../stores/programStore';
 import { useCashAdvanceStore } from '../../stores/cashAdvanceStore';
-import { api } from '../../api';
+import { useExpenseStore } from '../../stores/expenseStore';
 
 interface FinancialData {
   totalRevenue: number;
@@ -26,6 +26,7 @@ const FinancialBreakdown: React.FC = () => {
   const { transactions } = useTransactionStore();
   const { program } = useProgramStore();
   const { advances } = useCashAdvanceStore();
+  const { expenses, wereExpensesFetched, fetchExpenses } = useExpenseStore();
   const [financialData, setFinancialData] = useState<FinancialData>({
     totalRevenue: 0,
     expenses: {
@@ -42,21 +43,7 @@ const FinancialBreakdown: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const fetchExpenses = async () => {
-      try {
-        // Fetch program expenses (where leaderId is null) - ONLY APPROVED EXPENSES
-        const expenses = await api.get('/expenses', { 
-          params: { 
-            leaderId: 'program',
-            status: 'APPROVED' // Only include approved expenses
-          } 
-        });
-        return expenses.reduce((sum: number, expense: any) => sum + expense.amount, 0);
-      } catch (error) {
-        console.error('Error fetching expenses:', error);
-        return 0;
-      }
-    };
+    !wereExpensesFetched && fetchExpenses();
 
     const calculateFinancials = async () => {
       if (transactions.length > 0 && program) {
@@ -84,9 +71,9 @@ const FinancialBreakdown: React.FC = () => {
         const advancesAmount = advances
           .filter(a => a.status === 'APPROVED') // Only include approved advances
           .reduce((sum, a) => sum + a.advanceAmount, 0);
-        
+        console.log('expenses:', expenses);
         // Fetch real program costs from expenses API - ONLY APPROVED EXPENSES
-        const programCostsAmount = await fetchExpenses();
+        const programCostsAmount = expenses.filter(e => e.status === 'APPROVED').reduce((sum: number, expense: any) => sum + expense.amount, 0);
         
         // Calculate total expenses
         const totalExpenses = advancesAmount + programCostsAmount;
@@ -112,7 +99,7 @@ const FinancialBreakdown: React.FC = () => {
     };
 
     calculateFinancials();
-  }, [transactions, program, advances]);
+  }, [transactions, program, advances, expenses]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
