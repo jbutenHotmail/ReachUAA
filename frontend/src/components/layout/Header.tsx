@@ -31,7 +31,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
           
           {/* Logo for mobile */}
           <div className="md:hidden ml-2">
-            <img src="/src/assets/logo_reach.webp" alt="Reach UAA" className="h-8 w-16" />
+              <img src="/src/assets/logo_reach.webp" alt="Reach UAA" className="h-12 sm:h-16 w-auto" />
           </div>
         </div>
         

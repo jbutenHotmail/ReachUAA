@@ -47,16 +47,10 @@ const Login: React.FC = () => {
             className="h-32 w-auto drop-shadow-xl"
           />
         </div>
-        <h2 className="mt-4 text-center text-3xl font-extrabold text-white drop-shadow-md">
-          Reach UAA
-        </h2>
-        <p className="mt-2 text-center text-sm text-white/90">
-          {t('auth.login')}
-        </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <div className="bg-white/95 backdrop-blur-sm py-8 px-4 shadow-2xl sm:rounded-lg sm:px-10 border border-white/30">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4 sm:px-0">
+        <div className="bg-white/95 backdrop-blur-sm py-8 px-4 shadow-2xl rounded-lg sm:px-10 border border-white/30 ">
           <LoginForm />
         </div>
       </div>

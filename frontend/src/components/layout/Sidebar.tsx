@@ -413,17 +413,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
         <div className="h-14 sm:h-16 flex items-center justify-between px-4 sm:px-6 bg-[#003D85]">
           {!isCollapsed ? (
             <div 
-              className="flex-1 flex justify-center cursor-pointer"
+              className="flex-1 flex justify-center cursor-pointer w-full"
               onClick={toggleCollapse}
             >
-              <img src="/src/assets/logo_reach.webp" alt="Reach UAA" className="h-12 sm:h-16 w-24 sm:w-32" />
+              <img src="/src/assets/logo_reach.webp" alt="Reach UAA" className="h-12 sm:h-16 w-auto" />
             </div>
           ) : (
             <div 
-              className="flex-1 flex justify-center cursor-pointer"
+              className="flex-1 flex justify-center items-center cursor-pointer"
               onClick={toggleCollapse}
             >
-              <img src="/src/assets/logo_reach.webp" alt="Reach UAA" className="h-10 sm:h-12 w-10 sm:w-12 object-cover" />
+              <img 
+                src="/src/assets/logo_reach_1.webp" 
+                alt="Reach UAA" 
+                className="h-10 sm:h-12 w-10 sm:w-12 object-contain rounded-full" 
+              />
             </div>
           )}
           

@@ -6,23 +6,19 @@ import {
   AlertTriangle, 
   Receipt, 
   Wallet, 
-  Users, 
-  Calendar,
+  Users,
   PieChart,
   BarChart3,
   Download,
-  ChevronDown,
   X
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
-import { clsx } from 'clsx';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useChargeStore } from '../../stores/chargeStore';
 import { useCashAdvanceStore } from '../../stores/cashAdvanceStore';
 import { useProgramStore } from '../../stores/programStore';
-
 import {
   Chart as ChartJS,
   ArcElement,
@@ -47,8 +43,6 @@ ChartJS.register(
   BarElement,
   Title
 );
-
-type TimePeriod = 'month' | 'quarter' | 'all';
 
 interface ProgramFinancials {
   income: {
@@ -86,19 +80,18 @@ interface ColporterFinancials {
 }
 
 const ProgramReport: React.FC = () => {
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('all');
   const [viewType, setViewType] = useState<'summary' | 'detailed'>('summary');
   const [programFinancials, setProgramFinancials] = useState<ProgramFinancials | null>(null);
   const [colporterFinancials, setColporterFinancials] = useState<ColporterFinancials[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [leaderFilter, setLeaderFilter] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const { expenses, fetchExpenses, wereExpensesFetched } = useExpenseStore();
   const { transactions, fetchAllTransactions, wereTransactionsFetched } = useTransactionStore();
   const { charges, fetchCharges, wereChargesFetched } = useChargeStore();
   const { advances, fetchAdvances, wereAdvancesFetched } = useCashAdvanceStore();
   const { program, fetchProgram, wasProgramFetched } = useProgramStore();
+
   useEffect(() => {
     const loadReportData = async () => {
       setIsLoading(true);
@@ -110,7 +103,6 @@ const ProgramReport: React.FC = () => {
       !wereAdvancesFetched && dataToFetch.push(fetchAdvances());
       !wasProgramFetched && dataToFetch.push(fetchProgram());
       try {
-        // Fetch all required data
         await Promise.all(dataToFetch);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load report data');
@@ -122,72 +114,8 @@ const ProgramReport: React.FC = () => {
     loadReportData();
   }, [fetchAllTransactions, fetchCharges, fetchAdvances, fetchProgram]);
 
-  // Filter expenses based on selected time period
-  const getFilteredExpenses = () => {
-    if (selectedPeriod === 'all') {
-      return expenses;
-    }
-    
-    const today = new Date(selectedDate);
-    today.setHours(0, 0, 0, 0);
-    
-    return expenses.filter(expense => {
-      const expenseDate = new Date(expense.date);
-      expenseDate.setHours(0, 0, 0, 0);
-      
-      if (selectedPeriod === 'month') {
-        // Filter for current month
-        return expenseDate.getMonth() === today.getMonth() && 
-               expenseDate.getFullYear() === today.getFullYear();
-      } else if (selectedPeriod === 'quarter') {
-        // Filter for current quarter (3 months)
-        const threeMonthsAgo = new Date(today);
-        threeMonthsAgo.setMonth(today.getMonth() - 3);
-        return expenseDate >= threeMonthsAgo && expenseDate <= today;
-      }
-      
-      return true;
-    });
-  };
-
-  // Filter transactions based on selected time period
-  const getFilteredTransactions = () => {
-    if (selectedPeriod === 'all') {
-      return transactions;
-    }
-    
-    const today = new Date(selectedDate);
-    today.setHours(0, 0, 0, 0);
-    
-    return transactions.filter(transaction => {
-      const transactionDate = new Date(transaction.date);
-      transactionDate.setHours(0, 0, 0, 0);
-      
-      if (selectedPeriod === 'month') {
-        // Filter for current month
-        return transactionDate.getMonth() === today.getMonth() && 
-               transactionDate.getFullYear() === today.getFullYear();
-      } else if (selectedPeriod === 'quarter') {
-        // Filter for current quarter (3 months)
-        const threeMonthsAgo = new Date(today);
-        threeMonthsAgo.setMonth(today.getMonth() - 3);
-        return transactionDate >= threeMonthsAgo && transactionDate <= today;
-      }
-      
-      return true;
-    });
-  };
-
   useEffect(() => {
-    // Calculate program financials from fetched data
     if (transactions.length > 0 || charges.length > 0 || advances.length > 0 || expenses.length > 0) {
-      // Get filtered transactions based on selected period
-      const filteredTransactions = getFilteredTransactions();
-      
-      // Get filtered expenses based on selected period
-      const filteredExpenses = getFilteredExpenses();
-      
-      // Get financial percentages from program config
       const colporterPercentage = program?.financialConfig?.colporter_percentage 
         ? parseFloat(program.financialConfig.colporter_percentage) 
         : 50;
@@ -195,71 +123,19 @@ const ProgramReport: React.FC = () => {
         ? parseFloat(program.financialConfig.leader_percentage) 
         : 15;
       
-      // Calculate total donations from transactions
-      const totalDonations = filteredTransactions.reduce((sum, t) => sum + t.total, 0);
+      const totalDonations = transactions.reduce((sum, t) => sum + t.total, 0);
       
-      // Filter charges based on selected period
-      const filteredCharges = charges.filter(charge => {
-        if (selectedPeriod === 'all') {
-          return charge.status === 'APPLIED';
-        }
-        
-        const chargeDate = new Date(charge.date);
-        const today = new Date(selectedDate);
-        
-        if (selectedPeriod === 'month') {
-          return chargeDate.getMonth() === today.getMonth() && 
-                 chargeDate.getFullYear() === today.getFullYear() &&
-                 charge.status === 'APPLIED';
-        } else if (selectedPeriod === 'quarter') {
-          const threeMonthsAgo = new Date(today);
-          threeMonthsAgo.setMonth(today.getMonth() - 3);
-          return chargeDate >= threeMonthsAgo && 
-                 chargeDate <= today &&
-                 charge.status === 'APPLIED';
-        }
-        
-        return charge.status === 'APPLIED';
-      });
-      
-      // Calculate total fines from charges
+      const filteredCharges = charges.filter(charge => charge.status === 'APPLIED');
       const totalFines = filteredCharges.reduce((sum, c) => sum + c.amount, 0);
       
-      // Filter advances based on selected period
-      const filteredAdvances = advances.filter(advance => {
-        if (selectedPeriod === 'all') {
-          return advance.status === 'APPROVED';
-        }
-        
-        const advanceDate = new Date(advance.weekStartDate);
-        const today = new Date(selectedDate);
-        
-        if (selectedPeriod === 'month') {
-          return advanceDate.getMonth() === today.getMonth() && 
-                 advanceDate.getFullYear() === today.getFullYear() &&
-                 advance.status === 'APPROVED';
-        } else if (selectedPeriod === 'quarter') {
-          const threeMonthsAgo = new Date(today);
-          threeMonthsAgo.setMonth(today.getMonth() - 3);
-          return advanceDate >= threeMonthsAgo && 
-                 advanceDate <= today &&
-                 advance.status === 'APPROVED';
-        }
-        
-        return advance.status === 'APPROVED';
-      });
-      
-      // Calculate total advances
+      const filteredAdvances = advances.filter(advance => advance.status === 'APPROVED');
       const totalAdvances = filteredAdvances.reduce((sum, a) => sum + a.advanceAmount, 0);
       
-      // Calculate program expenses from real expense data
-      const programExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+      const programExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
       
-      // Calculate distribution amounts
       const colporterAmount = totalDonations * (colporterPercentage / 100);
       const leaderAmount = totalDonations * (leaderPercentage / 100);
       
-      // Calculate net profit
       const totalIncome = totalDonations + totalFines;
       const totalExpenses = totalAdvances + programExpenses;
       const totalDistribution = colporterAmount + leaderAmount;
@@ -288,11 +164,9 @@ const ProgramReport: React.FC = () => {
         netProfit
       });
       
-      // Calculate colporter financials
       const colporterMap = new Map<string, ColporterFinancials>();
       
-      // Process transactions
-      filteredTransactions.forEach(t => {
+      transactions.forEach(t => {
         if (!colporterMap.has(t.studentId)) {
           colporterMap.set(t.studentId, {
             id: t.studentId,
@@ -311,47 +185,38 @@ const ProgramReport: React.FC = () => {
         colporter.donations += t.total;
       });
       
-      // Process charges
       filteredCharges.forEach(c => {
-        if (c.status === 'APPLIED' && colporterMap.has(c.personId)) {
+        if (colporterMap.has(c.personId)) {
           const colporter = colporterMap.get(c.personId)!;
           colporter.charges += c.amount;
         }
       });
       
-      // Process advances
       filteredAdvances.forEach(a => {
-        if (a.status === 'APPROVED' && colporterMap.has(a.personId)) {
+        if (colporterMap.has(a.personId)) {
           const colporter = colporterMap.get(a.personId)!;
           colporter.advances += a.advanceAmount;
         }
       });
       
-      // Calculate earnings
       colporterMap.forEach(colporter => {
         colporter.earnings = colporter.donations * (colporter.percentage / 100);
       });
       
       setColporterFinancials(Array.from(colporterMap.values()));
     }
-  }, [transactions, charges, advances, program, selectedPeriod, selectedDate, expenses]);
+  }, [transactions, charges, advances, program, expenses]);
 
-  // Apply filters to colporter financials
   const filteredColporterFinancials = React.useMemo(() => {
     let filtered = [...colporterFinancials];
     
-    // Apply leader filter
     if (leaderFilter) {
       filtered = filtered.filter(c => c.leaderName === leaderFilter);
     }
     
-    // Apply date range filter (in a real implementation)
-    // This would filter transactions by date
-    
     return filtered;
   }, [colporterFinancials, leaderFilter]);
 
-  // Get unique leaders for filter dropdown
   const uniqueLeaders = React.useMemo(() => {
     const leaders = new Set<string>();
     colporterFinancials.forEach(c => leaders.add(c.leaderName));
@@ -366,7 +231,6 @@ const ProgramReport: React.FC = () => {
     }).format(amount);
   };
 
-  // Prepare data for pie chart
   const distributionChartData = {
     labels: ['Colporters', 'Leaders', 'Program Expenses', 'Cash Advances', 'Net Profit'],
     datasets: [
@@ -379,11 +243,11 @@ const ProgramReport: React.FC = () => {
           programFinancials.netProfit
         ] : [],
         backgroundColor: [
-          'rgba(59, 130, 246, 0.8)', // blue
-          'rgba(139, 92, 246, 0.8)', // purple
-          'rgba(249, 115, 22, 0.8)', // orange
-          'rgba(239, 68, 68, 0.8)', // red
-          'rgba(16, 185, 129, 0.8)', // green
+          'rgba(59, 130, 246, 0.8)',
+          'rgba(139, 92, 246, 0.8)',
+          'rgba(249, 115, 22, 0.8)',
+          'rgba(239, 68, 68, 0.8)',
+          'rgba(16, 185, 129, 0.8)',
         ],
         borderColor: [
           'rgba(59, 130, 246, 1)',
@@ -397,7 +261,6 @@ const ProgramReport: React.FC = () => {
     ],
   };
 
-  // Prepare data for leader performance bar chart
   const leaderPerformanceData = {
     labels: uniqueLeaders,
     datasets: [
@@ -413,7 +276,6 @@ const ProgramReport: React.FC = () => {
       {
         label: 'Leader Earnings',
         data: uniqueLeaders.map(() => {
-          // Each leader gets an equal share of the total leader earnings
           return programFinancials?.distribution.leaderAmount 
             ? programFinancials.distribution.leaderAmount / uniqueLeaders.length
             : 0;
@@ -479,40 +341,6 @@ const ProgramReport: React.FC = () => {
     }
   };
 
-  // Format date range based on selected period
-  const formatDateRange = () => {
-    if (selectedPeriod === 'all') {
-      return 'Complete Program';
-    }
-    
-    const today = selectedDate;
-    
-    if (selectedPeriod === 'month') {
-      return today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    } else if (selectedPeriod === 'quarter') {
-      const threeMonthsAgo = new Date(today);
-      threeMonthsAgo.setMonth(today.getMonth() - 3);
-      return `${threeMonthsAgo.toLocaleDateString('en-US', { month: 'short' })} - ${today.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`;
-    }
-    
-    return '';
-  };
-
-  // Navigate date based on selected period
-  const navigateDate = (direction: 'prev' | 'next') => {
-    setSelectedDate(prev => {
-      const newDate = new Date(prev);
-      
-      if (selectedPeriod === 'month') {
-        newDate.setMonth(prev.getMonth() + (direction === 'next' ? 1 : -1));
-      } else if (selectedPeriod === 'quarter') {
-        newDate.setMonth(prev.getMonth() + (direction === 'next' ? 3 : -3));
-      }
-      
-      return newDate;
-    });
-  };
-
   if (isLoading) {
     return (
       <LoadingScreen message="Loading program report..." />
@@ -541,7 +369,6 @@ const ProgramReport: React.FC = () => {
     );
   }
 
-  // Calculate leader summaries
   const leaderSummaries = colporterFinancials.reduce((acc, colporter) => {
     const leaderName = colporter.leaderName;
     
@@ -568,20 +395,16 @@ const ProgramReport: React.FC = () => {
     return acc;
   }, {} as Record<string, any>);
 
-  // Calculate equal leader earnings
   const leaderCount = Object.keys(leaderSummaries).length;
   const equalLeaderEarnings = leaderCount > 0 
     ? programFinancials.distribution.leaderAmount / leaderCount 
     : 0;
 
-  // Assign equal earnings to each leader
   Object.values(leaderSummaries).forEach(leader => {
     leader.leaderEarnings = equalLeaderEarnings;
   });
 
-  // Get filtered expenses for display
-  const filteredExpenses = getFilteredExpenses();
-  const totalProgramExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalProgramExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
 
   return (
     <div className="space-y-6">
@@ -592,60 +415,11 @@ const ProgramReport: React.FC = () => {
             Program Financial Report
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            {formatDateRange()}
+            Complete Program
           </p>
         </div>
         
         <div className="flex items-center gap-3">
-          <Card className="p-0 shadow-sm">
-            <div className="flex items-center divide-x">
-              {(['month', 'quarter', 'all'] as const).map((period) => (
-                <button
-                  key={period}
-                  onClick={() => setSelectedPeriod(period)}
-                  className={clsx(
-                    'px-3 py-2 text-sm font-medium transition-colors',
-                    selectedPeriod === period 
-                      ? 'bg-primary-50 text-primary-700' 
-                      : 'bg-white text-gray-600 hover:bg-gray-50'
-                  )}
-                >
-                  {period.charAt(0).toUpperCase() + period.slice(1)}
-                </button>
-              ))}
-            </div>
-          </Card>
-          
-          {selectedPeriod !== 'all' && (
-            <div className="flex items-center bg-white rounded-lg shadow-sm border border-gray-200">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigateDate('prev')}
-                className="px-2"
-              >
-                <ChevronDown size={20} className="rotate-90" />
-              </Button>
-              
-              <div className="px-4 py-2 flex items-center gap-2 border-l border-r border-gray-200">
-                <Calendar size={16} className="text-gray-500" />
-                <span className="text-sm font-medium">
-                  {selectedPeriod === 'month' && selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                  {selectedPeriod === 'quarter' && `Quarter (${formatDateRange()})`}
-                </span>
-              </div>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigateDate('next')}
-                className="px-2"
-              >
-                <ChevronDown size={20} className="-rotate-90" />
-              </Button>
-            </div>
-          )}
-          
           <Button
             variant="outline"
             size="sm"
@@ -654,11 +428,9 @@ const ProgramReport: React.FC = () => {
           >
             {viewType === 'summary' ? 'Detailed View' : 'Summary View'}
           </Button>
-          
         </div>
       </div>
 
-      {/* Financial Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <div className="text-center">
@@ -713,70 +485,66 @@ const ProgramReport: React.FC = () => {
         </Card>
       </div>
 
-      {/* Summary View - Charts */}
-      {viewType === 'summary' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card title="Financial Distribution" icon={<PieChart size={20} />}>
-            <div className="h-80">
-              <Pie data={distributionChartData} options={chartOptions} />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm font-medium text-blue-700">Colporter Earnings</p>
-                <p className="text-lg font-bold text-blue-800 mt-1">
-                  {formatCurrency(programFinancials.distribution.colporterAmount)}
-                </p>
-                <p className="text-xs text-blue-600">
-                  {programFinancials.distribution.colporterPercentage}% of donations
-                </p>
-              </div>
-              
-              <div className="p-3 bg-purple-50 rounded-lg">
-                <p className="text-sm font-medium text-purple-700">Leader Earnings</p>
-                <p className="text-lg font-bold text-purple-800 mt-1">
-                  {formatCurrency(programFinancials.distribution.leaderAmount)}
-                </p>
-                <p className="text-xs text-purple-600">
-                  {programFinancials.distribution.leaderPercentage}% of donations
-                </p>
-              </div>
-            </div>
-          </Card>
-          
-          <Card title="Leader Performance" icon={<Users size={20} />}>
-            <div className="h-80">
-              <Bar data={leaderPerformanceData} options={barChartOptions} />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              <div className="p-3 bg-primary-50 rounded-lg">
-                <p className="text-sm font-medium text-primary-700">Total Team Sales</p>
-                <p className="text-lg font-bold text-primary-800 mt-1">
-                  {formatCurrency(programFinancials.income.donations)}
-                </p>
-                <p className="text-xs text-primary-600">
-                  {Object.keys(leaderSummaries).length} teams
-                </p>
-              </div>
-              
-              <div className="p-3 bg-success-50 rounded-lg">
-                <p className="text-sm font-medium text-success-700">Average Per Team</p>
-                <p className="text-lg font-bold text-success-800 mt-1">
-                  {formatCurrency(programFinancials.income.donations / Math.max(1, Object.keys(leaderSummaries).length))}
-                </p>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
+     {viewType === 'summary' && (
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <Card title="Financial Distribution" icon={<PieChart size={20} />}>
+      <div className="h-80 flex justify-center items-center">
+        <Pie data={distributionChartData} options={chartOptions} />
+      </div>
 
-      {/* Detailed View */}
+      <div className="grid grid-cols-2 gap-4 mt-6">
+        <div className="p-3 bg-blue-50 rounded-lg">
+          <p className="text-sm font-medium text-blue-700">Colporter Earnings</p>
+          <p className="text-lg font-bold text-blue-800 mt-1">
+            {formatCurrency(programFinancials.distribution.colporterAmount)}
+          </p>
+          <p className="text-xs text-blue-600">
+            {programFinancials.distribution.colporterPercentage}% of donations
+          </p>
+        </div>
+
+        <div className="p-3 bg-purple-50 rounded-lg">
+          <p className="text-sm font-medium text-purple-700">Leader Earnings</p>
+          <p className="text-lg font-bold text-purple-800 mt-1">
+            {formatCurrency(programFinancials.distribution.leaderAmount)}
+          </p>
+          <p className="text-xs text-purple-600">
+            {programFinancials.distribution.leaderPercentage}% of donations
+          </p>
+        </div>
+      </div>
+    </Card>
+
+    <Card title="Leader Performance" icon={<Users size={20} />}>
+      <div className="h-80 flex justify-center items-center">
+        <Bar data={leaderPerformanceData} options={barChartOptions} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mt-6">
+        <div className="p-3 bg-primary-50 rounded-lg">
+          <p className="text-sm font-medium text-primary-700">Total Team Sales</p>
+          <p className="text-lg font-bold text-primary-800 mt-1">
+            {formatCurrency(programFinancials.income.donations)}
+          </p>
+          <p className="text-xs text-primary-600">
+            {Object.keys(leaderSummaries).length} teams
+          </p>
+        </div>
+
+        <div className="p-3 bg-success-50 rounded-lg">
+          <p className="text-sm font-medium text-success-700">Average Per Team</p>
+          <p className="text-lg font-bold text-success-800 mt-1">
+            {formatCurrency(programFinancials.income.donations / Math.max(1, Object.keys(leaderSummaries).length))}
+          </p>
+        </div>
+      </div>
+    </Card>
+  </div>
+)}
+
       {viewType === 'detailed' && (
         <>
-          {/* Detailed Financial Breakdown */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Income Breakdown */}
             <Card title="Income Sources" icon={<TrendingUp size={20} />}>
               <div className="space-y-4">
                 <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
@@ -808,7 +576,6 @@ const ProgramReport: React.FC = () => {
               </div>
             </Card>
 
-            {/* Expenses Breakdown */}
             <Card title="Expense Categories" icon={<TrendingDown size={20} />}>
               <div className="space-y-4">
                 <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
@@ -841,9 +608,8 @@ const ProgramReport: React.FC = () => {
             </Card>
           </div>
 
-          {/* Program Expenses Detail */}
           <Card title="Program Expenses Detail" icon={<Receipt size={20} />}>
-            {filteredExpenses.length > 0 ? (
+            {expenses.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead>
@@ -866,7 +632,7 @@ const ProgramReport: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredExpenses.map((expense) => (
+                    {expenses.map((expense) => (
                       <tr key={expense.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                           {new Date(expense.date).toLocaleDateString()}
@@ -906,12 +672,11 @@ const ProgramReport: React.FC = () => {
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-gray-500">No program expenses found for this period</p>
+                <p className="text-gray-500">No program expenses found</p>
               </div>
             )}
           </Card>
 
-          {/* Distribution Summary */}
           <Card title="Earnings Distribution" icon={<PieChart size={20} />}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center p-4 bg-blue-50 rounded-lg">
@@ -1020,7 +785,6 @@ const ProgramReport: React.FC = () => {
             </div>
           </Card>
 
-          {/* Leader Performance */}
           <Card title="Leader Performance Summary" icon={<Users size={20} />}>
             <div className="p-4 mb-4 bg-purple-50 border border-purple-200 rounded-lg">
               <div className="flex items-start gap-3">
@@ -1113,7 +877,6 @@ const ProgramReport: React.FC = () => {
             </div>
           </Card>
 
-          {/* Individual Colporter Performance */}
           <Card title="Individual Colporter Performance" icon={<Users size={20} />}>
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-2">
