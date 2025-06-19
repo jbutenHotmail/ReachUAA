@@ -1,3 +1,4 @@
+// ChargesPage.tsx
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Search, DollarSign, AlertTriangle, X, CheckCircle } from 'lucide-react';
@@ -15,7 +16,6 @@ const ChargesPage: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
   const { charges, isLoading, fetchCharges, createCharge, updateCharge, 
-    // deleteCharge, 
     applyCharge, cancelCharge, wereChargesFetched } = useChargeStore();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -49,7 +49,7 @@ const ChargesPage: React.FC = () => {
     try {
       await createCharge(data);
       setShowAddForm(false);
-      setSuccess('Charge created successfully');
+      setSuccess(t('charges.successCreated'));
       setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
       console.error('Error creating charge:', error);
@@ -61,31 +61,20 @@ const ChargesPage: React.FC = () => {
     try {
       await updateCharge(editingCharge.id, data);
       setEditingCharge(null);
-      setSuccess('Charge updated successfully');
+      setSuccess(t('charges.successUpdated'));
       setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
       console.error('Error updating charge:', error);
     }
   };
 
-  // const handleDeleteCharge = async (id: string) => {
-  //   if (!window.confirm('Are you sure you want to delete this charge?')) return;
-  //   try {
-  //     await deleteCharge(id);
-  //     setSuccess('Charge deleted successfully');
-  //     setTimeout(() => setSuccess(null), 5000);
-  //   } catch (error) {
-  //     console.error('Error deleting charge:', error);
-  //   }
-  // };
-
   const handleApplyCharge = async (id: string) => {
     if (!canToggleChargeStatus) return;
     
-    if (!window.confirm('Are you sure you want to apply this charge?')) return;
+    if (!window.confirm(t('charges.confirmApply'))) return;
     try {
       await applyCharge(id);
-      setSuccess('Charge applied successfully');
+      setSuccess(t('charges.successApplied'));
       setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
       console.error('Error applying charge:', error);
@@ -95,10 +84,10 @@ const ChargesPage: React.FC = () => {
   const handleCancelCharge = async (id: string) => {
     if (!canToggleChargeStatus) return;
     
-    if (!window.confirm('Are you sure you want to cancel this charge?')) return;
+    if (!window.confirm(t('charges.confirmCancel'))) return;
     try {
       await cancelCharge(id);
-      setSuccess('Charge cancelled successfully');
+      setSuccess(t('charges.successCancelled'));
       setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
       console.error('Error cancelling charge:', error);
@@ -108,11 +97,11 @@ const ChargesPage: React.FC = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return <Badge variant="warning">Pending</Badge>;
+        return <Badge variant="warning">{t('charges.pending')}</Badge>;
       case 'APPLIED':
-        return <Badge variant="success">Applied</Badge>;
+        return <Badge variant="success">{t('charges.applied')}</Badge>;
       case 'CANCELLED':
-        return <Badge variant="danger">Cancelled</Badge>;
+        return <Badge variant="danger">{t('charges.cancelled')}</Badge>;
       default:
         return null;
     }
@@ -126,10 +115,10 @@ const ChargesPage: React.FC = () => {
       'OTHER': 'secondary'
     } as const;
     
-    return <Badge variant={variants[category as keyof typeof variants] || 'secondary'}>{category}</Badge>;
+    return <Badge variant={variants[category as keyof typeof variants] || 'secondary'}>{t(`charges.${category.toLowerCase()}`)}</Badge>;
   };
-  console.log(finalFilteredCharges);
-  // Calculate totals - ONLY APPLIED CHARGES
+
+  // Calculate totals - ONLY APPLIED AND PENDING CHARGES
   const appliedCharges = finalFilteredCharges.filter(c => c.status === 'APPLIED');
   const pendingCharges = finalFilteredCharges.filter(c => c.status === 'PENDING');  
   const appliedTotal = appliedCharges.reduce((sum, charge) => sum + charge.amount, 0);
@@ -139,7 +128,7 @@ const ChargesPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <LoadingScreen message='Loading charges...' />
+        <LoadingScreen message={t('charges.loading')} />
       </div>
     );
   }
@@ -156,10 +145,10 @@ const ChargesPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <AlertTriangle className="text-warning-600" size={28} />
-            Charges & Fines
+            {t('charges.title')}
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Manage charges, fines, and deductions for colporters and leaders
+            {t('charges.description')}
           </p>
         </div>
         
@@ -168,7 +157,7 @@ const ChargesPage: React.FC = () => {
           leftIcon={<Plus size={18} />}
           onClick={() => setShowAddForm(true)}
         >
-          Add Charge
+          {t('charges.addCharge')}
         </Button>
       </div>
 
@@ -179,9 +168,9 @@ const ChargesPage: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <DollarSign className="text-red-500" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Total Charges</p>
+            <p className="text-sm font-medium text-gray-500">{t('charges.totalCharges')}</p>
             <p className="mt-1 text-2xl font-bold text-red-600">${totalAmount.toFixed(2)}</p>
-            <p className="text-xs text-gray-500">All time</p>
+            <p className="text-xs text-gray-500">{t('charges.allTime')}</p>
           </div>
         </Card>
         
@@ -190,9 +179,9 @@ const ChargesPage: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <CheckCircle className="text-success-500" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Applied Charges</p>
+            <p className="text-sm font-medium text-gray-500">{t('charges.applied')}</p>
             <p className="mt-1 text-2xl font-bold text-success-600">${appliedTotal.toFixed(2)}</p>
-            <p className="text-xs text-gray-500">Processed</p>
+            <p className="text-xs text-gray-500">{t('charges.processed')}</p>
           </div>
         </Card>
         
@@ -201,9 +190,9 @@ const ChargesPage: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <AlertTriangle className="text-warning-500" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Pending Charges</p>
+            <p className="text-sm font-medium text-gray-500">{t('charges.pending')}</p>
             <p className="mt-1 text-2xl font-bold text-warning-600">${pendingTotal.toFixed(2)}</p>
-            <p className="text-xs text-gray-500">Awaiting approval</p>
+            <p className="text-xs text-gray-500">{t('charges.awaiting')}</p>
           </div>
         </Card>
       </div>
@@ -213,7 +202,7 @@ const ChargesPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div className="flex flex-col sm:flex-row gap-4">
               <Input
-                placeholder="Search charges..."
+                placeholder={t('charges.searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 leftIcon={<Search size={18} />}
@@ -225,10 +214,10 @@ const ChargesPage: React.FC = () => {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               >
-                <option value="">All Status</option>
-                <option value="PENDING">Pending</option>
-                <option value="APPLIED">Applied</option>
-                <option value="CANCELLED">Cancelled</option>
+                <option value="">{t('charges.allStatus')}</option>
+                <option value="PENDING">{t('charges.pending')}</option>
+                <option value="APPLIED">{t('charges.applied')}</option>
+                <option value="CANCELLED">{t('charges.cancelled')}</option>
               </select>
 
               <select
@@ -236,9 +225,9 @@ const ChargesPage: React.FC = () => {
                 onChange={(e) => setTypeFilter(e.target.value)}
                 className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               >
-                <option value="">All Types</option>
-                <option value="COLPORTER">Colporters</option>
-                <option value="LEADER">Leaders</option>
+                <option value="">{t('charges.allTypes')}</option>
+                <option value="COLPORTER">{t('charges.colporter')}</option>
+                <option value="LEADER">{t('charges.leader')}</option>
               </select>
             </div>
           </div>
@@ -248,25 +237,25 @@ const ChargesPage: React.FC = () => {
               <thead>
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('expenses.date')}
+                    {t('charges.date')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Person
+                    {t('charges.person')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Reason
+                    {t('charges.reason')}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
+                    {t('charges.amount')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
+                    {t('charges.category')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    {t('charges.status')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
+                    {t('charges.actions')}
                   </th>
                 </tr>
               </thead>
@@ -282,7 +271,7 @@ const ChargesPage: React.FC = () => {
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                       <div>
                         <div className="font-medium text-gray-900">{charge.personName}</div>
-                        <div className="text-sm text-gray-500">{charge.personType}</div>
+                        <div className="text-sm text-gray-500">{t(`charges.${charge.personType.toLowerCase()}`)}</div>
                       </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">

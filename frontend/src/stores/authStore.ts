@@ -15,6 +15,7 @@ interface AuthStore extends AuthState {
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (token: string, password: string) => Promise<void>;
   updateProfile: (user: Partial<User>) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   refreshToken: () => Promise<void>;
 }
 
@@ -33,7 +34,7 @@ const getCurrentUser = (): User | null => {
 
 export const useAuthStore = create<AuthStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: getCurrentUser(),
       token: localStorage.getItem('accessToken'),
       isAuthenticated: !!localStorage.getItem('accessToken'),
@@ -160,8 +161,8 @@ export const useAuthStore = create<AuthStore>()(
           // In a real app, this would call the update profile API
           const updatedUser = await api.put<User>('/users/profile', userData);
           
-          // Update the user in localStorage
-          const currentUser = getCurrentUser();
+          // Update the user in localStorage and state
+          const currentUser = get().user;
           if (currentUser) {
             const mergedUser = { ...currentUser, ...updatedUser };
             localStorage.setItem('user', JSON.stringify(mergedUser));
@@ -169,6 +170,20 @@ export const useAuthStore = create<AuthStore>()(
           } else {
             throw new Error('No user found');
           }
+        } catch (error) {
+          set({ 
+            error: error instanceof Error ? error.message : 'An unknown error occurred', 
+            isLoading: false 
+          });
+          throw error;
+        }
+      },
+
+      changePassword: async (currentPassword, newPassword) => {
+        set({ isLoading: true, error: null });
+        try {
+          await api.post('/users/change-password', { currentPassword, newPassword });
+          set({ isLoading: false });
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : 'An unknown error occurred', 

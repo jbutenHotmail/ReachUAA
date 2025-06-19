@@ -174,7 +174,7 @@ const NewTransaction: React.FC = () => {
   // If loading, show loading screen
   if (isLoading) {
     return (
-      <LoadingScreen message="Preparing transaction form..." />
+      <LoadingScreen message={t('transactions.preparingTransactionForm')} />
     );
   }
 
@@ -205,17 +205,16 @@ const NewTransaction: React.FC = () => {
             </div>
             
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Non-Colportable Day
+              {t('transactions.nonColportableDay')}
             </h2>
             
             <p className="text-gray-600 max-w-lg mb-6">
-              Today is not designated as a colportable day in the program settings. 
-              Transactions can only be created on designated working days.
+              {t('transactions.nonColportableDayMessage')}
             </p>
             
             <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-8 w-full max-w-md">
               <p className="text-sm text-gray-700 mb-2">
-                <strong>Next available colportable day:</strong>
+                <strong>{t('transactions.nextColportableDay')}</strong>
               </p>
               <p className="text-lg font-medium text-primary-700">
                 {nextColportableDay.toLocaleDateString(undefined, {
@@ -229,7 +228,7 @@ const NewTransaction: React.FC = () => {
             
             <div className="space-y-4 w-full max-w-md">
               <p className="text-sm text-gray-500">
-                If you need to create a transaction for today, please contact an administrator to mark this day as colportable in the program settings.
+                {t('transactions.contactAdminMessage')}
               </p>
               
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -238,7 +237,7 @@ const NewTransaction: React.FC = () => {
                   onClick={() => navigate('/transactions')}
                   leftIcon={<ChevronRight size={16} className="rotate-180" />}
                 >
-                  Return to Transactions
+                  {t('transactions.returnToTransactions')}
                 </Button>
                 
                 {isAdmin && (
@@ -247,7 +246,7 @@ const NewTransaction: React.FC = () => {
                     onClick={() => navigate('/admin/settings')}
                     leftIcon={<Settings size={16} />}
                   >
-                    Program Settings
+                    {t('programSetup.title')}
                   </Button>
                 )}
               </div>
@@ -276,7 +275,7 @@ const NewTransaction: React.FC = () => {
               onChange={(e) => setStayOnPage(e.target.checked)}
               className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
             />
-            <span className="text-gray-600">Stay on this page</span>
+            <span className="text-gray-600">{t('transactions.stayOnPage')}</span>
           </label>
           <Button 
             variant="outline" 
@@ -313,7 +312,7 @@ const NewTransaction: React.FC = () => {
                     <div className="flex items-center">
                       <input
                         type="text"
-                        placeholder="Select today's supervising leader"
+                        placeholder={t('transactions.selectLeaderPlaceholder')}
                         value={leaderSearch}
                         onChange={(e) => {
                           setLeaderSearch(e.target.value);
@@ -376,7 +375,7 @@ const NewTransaction: React.FC = () => {
                           ))
                         ) : (
                           <div className="px-4 py-2 text-sm text-gray-500">
-                            No leaders found
+                            {t('transactions.noLeadersFound')}
                           </div>
                         )}
                       </div>
@@ -404,7 +403,7 @@ const NewTransaction: React.FC = () => {
                     <div className="flex items-center">
                       <input
                         type="text"
-                        placeholder="Select colporter"
+                        placeholder={t('transactions.selectColporterPlaceholder')}
                         value={colporterSearch}
                         onChange={(e) => {
                           setColporterSearch(e.target.value);
@@ -467,7 +466,7 @@ const NewTransaction: React.FC = () => {
                           ))
                         ) : (
                           <div className="px-4 py-2 text-sm text-gray-500">
-                            No colporters found
+                            {t('transactions.noColportersFound')}
                           </div>
                         )}
                       </div>
@@ -480,11 +479,11 @@ const NewTransaction: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          <Card title="Books" icon={<BookText size={20} />}>
+          <Card title={t('inventory.books')} icon={<BookText size={20} />}>
             <div className="space-y-3 sm:space-y-4 max-h-[60vh] overflow-y-auto pr-1">
               {activeBooks.length === 0 ? (
                 <div className="text-center py-6">
-                  <p className="text-gray-500">No active books available</p>
+                  <p className="text-gray-500">{t('transactions.noActiveBooks')}</p>
                 </div>
               ) : (
                 activeBooks.map((book) => (
@@ -497,7 +496,7 @@ const NewTransaction: React.FC = () => {
                           variant={book.size === BookSize.LARGE ? "primary" : "success"}
                           size="sm"
                         >
-                          {book.size === BookSize.LARGE ? "Large" : "Small"}
+                          {book.size === BookSize.LARGE ? t('inventory.size.large') : t('inventory.size.small')}
                         </Badge>
                       </div>
                     </div>
@@ -532,13 +531,13 @@ const NewTransaction: React.FC = () => {
                 ))
               )}
               <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-                <span className="font-medium text-gray-700">Total Books:</span>
+                <span className="font-medium text-gray-700">{t('transactions.totalBooks')}</span>
                 <Badge variant="primary" size="lg">{totalBooks}</Badge>
               </div>
             </div>
           </Card>
 
-          <Card title="Payment" icon={<DollarSign size={20} />}>
+          <Card title={t('deposits.title')} icon={<DollarSign size={20} />}>
             <div className="space-y-3 sm:space-y-4">
               <Input
                 label={t('transactions.cash')}

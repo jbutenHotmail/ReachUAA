@@ -1,3 +1,4 @@
+// AllExpenses.tsx
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Search, Utensils, ChevronFirst as FirstAid, ShoppingBag, Wrench, Car, CheckCircle, XCircle, Clock } from 'lucide-react';
@@ -20,7 +21,7 @@ interface Expense {
   category: string;
   notes?: string;
   date: string;
-  status?: string; // Added status field
+  status?: string;
   createdBy: string;
   createdByName: string;
   createdAt: string;
@@ -46,7 +47,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const { wereExpensesFetched, fetchExpenses, expenses, createExpense, updateExpense, 
-    // deleteExpense, 
     approveExpense, rejectExpense, isLoading } = useExpenseStore();
   const isAdmin = user?.role === UserRole.ADMIN;
 
@@ -54,45 +54,50 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
     !wereExpensesFetched && fetchExpenses();
   }, []);
 
-  //useeffect para el filtro
+  // Update category filter when defaultCategory changes
+  useEffect(() => {
+    if (defaultCategory) {
+      setSelectedCategory(defaultCategory);
+    }
+  }, [defaultCategory]);
 
   const filteredExpenses = expenses.filter((expense) => {
-  // Search term filter
-  const matchesSearchTerm = searchTerm
-    ? expense.motivo.toLowerCase().includes(searchTerm.toLowerCase())
-    : true;
+    // Search term filter
+    const matchesSearchTerm = searchTerm
+      ? expense.motivo.toLowerCase().includes(searchTerm.toLowerCase())
+      : true;
 
-  // Category filter
-  const matchesCategory = categoryFilter
-    ? expense.category === categoryFilter
-    : true;
+    // Category filter
+    const matchesCategory = categoryFilter
+      ? expense.category === categoryFilter
+      : true;
 
-  // Date filter
-  const matchesDate = dateFilter
-    ? new Date(expense.date).toISOString().split('T')[0] === dateFilter
-    : true;
+    // Date filter
+    const matchesDate = dateFilter
+      ? new Date(expense.date).toISOString().split('T')[0] === dateFilter
+      : true;
 
-  // Leader filter
-  const matchesLeader = leaderFilter
-    ? leaderFilter === 'program'
-      ? !expense.leaderId // Program expenses have no leaderId
-      : expense.leaderId === leaderFilter
-    : true;
+    // Leader filter
+    const matchesLeader = leaderFilter
+      ? leaderFilter === 'program'
+        ? !expense.leaderId // Program expenses have no leaderId
+        : expense.leaderId === leaderFilter
+      : true;
 
-  // Status filter
-  const matchesStatus = statusFilter
-    ? expense.status === statusFilter ||
-      (!expense.status && statusFilter === 'APPROVED') // Handle backward compatibility
-    : true;
+    // Status filter
+    const matchesStatus = statusFilter
+      ? expense.status === statusFilter ||
+        (!expense.status && statusFilter === 'APPROVED') // Handle backward compatibility
+      : true;
 
-  return (
-    matchesSearchTerm &&
-    matchesCategory &&
-    matchesDate &&
-    matchesLeader &&
-    matchesStatus
-  );
-});
+    return (
+      matchesSearchTerm &&
+      matchesCategory &&
+      matchesDate &&
+      matchesLeader &&
+      matchesStatus
+    );
+  });
 
   // Calculate totals - ONLY APPROVED EXPENSES
   const approvedExpenses = filteredExpenses.filter(e => e.status === 'APPROVED' || !e.status);
@@ -129,57 +134,82 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
   const getStatusBadge = (status?: string) => {
     switch (status) {
       case 'PENDING':
-        return <Badge variant="warning" leftIcon={<Clock size={14} />}>Pending</Badge>;
+        return <Badge variant="warning" leftIcon={<Clock size={14} />}>{t('expenses.pending')}</Badge>;
       case 'APPROVED':
-        return <Badge variant="success" leftIcon={<CheckCircle size={14} />}>Approved</Badge>;
+        return <Badge variant="success" leftIcon={<CheckCircle size={14} />}>{t('expenses.approved')}</Badge>;
       case 'REJECTED':
-        return <Badge variant="danger" leftIcon={<XCircle size={14} />}>Rejected</Badge>;
+        return <Badge variant="danger" leftIcon={<XCircle size={14} />}>{t('expenses.rejected')}</Badge>;
       default:
-        return <Badge variant="success">Approved</Badge>; // Default for backward compatibility
+        return <Badge variant="success">{t('expenses.approved')}</Badge>; // Default for backward compatibility
     }
   };
 
-  const handleAddExpense = async (data: Omit<Expense, 'id' | 'createdBy' | 'createdByName' | 'createdAt' | 'updatedAt' >) => {
+  const handleAddExpense = async (data: Omit<Expense, 'id' | 'createdBy' | 'createdByName' | 'createdAt' | 'updatedAt'>) => {
     try {
       await createExpense(data);
       setShowAddForm(false);
-      setSuccess('Expense created successfully. It will be reviewed by an administrator.');
+      setSuccess(t('expenses.successCreated'));
       setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
       console.error('Error creating expense:', error);
-      setError('Failed to create expense');
+      setError(t('expenses.errorCreate'));
       setTimeout(() => setError(null), 5000);
     }
   };
 
   const handleEditExpense = async (data: Omit<Expense, 'id' | 'createdBy' | 'createdByName' | 'createdAt' | 'updatedAt'>) => {
     if (editingExpense) {
-      await updateExpense(editingExpense.id, data);
+      try {
+        await updateExpense(editingExpense.id, data);
+        setEditingExpense(null);
+        setSuccess(t('expenses.successUpdated'));
+        setTimeout(() => setSuccess(null), 5000);
+      } catch (error) {
+        console.error('Error updating expense:', error);
+        setError(t('expenses.errorUpdate'));
+        setTimeout(() => setError(null), 5000);
+      }
     }
   };
 
   const handleApproveExpense = async (id: string) => {
     if (!isAdmin) return;
     
-    await approveExpense(id);
+    try {
+      await approveExpense(id);
+      setSuccess(t('expenses.successApproved'));
+      setTimeout(() => setSuccess(null), 5000);
+    } catch (error) {
+      console.error('Error approving expense:', error);
+      setError(t('expenses.errorApprove'));
+      setTimeout(() => setError(null), 5000);
+    }
   };
 
   const handleRejectExpense = async (id: string) => {
     if (!isAdmin) return;
-    await rejectExpense(id);  
     
+    try {
+      await rejectExpense(id);
+      setSuccess(t('expenses.successRejected'));
+      setTimeout(() => setSuccess(null), 5000);
+    } catch (error) {
+      console.error('Error rejecting expense:', error);
+      setError(t('expenses.errorReject'));
+      setTimeout(() => setError(null), 5000);
+    }
   };
 
   if (isLoading) {
     return (
-      <LoadingScreen message="Loading expenses..." />
+      <LoadingScreen message={t('expenses.loading')} />
     );
   }
 
   if (error) {
     return (
       <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
-        <p className="font-medium">Error loading expenses</p>
+        <p className="font-medium">{t('expenses.errorTitle')}</p>
         <p>{error}</p>
       </div>
     );
@@ -202,31 +232,31 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
           <div className="text-center">
             <p className="text-sm font-medium text-gray-500">{t('expenses.amount')}</p>
             <p className="mt-2 text-3xl font-bold text-gray-900">${totalAmount.toFixed(2)}</p>
-            <p className="mt-1 text-sm text-gray-500">Total expenses</p>
+            <p className="mt-1 text-sm text-gray-500">{t('expenses.totalExpenses')}</p>
           </div>
         </Card>
         
         <Card>
           <div className="text-center">
-            <p className="text-sm font-medium text-gray-500">Pending</p>
+            <p className="text-sm font-medium text-gray-500">{t('expenses.pending')}</p>
             <p className="mt-2 text-3xl font-bold text-warning-600">${pendingTotal.toFixed(2)}</p>
-            <p className="mt-1 text-sm text-gray-500">Awaiting approval</p>
+            <p className="mt-1 text-sm text-gray-500">{t('expenses.awaiting')}</p>
           </div>
         </Card>
 
         <Card>
           <div className="text-center">
-            <p className="text-sm font-medium text-gray-500">Approved</p>
+            <p className="text-sm font-medium text-gray-500">{t('expenses.approved')}</p>
             <p className="mt-2 text-3xl font-bold text-success-600">${approvedTotal.toFixed(2)}</p>
-            <p className="mt-1 text-sm text-gray-500">Confirmed expenses</p>
+            <p className="mt-1 text-sm text-gray-500">{t('expenses.confirmed')}</p>
           </div>
         </Card>
         
         <Card>
           <div className="text-center">
-            <p className="text-sm font-medium text-gray-500">Daily Average</p>
+            <p className="text-sm font-medium text-gray-500">{t('expenses.dailyAverage')}</p>
             <p className="mt-2 text-3xl font-bold text-gray-900">${averagePerDay.toFixed(2)}</p>
-            <p className="mt-1 text-sm text-gray-500">Per day</p>
+            <p className="mt-1 text-sm text-gray-500">{t('expenses.perDay')}</p>
           </div>
         </Card>
       </div>
@@ -236,7 +266,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
               <Input
-                placeholder="Search expenses..."
+                placeholder={t('expenses.searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 leftIcon={<Search size={18} />}
@@ -256,7 +286,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
                 className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               >
                 <option value="">{t('common.all')} {t('common.leader').toLowerCase()}s</option>
-                <option value="program">Program</option>
+                <option value="program">{t('expenses.program')}</option>
                 {uniqueLeaders.map(leader => (
                   <option key={leader.id} value={leader.id}>
                     {leader.name}
@@ -269,10 +299,10 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               >
-                <option value="">All Statuses</option>
-                <option value="PENDING">Pending</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
+                <option value="">{t('expenses.allStatuses')}</option>
+                <option value="PENDING">{t('expenses.pending')}</option>
+                <option value="APPROVED">{t('expenses.approved')}</option>
+                <option value="REJECTED">{t('expenses.rejected')}</option>
               </select>
 
               <select
@@ -280,7 +310,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               >
-                <option value="">{t('common.all')} categories</option>
+                <option value="">{t('common.all')} {t('expenses.categories')}</option>
                 <option value="food">{t('expenses.food')}</option>
                 <option value="health">{t('expenses.health')}</option>
                 <option value="supplies">{t('expenses.supplies')}</option>
@@ -296,7 +326,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
                 onClick={() => setShowAddForm(true)}
                 className="w-full sm:w-auto"
               >
-                Add Expense
+                {t('expenses.addExpense')}
               </Button>
             </div>
           </div>
@@ -321,10 +351,10 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
                     {t('expenses.category')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    {t('expenses.status')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
+                    {t('expenses.actions')}
                   </th>
                 </tr>
               </thead>

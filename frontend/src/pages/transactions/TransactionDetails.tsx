@@ -23,19 +23,19 @@ const TransactionDetails: React.FC = () => {
   const transaction = transactions.find(t => Number(t.id) === Number(id));
 
   if (isLoading) {
-    return <LoadingScreen message="Loading transaction details..." />;
+    return <LoadingScreen message={t('common.loading')} />;
   }
 
   if (!transaction) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">Transaction not found</p>
+        <p className="text-gray-500">{t('transactionDetails.notFound')}</p>
         <Button
           variant="outline"
           className="mt-4"
           onClick={() => navigate('/transactions')}
         >
-          Go back
+          {t('common.back')}
         </Button>
       </div>
     );
@@ -74,7 +74,7 @@ const TransactionDetails: React.FC = () => {
   };
 
   transaction.books?.forEach(book => {
-    // Use the book's size field if available, otherwise determine by price
+    // Use the book's size field if available
     const bookSize = book.size;
     if (bookSize === BookSize.LARGE) {
       bookTotals.large += book.quantity;
@@ -95,7 +95,7 @@ const TransactionDetails: React.FC = () => {
             <ChevronLeft size={20} />
           </Button>
           <h1 className="text-2xl font-bold text-gray-900">
-            Transaction Details
+            {t('transactionDetails.title')}
           </h1>
         </div>
         {transaction.status === 'PENDING' && isAdmin && (
@@ -105,14 +105,14 @@ const TransactionDetails: React.FC = () => {
               onClick={() => handleStatusChange('APPROVED')}
               leftIcon={<CheckCircle size={16} />}
             >
-              Approve
+              {t('transactionDetails.approve')}
             </Button>
             <Button
               variant="danger"
               onClick={() => handleStatusChange('REJECTED')}
               leftIcon={<XCircle size={16} />}
             >
-              Reject
+              {t('transactionDetails.reject')}
             </Button>
           </div>
         )}
@@ -123,7 +123,7 @@ const TransactionDetails: React.FC = () => {
           <Card>
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-gray-900">Transaction Info</h2>
+                <h2 className="text-lg font-semibold text-gray-900">{t('transactionDetails.transactionInfo')}</h2>
                 {getStatusBadge(transaction.status)}
               </div>
               
@@ -143,7 +143,7 @@ const TransactionDetails: React.FC = () => {
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Created At</p>
+                  <p className="text-sm text-gray-500">{t('transactionDetails.createdAt')}</p>
                   <p className="font-medium">
                     {new Date(transaction.createdAt).toLocaleString()}
                   </p>
@@ -152,29 +152,29 @@ const TransactionDetails: React.FC = () => {
             </div>
           </Card>
 
-          <Card title="Payment Details" icon={<DollarSign size={20} />}>
+          <Card title={t('transactionDetails.paymentDetails')} icon={<DollarSign size={20} />}>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-3 bg-green-50 rounded-lg">
-                  <p className="text-sm text-green-600">{t('transactions.cash')}</p>
+                  <p className="text-sm text-green-600">{t('transactionDetails.cash')}</p>
                   <p className="text-lg font-semibold text-green-700">
                     ${transaction.cash.toFixed(2)}
                   </p>
                 </div>
                 <div className="p-3 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-600">{t('transactions.checks')}</p>
+                  <p className="text-sm text-blue-600">{t('transactionDetails.checks')}</p>
                   <p className="text-lg font-semibold text-blue-700">
                     ${transaction.checks.toFixed(2)}
                   </p>
                 </div>
                 <div className="p-3 bg-purple-50 rounded-lg">
-                  <p className="text-sm text-purple-600">{t('transactions.atmMobile')}</p>
+                  <p className="text-sm text-purple-600">{t('transactionDetails.atmMobile')}</p>
                   <p className="text-lg font-semibold text-purple-700">
                     ${transaction.atmMobile.toFixed(2)}
                   </p>
                 </div>
                 <div className="p-3 bg-indigo-50 rounded-lg">
-                  <p className="text-sm text-indigo-600">{t('transactions.paypal')}</p>
+                  <p className="text-sm text-indigo-600">{t('transactionDetails.paypal')}</p>
                   <p className="text-lg font-semibold text-indigo-700">
                     ${transaction.paypal.toFixed(2)}
                   </p>
@@ -191,23 +191,23 @@ const TransactionDetails: React.FC = () => {
           </Card>
         </div>
 
-        <Card title="Books Delivered" icon={<BookText size={20} />}>
+        <Card title={t('transactionDetails.booksDelivered')} icon={<BookText size={20} />}>
           <div className="space-y-4">
             {/* Book size summary */}
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div className="p-3 bg-primary-50 rounded-lg text-center">
-                <p className="text-sm font-medium text-primary-700">Large Books</p>
+                <p className="text-sm font-medium text-primary-700">{t('transactionDetails.largeBooks')}</p>
                 <p className="text-xl font-bold text-primary-800">{bookTotals.large}</p>
               </div>
               <div className="p-3 bg-success-50 rounded-lg text-center">
-                <p className="text-sm font-medium text-success-700">Small Books</p>
+                <p className="text-sm font-medium text-success-700">{t('transactionDetails.smallBooks')}</p>
                 <p className="text-xl font-bold text-success-800">{bookTotals.small}</p>
               </div>
             </div>
 
             {/* Book list */}
             {transaction.books?.map((book) => {
-              // Use the book's size field if available, otherwise determine by price
+              // Use the book's size field if available
               const bookSize = book.size;
               return (
                 <div 
@@ -224,7 +224,7 @@ const TransactionDetails: React.FC = () => {
                         variant={bookSize === BookSize.LARGE ? "primary" : "success"}
                         size="sm"
                       >
-                        {bookSize === BookSize.LARGE ? "Large" : "Small"}
+                        {t(`transactionDetails.${bookSize === BookSize.LARGE ? 'largeBooks' : 'smallBooks'}`)}
                       </Badge>
                     </div>
                   </div>
@@ -236,7 +236,7 @@ const TransactionDetails: React.FC = () => {
             })}
 
             <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-              <span className="font-medium text-gray-700">Total Books:</span>
+              <span className="font-medium text-gray-700">{t('transactionDetails.totalBooks')}:</span>
               <Badge variant="primary" size="lg">
                 {bookTotals.total}
               </Badge>

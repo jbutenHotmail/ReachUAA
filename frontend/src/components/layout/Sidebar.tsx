@@ -7,7 +7,7 @@ import {
   X, DollarSign, ChevronDown, ClipboardList, 
   Receipt, Wallet, Utensils, ChevronFirst as FirstAid, ShoppingBag, Wrench, 
   Fuel, Users, UserPlus, BookOpen, UserCog, UsersRound,
-  Package, TrendingUp, Calendar, AlertTriangle, FileText, Plus, Lock, Globe
+  Package, TrendingUp, Calendar, AlertTriangle, FileText, Plus, Lock
 } from 'lucide-react';
 
 import { UserRole } from '../../types';
@@ -52,7 +52,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
     const settingsItem = { 
       path: '/settings', 
       label: t('settings.title'), 
-      icon: <Globe size={20} />, 
+      icon: <Settings size={20} />, 
     };
     
     // For Viewer role, return limited menu
@@ -195,7 +195,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
       ...(user?.role === UserRole.ADMIN ? [
         {
           label: 'Administration',
-          icon: <Settings size={20} />,
+          icon: <Lock size={20} />,
           submenu: [
             {
               label: 'Users',

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -80,6 +81,7 @@ interface ColporterFinancials {
 }
 
 const ProgramReport: React.FC = () => {
+  const { t } = useTranslation();
   const [viewType, setViewType] = useState<'summary' | 'detailed'>('summary');
   const [programFinancials, setProgramFinancials] = useState<ProgramFinancials | null>(null);
   const [colporterFinancials, setColporterFinancials] = useState<ColporterFinancials[]>([]);
@@ -105,14 +107,14 @@ const ProgramReport: React.FC = () => {
       try {
         await Promise.all(dataToFetch);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load report data');
+        setError(err instanceof Error ? err.message : t('common.error'));
       } finally {
         setIsLoading(false);
       }
     };
 
     loadReportData();
-  }, [fetchAllTransactions, fetchCharges, fetchAdvances, fetchProgram]);
+  }, [fetchAllTransactions, fetchCharges, fetchAdvances, fetchProgram, t]);
 
   useEffect(() => {
     if (transactions.length > 0 || charges.length > 0 || advances.length > 0 || expenses.length > 0) {
@@ -232,7 +234,13 @@ const ProgramReport: React.FC = () => {
   };
 
   const distributionChartData = {
-    labels: ['Colporters', 'Leaders', 'Program Expenses', 'Cash Advances', 'Net Profit'],
+    labels: [
+      t('dashboard.distributionExpenses'),
+      t('common.leaders'),
+      t('expenses.program'),
+      t('cashAdvance.title'),
+      t('dashboard.programSurplus')
+    ],
     datasets: [
       {
         data: programFinancials ? [
@@ -265,7 +273,7 @@ const ProgramReport: React.FC = () => {
     labels: uniqueLeaders,
     datasets: [
       {
-        label: 'Team Sales',
+        label: t('reports.programSales'),
         data: uniqueLeaders.map(leader => {
           return colporterFinancials
             .filter(c => c.leaderName === leader)
@@ -274,7 +282,7 @@ const ProgramReport: React.FC = () => {
         backgroundColor: 'rgba(59, 130, 246, 0.8)',
       },
       {
-        label: 'Leader Earnings',
+        label: t('dashboard.revenueDistribution'),
         data: uniqueLeaders.map(() => {
           return programFinancials?.distribution.leaderAmount 
             ? programFinancials.distribution.leaderAmount / uniqueLeaders.length
@@ -343,7 +351,7 @@ const ProgramReport: React.FC = () => {
 
   if (isLoading) {
     return (
-      <LoadingScreen message="Loading program report..." />
+      <LoadingScreen message={t('dashboard.loading')} />
     );
   }
 
@@ -351,7 +359,7 @@ const ProgramReport: React.FC = () => {
     return (
       <Card>
         <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
-          <p className="font-medium">Error loading program report</p>
+          <p className="font-medium">{t('reports.errorTitle')}</p>
           <p>{error}</p>
         </div>
       </Card>
@@ -362,8 +370,8 @@ const ProgramReport: React.FC = () => {
     return (
       <Card>
         <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg text-warning-700">
-          <p className="font-medium">No financial data available</p>
-          <p>There is no transaction data available to generate a program report.</p>
+          <p className="font-medium">{t('colporterReport.noData')}</p>
+          <p>{t('colporterReport.noDataDescription')}</p>
         </div>
       </Card>
     );
@@ -412,10 +420,10 @@ const ProgramReport: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <BarChart3 className="text-primary-600" size={28} />
-            Program Financial Report
+            {t('reports.title')}
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Complete Program
+            {t('reports.completeProgram')}
           </p>
         </div>
         
@@ -426,7 +434,7 @@ const ProgramReport: React.FC = () => {
             onClick={() => setViewType(viewType === 'summary' ? 'detailed' : 'summary')}
             leftIcon={viewType === 'summary' ? <PieChart size={16} /> : <BarChart3 size={16} />}
           >
-            {viewType === 'summary' ? 'Detailed View' : 'Summary View'}
+            {viewType === 'summary' ? t('reports.showDetails') : t('reports.showTotalsOnly')}
           </Button>
         </div>
       </div>
@@ -437,11 +445,11 @@ const ProgramReport: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <Heart className="text-red-500" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Total Income</p>
+            <p className="text-sm font-medium text-gray-500">{t('dashboard.totalRevenue')}</p>
             <p className="mt-1 text-2xl font-bold text-green-600">
               {formatCurrency(programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)}
             </p>
-            <p className="text-xs text-gray-500">Donations + Fines</p>
+            <p className="text-xs text-gray-500">{t('donations.title')} + {t('charges.fine')}</p>
           </div>
         </Card>
 
@@ -450,11 +458,11 @@ const ProgramReport: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <Receipt className="text-orange-500" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Total Expenses</p>
+            <p className="text-sm font-medium text-gray-500">{t('expenses.totalExpenses')}</p>
             <p className="mt-1 text-2xl font-bold text-red-600">
               {formatCurrency(programFinancials.expenses.totalExpenses)}
             </p>
-            <p className="text-xs text-gray-500">Advances + Program Costs</p>
+            <p className="text-xs text-gray-500">{t('cashAdvance.title')} + {t('expenses.program')}</p>
           </div>
         </Card>
 
@@ -463,11 +471,11 @@ const ProgramReport: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <Users className="text-blue-500" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Participant Earnings</p>
+            <p className="text-sm font-medium text-gray-500">{t('dashboard.revenueDistribution')}</p>
             <p className="mt-1 text-2xl font-bold text-blue-600">
               {formatCurrency(programFinancials.distribution.colporterAmount + programFinancials.distribution.leaderAmount)}
             </p>
-            <p className="text-xs text-gray-500">Colporters + Leaders</p>
+            <p className="text-xs text-gray-500">{t('common.colporters')} + {t('common.leaders')}</p>
           </div>
         </Card>
 
@@ -476,81 +484,81 @@ const ProgramReport: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <TrendingUp className="text-primary-600" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Net Profit</p>
+            <p className="text-sm font-medium text-gray-500">{t('dashboard.programSurplus')}</p>
             <p className="mt-1 text-2xl font-bold text-primary-600">
               {formatCurrency(programFinancials.netProfit)}
             </p>
-            <p className="text-xs text-gray-500">Program Surplus</p>
+            <p className="text-xs text-gray-500">{t('dashboard.afterDistributions')}</p>
           </div>
         </Card>
       </div>
 
-     {viewType === 'summary' && (
-  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <Card title="Financial Distribution" icon={<PieChart size={20} />}>
-      <div className="h-80 flex justify-center items-center">
-        <Pie data={distributionChartData} options={chartOptions} />
-      </div>
+      {viewType === 'summary' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card title={t('dashboard.financialSummary')} icon={<PieChart size={20} />}>
+            <div className="h-80 flex justify-center items-center">
+              <Pie data={distributionChartData} options={chartOptions} />
+            </div>
 
-      <div className="grid grid-cols-2 gap-4 mt-6">
-        <div className="p-3 bg-blue-50 rounded-lg">
-          <p className="text-sm font-medium text-blue-700">Colporter Earnings</p>
-          <p className="text-lg font-bold text-blue-800 mt-1">
-            {formatCurrency(programFinancials.distribution.colporterAmount)}
-          </p>
-          <p className="text-xs text-blue-600">
-            {programFinancials.distribution.colporterPercentage}% of donations
-          </p>
+            <div className="grid grid-cols-2 gap-4 mt-6">
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm font-medium text-blue-700">{t('dashboard.revenueDistribution')}</p>
+                <p className="text-lg font-bold text-blue-800 mt-1">
+                  {formatCurrency(programFinancials.distribution.colporterAmount)}
+                </p>
+                <p className="text-xs text-blue-600">
+                  {programFinancials.distribution.colporterPercentage}% {t('common.of')} {t('donations.title')}
+                </p>
+              </div>
+
+              <div className="p-3 bg-purple-50 rounded-lg">
+                <p className="text-sm font-medium text-purple-700">{t('dashboard.revenueDistribution')}</p>
+                <p className="text-lg font-bold text-purple-800 mt-1">
+                  {formatCurrency(programFinancials.distribution.leaderAmount)}
+                </p>
+                <p className="text-xs text-purple-600">
+                  {programFinancials.distribution.leaderPercentage}% {t('common.of')} {t('donations.title')}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <Card title={t('reports.byLeaders')} icon={<Users size={20} />}>
+            <div className="h-80 flex justify-center items-center">
+              <Bar data={leaderPerformanceData} options={barChartOptions} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mt-6">
+              <div className="p-3 bg-primary-50 rounded-lg">
+                <p className="text-sm font-medium text-primary-700">{t('reports.programSales')}</p>
+                <p className="text-lg font-bold text-primary-800 mt-1">
+                  {formatCurrency(programFinancials.income.donations)}
+                </p>
+                <p className="text-xs text-primary-600">
+                  {Object.keys(leaderSummaries).length} {t('common.leaders')}
+                </p>
+              </div>
+
+              <div className="p-3 bg-success-50 rounded-lg">
+                <p className="text-sm font-medium text-success-700">{t('reports.perColporter')}</p>
+                <p className="text-lg font-bold text-success-800 mt-1">
+                  {formatCurrency(programFinancials.income.donations / Math.max(1, Object.keys(leaderSummaries).length))}
+                </p>
+              </div>
+            </div>
+          </Card>
         </div>
-
-        <div className="p-3 bg-purple-50 rounded-lg">
-          <p className="text-sm font-medium text-purple-700">Leader Earnings</p>
-          <p className="text-lg font-bold text-purple-800 mt-1">
-            {formatCurrency(programFinancials.distribution.leaderAmount)}
-          </p>
-          <p className="text-xs text-purple-600">
-            {programFinancials.distribution.leaderPercentage}% of donations
-          </p>
-        </div>
-      </div>
-    </Card>
-
-    <Card title="Leader Performance" icon={<Users size={20} />}>
-      <div className="h-80 flex justify-center items-center">
-        <Bar data={leaderPerformanceData} options={barChartOptions} />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 mt-6">
-        <div className="p-3 bg-primary-50 rounded-lg">
-          <p className="text-sm font-medium text-primary-700">Total Team Sales</p>
-          <p className="text-lg font-bold text-primary-800 mt-1">
-            {formatCurrency(programFinancials.income.donations)}
-          </p>
-          <p className="text-xs text-primary-600">
-            {Object.keys(leaderSummaries).length} teams
-          </p>
-        </div>
-
-        <div className="p-3 bg-success-50 rounded-lg">
-          <p className="text-sm font-medium text-success-700">Average Per Team</p>
-          <p className="text-lg font-bold text-success-800 mt-1">
-            {formatCurrency(programFinancials.income.donations / Math.max(1, Object.keys(leaderSummaries).length))}
-          </p>
-        </div>
-      </div>
-    </Card>
-  </div>
-)}
+      )}
 
       {viewType === 'detailed' && (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card title="Income Sources" icon={<TrendingUp size={20} />}>
+            <Card title={t('reports.title')} icon={<TrendingUp size={20} />}>
               <div className="space-y-4">
                 <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                   <div className="flex items-center gap-2">
                     <Heart size={16} className="text-green-600" />
-                    <span className="text-sm font-medium text-green-700">Donations</span>
+                    <span className="text-sm font-medium text-green-700">{t('donations.title')}</span>
                   </div>
                   <span className="text-lg font-bold text-green-700">
                     {formatCurrency(programFinancials.income.donations)}
@@ -560,7 +568,7 @@ const ProgramReport: React.FC = () => {
                 <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
                   <div className="flex items-center gap-2">
                     <AlertTriangle size={16} className="text-yellow-600" />
-                    <span className="text-sm font-medium text-yellow-700">Fines</span>
+                    <span className="text-sm font-medium text-yellow-700">{t('charges.fine')}</span>
                   </div>
                   <span className="text-lg font-bold text-yellow-700">
                     {formatCurrency(programFinancials.miscellaneous.fines)}
@@ -568,7 +576,7 @@ const ProgramReport: React.FC = () => {
                 </div>
                 
                 <div className="flex justify-between items-center p-3 bg-primary-50 rounded-lg border-t-2 border-primary-100">
-                  <span className="text-sm font-bold text-primary-700">Total Income</span>
+                  <span className="text-sm font-bold text-primary-700">{t('dashboard.totalRevenue')}</span>
                   <span className="text-xl font-bold text-primary-700">
                     {formatCurrency(programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)}
                   </span>
@@ -576,12 +584,12 @@ const ProgramReport: React.FC = () => {
               </div>
             </Card>
 
-            <Card title="Expense Categories" icon={<TrendingDown size={20} />}>
+            <Card title={t('expenses.title')} icon={<TrendingDown size={20} />}>
               <div className="space-y-4">
                 <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
                   <div className="flex items-center gap-2">
                     <Wallet size={16} className="text-red-600" />
-                    <span className="text-sm font-medium text-red-700">Cash Advances</span>
+                    <span className="text-sm font-medium text-red-700">{t('cashAdvance.title')}</span>
                   </div>
                   <span className="text-lg font-bold text-red-700">
                     {formatCurrency(programFinancials.expenses.advances)}
@@ -591,7 +599,7 @@ const ProgramReport: React.FC = () => {
                 <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
                   <div className="flex items-center gap-2">
                     <Receipt size={16} className="text-orange-600" />
-                    <span className="text-sm font-medium text-orange-700">Program Expenses</span>
+                    <span className="text-sm font-medium text-orange-700">{t('expenses.program')}</span>
                   </div>
                   <span className="text-lg font-bold text-orange-700">
                     {formatCurrency(programFinancials.expenses.programExpenses)}
@@ -599,7 +607,7 @@ const ProgramReport: React.FC = () => {
                 </div>
                 
                 <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg border-t-2 border-red-100">
-                  <span className="text-sm font-bold text-red-700">Total Expenses</span>
+                  <span className="text-sm font-bold text-red-700">{t('expenses.totalExpenses')}</span>
                   <span className="text-xl font-bold text-red-700">
                     {formatCurrency(programFinancials.expenses.totalExpenses)}
                   </span>
@@ -608,26 +616,26 @@ const ProgramReport: React.FC = () => {
             </Card>
           </div>
 
-          <Card title="Program Expenses Detail" icon={<Receipt size={20} />}>
+          <Card title={t('expenses.program')} icon={<Receipt size={20} />}>
             {expenses.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead>
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Date
+                        {t('common.date')}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Category
+                        {t('common.category')}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Description
+                        {t('inventory.description')}
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Amount
+                        {t('common.amount')}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Created By
+                        {t('programSetup.created')}
                       </th>
                     </tr>
                   </thead>
@@ -639,11 +647,11 @@ const ProgramReport: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                           <Badge variant="primary">
-                            {expense.category.charAt(0).toUpperCase() + expense.category.slice(1)}
+                            {t(`expenses.${expense.category}`)}
                           </Badge>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                          {expense.motivo}
+                          {t(`expenses.${expense.motivo}`)}
                           {expense.notes && (
                             <p className="text-xs text-gray-500 mt-1">{expense.notes}</p>
                           )}
@@ -660,7 +668,7 @@ const ProgramReport: React.FC = () => {
                   <tfoot>
                     <tr className="bg-gray-100">
                       <td colSpan={3} className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
-                        Total Program Expenses
+                        {t('expenses.totalExpenses')}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-red-600">
                         {formatCurrency(totalProgramExpenses)}
@@ -672,47 +680,47 @@ const ProgramReport: React.FC = () => {
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-gray-500">No program expenses found</p>
+                <p className="text-gray-500">{t('colporterReport.noData')}</p>
               </div>
             )}
           </Card>
 
-          <Card title="Earnings Distribution" icon={<PieChart size={20} />}>
+          <Card title={t('dashboard.revenueDistribution')} icon={<PieChart size={20} />}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm font-medium text-blue-600">Colporter Earnings</p>
+                <p className="text-sm font-medium text-blue-600">{t('dashboard.revenueDistribution')}</p>
                 <p className="text-2xl font-bold text-blue-700 mt-2">
                   {formatCurrency(programFinancials.distribution.colporterAmount)}
                 </p>
                 <p className="text-xs text-blue-600 mt-1">
-                  {programFinancials.distribution.colporterPercentage}% of donations
+                  {programFinancials.distribution.colporterPercentage}% {t('common.of')} {t('donations.title')}
                 </p>
               </div>
               
               <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <p className="text-sm font-medium text-purple-600">Leader Earnings</p>
+                <p className="text-sm font-medium text-purple-600">{t('dashboard.revenueDistribution')}</p>
                 <p className="text-2xl font-bold text-purple-700 mt-2">
                   {formatCurrency(programFinancials.distribution.leaderAmount)}
                 </p>
                 <p className="text-xs text-purple-600 mt-1">
-                  {programFinancials.distribution.leaderPercentage}% of donations
+                  {programFinancials.distribution.leaderPercentage}% {t('common.of')} {t('donations.title')}
                 </p>
               </div>
               
               <div className="text-center p-4 bg-primary-50 rounded-lg">
-                <p className="text-sm font-medium text-primary-600">Program Profit</p>
+                <p className="text-sm font-medium text-primary-600">{t('dashboard.programSurplus')}</p>
                 <p className="text-2xl font-bold text-primary-700 mt-2">
                   {formatCurrency(programFinancials.netProfit)}
                 </p>
                 <p className="text-xs text-primary-600 mt-1">
-                  {((programFinancials.netProfit / (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) * 100).toFixed(1)}% of total income
+                  {((programFinancials.netProfit / (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) * 100).toFixed(1)}% {t('common.of')} {t('dashboard.totalRevenue')}
                 </p>
               </div>
             </div>
             
             <div className="mt-6 p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">Distribution Breakdown</span>
+                <span className="text-sm font-medium text-gray-700">{t('confirmationStep.distributionSummary')}</span>
                 <span className="text-sm font-medium text-gray-700">100%</span>
               </div>
               
@@ -745,7 +753,7 @@ const ProgramReport: React.FC = () => {
                 <div>
                   <div className="flex items-center">
                     <div className="w-3 h-3 bg-blue-600 rounded-full mr-1"></div>
-                    <span className="text-gray-600">Colporters</span>
+                    <span className="text-gray-600">{t('common.colporters')}</span>
                   </div>
                   <span className="font-medium">{programFinancials.distribution.colporterPercentage}%</span>
                 </div>
@@ -753,7 +761,7 @@ const ProgramReport: React.FC = () => {
                 <div>
                   <div className="flex items-center">
                     <div className="w-3 h-3 bg-purple-600 rounded-full mr-1"></div>
-                    <span className="text-gray-600">Leaders</span>
+                    <span className="text-gray-600">{t('common.leaders')}</span>
                   </div>
                   <span className="font-medium">{programFinancials.distribution.leaderPercentage}%</span>
                 </div>
@@ -761,7 +769,7 @@ const ProgramReport: React.FC = () => {
                 <div>
                   <div className="flex items-center">
                     <div className="w-3 h-3 bg-orange-500 rounded-full mr-1"></div>
-                    <span className="text-gray-600">Program Expenses</span>
+                    <span className="text-gray-600">{t('expenses.program')}</span>
                   </div>
                   <span className="font-medium">{((programFinancials.expenses.programExpenses / (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) * 100).toFixed(1)}%</span>
                 </div>
@@ -769,7 +777,7 @@ const ProgramReport: React.FC = () => {
                 <div>
                   <div className="flex items-center">
                     <div className="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
-                    <span className="text-gray-600">Cash Advances</span>
+                    <span className="text-gray-600">{t('cashAdvance.title')}</span>
                   </div>
                   <span className="font-medium">{((programFinancials.expenses.advances / (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) * 100).toFixed(1)}%</span>
                 </div>
@@ -777,7 +785,7 @@ const ProgramReport: React.FC = () => {
                 <div>
                   <div className="flex items-center">
                     <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
-                    <span className="text-gray-600">Net Profit</span>
+                    <span className="text-gray-600">{t('dashboard.programSurplus')}</span>
                   </div>
                   <span className="font-medium">{((programFinancials.netProfit / (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) * 100).toFixed(1)}%</span>
                 </div>
@@ -785,24 +793,24 @@ const ProgramReport: React.FC = () => {
             </div>
           </Card>
 
-          <Card title="Leader Performance Summary" icon={<Users size={20} />}>
+          <Card title={t('reports.byLeaders')} icon={<Users size={20} />}>
             <div className="p-4 mb-4 bg-purple-50 border border-purple-200 rounded-lg">
               <div className="flex items-start gap-3">
                 <div className="p-2 bg-purple-100 rounded-full">
                   <Users size={20} className="text-purple-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-purple-800">Leader Earnings Distribution</h3>
+                  <h3 className="font-semibold text-purple-800">{t('dashboard.revenueDistribution')}</h3>
                   <p className="text-sm text-purple-700 mt-1">
-                    Leader earnings ({programFinancials.distribution.leaderPercentage}% of total program sales) are distributed <strong>equally</strong> among all leaders, regardless of their individual team performance.
+                    {t('confirmationStep.distributionSummary')} ({programFinancials.distribution.leaderPercentage}% {t('common.of')} {t('reports.programSales')}) {t('reports.byLeaders')} <strong>{t('common.all')}</strong> {t('common.leaders')}, {t('common.regardless')} {t('reports.performance')}.
                   </p>
                   <div className="mt-2 grid grid-cols-2 gap-4">
                     <div className="p-2 bg-white rounded border border-purple-100">
-                      <p className="text-xs text-purple-600">Total Leader Earnings</p>
+                      <p className="text-xs text-purple-600">{t('dashboard.revenueDistribution')}</p>
                       <p className="text-lg font-bold text-purple-800">{formatCurrency(programFinancials.distribution.leaderAmount)}</p>
                     </div>
                     <div className="p-2 bg-white rounded border border-purple-100">
-                      <p className="text-xs text-purple-600">Per Leader ({Object.keys(leaderSummaries).length})</p>
+                      <p className="text-xs text-purple-600">{t('reports.perColporter')} ({Object.keys(leaderSummaries).length})</p>
                       <p className="text-lg font-bold text-purple-800">{formatCurrency(equalLeaderEarnings)}</p>
                     </div>
                   </div>
@@ -815,19 +823,19 @@ const ProgramReport: React.FC = () => {
                 <thead>
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Leader
+                      {t('common.leader')}
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Colporters
+                      {t('common.colporters')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Team Sales
+                      {t('reports.programSales')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Leader Earnings
+                      {t('dashboard.revenueDistribution')}
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      % of Program
+                      % {t('common.of')} {t('common.program')}
                     </th>
                   </tr>
                 </thead>
@@ -857,7 +865,7 @@ const ProgramReport: React.FC = () => {
                 <tfoot>
                   <tr className="bg-gray-100">
                     <td className="px-4 py-3 text-sm font-bold text-gray-900">
-                      TOTALS
+                      {t('common.totals')}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-center font-bold">
                       <Badge variant="primary">{colporterFinancials.length}</Badge>
@@ -877,10 +885,10 @@ const ProgramReport: React.FC = () => {
             </div>
           </Card>
 
-          <Card title="Individual Colporter Performance" icon={<Users size={20} />}>
+          <Card title={t('reports.byColporters')} icon={<Users size={20} />}>
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Showing {filteredColporterFinancials.length} of {colporterFinancials.length} colporters</span>
+                <span className="text-sm text-gray-600">{t('dashboard.showingTransactions')} {filteredColporterFinancials.length} {t('common.of')} {colporterFinancials.length} {t('common.colporters')}</span>
                 {leaderFilter && (
                   <Badge variant="secondary" className="flex items-center gap-1">
                     {leaderFilter}
@@ -899,7 +907,7 @@ const ProgramReport: React.FC = () => {
                 size="sm"
                 leftIcon={<Download size={16} />}
               >
-                Export Data
+                {t('common.export')}
               </Button>
             </div>
             
@@ -908,25 +916,25 @@ const ProgramReport: React.FC = () => {
                 <thead>
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Colporter
+                      {t('common.colporter')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Leader
+                      {t('common.leader')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Donations
+                      {t('donations.title')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Fines
+                      {t('charges.fine')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Charges
+                      {t('charges.title')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Advances
+                      {t('cashAdvance.title')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Earnings
+                      {t('dashboard.revenueDistribution')}
                     </th>
                   </tr>
                 </thead>
@@ -960,7 +968,7 @@ const ProgramReport: React.FC = () => {
                 <tfoot>
                   <tr className="bg-gray-100">
                     <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-900">
-                      TOTALS
+                      {t('common.totals')}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-green-600">
                       {formatCurrency(filteredColporterFinancials.reduce((sum, c) => sum + c.donations, 0))}

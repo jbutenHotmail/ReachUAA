@@ -157,6 +157,7 @@ export const api = {
       ...options, 
       method: 'POST', 
       body: data ? JSON.stringify(data) : undefined 
+      
     }),
 
   put: <T>(endpoint: string, data?: any, options?: Omit<RequestInit, 'method' | 'body'>) => 

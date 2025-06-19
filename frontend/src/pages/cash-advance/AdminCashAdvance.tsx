@@ -1,3 +1,4 @@
+// AdminCashAdvance.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Wallet, Calendar, ChevronDown, X, Edit3, Save, AlertCircle } from 'lucide-react';
@@ -39,7 +40,7 @@ const AdminCashAdvance: React.FC = () => {
   const [localWeeklySales, setLocalWeeklySales] = useState<any>(null);
   const [isCalculatingLocally, setIsCalculatingLocally] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
+  
   useEffect(() => {
     !wasProgramFetched && fetchProgram();
     !werePeopleFetched && fetchPeople();
@@ -69,7 +70,8 @@ const AdminCashAdvance: React.FC = () => {
         // Otherwise fetch from API
         fetchWeeklySales(selectedPerson.id)
           .catch(err => {
-            setError(err.message || 'Failed to fetch weekly sales');
+            setError(t('cashAdvance.errorFetchingSales'));
+            console.error('Error fetching weekly sales:', err);
           });
       }
     }
@@ -173,12 +175,12 @@ const AdminCashAdvance: React.FC = () => {
     setSuccess('');
     
     if (amount < 0) {
-      setError('Amount cannot be negative');
+      setError(t('cashAdvance.negativeAmountError'));
       return;
     }
     
     if (amount > maxAdvanceAmount) {
-      setError(`Amount cannot exceed $${maxAdvanceAmount.toFixed(2)} (${customPercentage}% of weekly sales)`);
+      setError(t('cashAdvance.exceedAmountError'));
       return;
     }
     
@@ -204,13 +206,13 @@ const AdminCashAdvance: React.FC = () => {
       setSuccess('');
       
       if (advanceAmount <= 0 || advanceAmount > maxAdvanceAmount) {
-        setError(`Invalid amount. Must be between $0.01 and $${maxAdvanceAmount.toFixed(2)}`);
+        setError(t('cashAdvance.invalidAmountError'));
         return;
       }
 
       // Check confirmation text
       if (confirmationText.toLowerCase() !== 'confirm' && confirmationText.toLowerCase() !== 'confirmar') {
-        setError('Please type "confirm" or "confirmar" to proceed');
+        setError(t('cashAdvance.confirmationTextError'));
         return;
       }
 
@@ -224,7 +226,7 @@ const AdminCashAdvance: React.FC = () => {
         personType: selectedPerson.personType,
         personName: selectedPerson.name
       });
-      setSuccess(`Cash advance of $${advanceAmount.toFixed(2)} created successfully for ${selectedPerson.name}`);
+      setSuccess(t('cashAdvance.successMessage'));
       
       // Reset form
       setSelectedPerson(null);
@@ -233,7 +235,7 @@ const AdminCashAdvance: React.FC = () => {
       setConfirmationText('');
       setIsEditingPercentage(false);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred');
+      setError(error instanceof Error ? error.message : t('cashAdvance.genericError'));
     }
   };
 
@@ -248,7 +250,7 @@ const AdminCashAdvance: React.FC = () => {
 
   if (isLoading) {
     return (
-      <LoadingScreen message="Creating cash advance..." />
+      <LoadingScreen message={t('cashAdvance.loadingMessage')} />
     );
   }
 
@@ -257,7 +259,7 @@ const AdminCashAdvance: React.FC = () => {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">{t('cashAdvance.title')}</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Create cash advances for colporters and leaders
+          {t('cashAdvance.description')}
         </p>
       </div>
 
@@ -265,7 +267,7 @@ const AdminCashAdvance: React.FC = () => {
         <div className="p-4 bg-success-50 border border-success-200 rounded-lg flex items-start gap-3">
           <AlertCircle className="text-success-500 flex-shrink-0 mt-0.5" size={20} />
           <div className="text-sm text-success-700">
-            <p className="font-medium">Success</p>
+            <p className="font-medium">{t('cashAdvance.success')}</p>
             <p>{success}</p>
           </div>
         </div>
@@ -274,7 +276,7 @@ const AdminCashAdvance: React.FC = () => {
       <Card className="overflow-visible">
         <div className="space-y-4">
           <label className="block text-sm font-medium text-gray-700">
-            Select Person
+            {t('cashAdvance.selectPerson')}
           </label>
           <div className="relative" ref={dropdownRef}>
             <div
@@ -286,7 +288,7 @@ const AdminCashAdvance: React.FC = () => {
               <div className="flex items-center">
                 <input
                   type="text"
-                  placeholder="Search colporter or leader..."
+                  placeholder={t('cashAdvance.searchPlaceholder')}
                   value={personSearch}
                   onChange={(e) => {
                     setPersonSearch(e.target.value);
@@ -320,7 +322,7 @@ const AdminCashAdvance: React.FC = () => {
                         variant={selectedPerson.personType === 'COLPORTER' ? 'primary' : 'success'}
                         size="sm"
                       >
-                        {selectedPerson.personType}
+                        {t(`personForm.${selectedPerson.personType.toLowerCase()}`)}
                       </Badge>
                     </div>
                     <button
@@ -362,14 +364,14 @@ const AdminCashAdvance: React.FC = () => {
                             variant={person.personType === 'COLPORTER' ? 'primary' : 'success'}
                             size="sm"
                           >
-                            {person.personType}
+                            {t(`personForm.${person.personType.toLowerCase()}`)}
                           </Badge>
                         </div>
                       </button>
                     ))
                   ) : (
                     <div className="px-4 py-2 text-sm text-gray-500">
-                      No people found
+                      {t('cashAdvance.noPeopleFound')}
                     </div>
                   )}
                 </div>
@@ -381,13 +383,13 @@ const AdminCashAdvance: React.FC = () => {
 
       {isCalculatingLocally && (
         <div className="flex items-center justify-center h-64">
-          <LoadingScreen message='Calculating...' />
+          <LoadingScreen message={t('cashAdvance.calculatingMessage')} />
         </div>
       )}
 
       {selectedPerson && currentWeekSales && (
         <>
-          <Card title="Weekly Sales" icon={<Calendar size={20} />}>
+          <Card title={t('cashAdvance.weeklySales')} icon={<Calendar size={20} />}>
             <div className="space-y-6">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -400,7 +402,7 @@ const AdminCashAdvance: React.FC = () => {
                             key={date} 
                             className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase"
                           >
-                            <div>{day}</div>
+                            <div>{t(`programSettings.days.${day.toLowerCase()}`)}</div>
                             <div className="text-lg font-bold text-gray-700">{dayNumber}</div>
                           </th>
                         );
@@ -428,7 +430,7 @@ const AdminCashAdvance: React.FC = () => {
                         colSpan={Object.keys(currentWeekSales.dailySales).length} 
                         className="px-4 py-3 text-right text-sm font-medium text-gray-900"
                       >
-                        Total: ${Number(currentWeekSales.totalSales).toFixed(2)}
+                        {t('common.total')}: ${Number(currentWeekSales.totalSales).toFixed(2)}
                       </td>
                     </tr>
                   </tfoot>
@@ -439,7 +441,7 @@ const AdminCashAdvance: React.FC = () => {
               <div className="p-4 bg-primary-50 rounded-lg">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <p className="text-sm font-medium text-primary-600">Cash Advance Limit</p>
+                    <p className="text-sm font-medium text-primary-600">{t('cashAdvance.cashAdvanceLimit')}</p>
                     <div className="flex items-center gap-2 mt-1">
                       {isEditingPercentage ? (
                         <div className="flex items-center gap-2">
@@ -478,7 +480,7 @@ const AdminCashAdvance: React.FC = () => {
                     <p className="text-2xl font-bold text-primary-700">
                       ${maxAdvanceAmount.toFixed(2)}
                     </p>
-                    <p className="text-xs text-primary-600">Maximum available</p>
+                    <p className="text-xs text-primary-600">{t('cashAdvance.maxAvailable')}</p>
                   </div>
                 </div>
                 
@@ -487,9 +489,7 @@ const AdminCashAdvance: React.FC = () => {
                   : (program?.financialConfig?.leader_cash_advance_percentage || 25)) && (
                   <div className="p-3 bg-warning-50 border border-warning-200 rounded-lg">
                     <p className="text-sm text-warning-700">
-                      <strong>Custom Percentage:</strong> You've modified the default {selectedPerson.personType === 'COLPORTER' 
-                        ? (program?.financialConfig?.colporter_cash_advance_percentage || 20) 
-                        : (program?.financialConfig?.leader_cash_advance_percentage || 25)}% limit to {customPercentage}% for this advance.
+                      <strong>{t('cashAdvance.customPercentage')}</strong> {t('cashAdvance.customPercentageWarning')}
                     </p>
                   </div>
                 )}
@@ -497,7 +497,7 @@ const AdminCashAdvance: React.FC = () => {
 
               <div className="space-y-4 pt-4 border-t border-gray-200">
                 <Input
-                  label="Advance Amount"
+                  label={t('cashAdvance.advanceAmount')}
                   type="number"
                   min="0"
                   max={maxAdvanceAmount}
@@ -508,10 +508,10 @@ const AdminCashAdvance: React.FC = () => {
                 />
 
                 <Input
-                  label="Type 'confirm' or 'confirmar' to proceed"
+                  label={t('cashAdvance.confirmationPrompt')}
                   value={confirmationText}
                   onChange={(e) => setConfirmationText(e.target.value)}
-                  placeholder="Type here to confirm..."
+                  placeholder={t('cashAdvance.confirmationPlaceholder')}
                 />
 
                 <Button
@@ -525,7 +525,7 @@ const AdminCashAdvance: React.FC = () => {
                   }
                   fullWidth
                 >
-                  Create Advance
+                  {t('cashAdvance.createAdvance')}
                 </Button>
               </div>
             </div>

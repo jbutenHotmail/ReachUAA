@@ -16,16 +16,16 @@ const InventoryLayout: React.FC = () => {
   }, [location, navigate]);
 
   const tabs = [
-    { path: 'catalog', label: 'Book Catalog', icon: <BookOpen size={18} /> },
-    { path: 'tracking', label: 'Inventory Tracking', icon: <TrendingUp size={18} /> },
+    { path: 'catalog', label: t('inventory.bookCatalog'), icon: <BookOpen size={18} /> },
+    { path: 'tracking', label: t('inventory.inventoryTracking'), icon: <TrendingUp size={18} /> },
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">{t('inventory.title')}</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('inventory.layoutTitle')}</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Manage book catalog and track inventory discrepancies
+          {t('inventory.description')}
         </p>
       </div>
 

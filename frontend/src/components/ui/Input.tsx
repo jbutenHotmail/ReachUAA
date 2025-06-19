@@ -7,7 +7,6 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   fullWidth?: boolean;
-  helperText?: string;
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
@@ -18,6 +17,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       rightIcon ? 'pr-10' : '',
       error ? 'border-danger-300' : 'border-gray-300',
       fullWidth ? 'w-full' : '',
+      'bg-white', // Ensure input has white background
+      'border-2', // Make border thicker for better visibility
+      'py-2', // Add padding
       className
     );
 

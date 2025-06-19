@@ -43,16 +43,13 @@ const Transactions: React.FC = () => {
   }, [location.pathname, activeTab]);
 
   useEffect(() => {
-    // Use the consistent date format
     const formattedDate = formatDateToString(selectedDate);
     console.log('Fetching transactions for date:', formattedDate);
     fetchTransactions(formattedDate);
-    
   }, [fetchTransactions, selectedDate]);
 
   useEffect(() => {
     !werePeopleFetched && fetchPeople();
-
   }, [fetchPeople, werePeopleFetched]);
 
   const navigateDate = (days: number) => {
@@ -66,7 +63,6 @@ const Transactions: React.FC = () => {
   };
 
   // Filter out rejected transactions for leader totals and book counts
-  // IMPORTANT: Only include APPROVED transactions for calculations
   const validTransactions = transactions.filter(t => t.status === 'APPROVED');
 
   const leaderTotals = React.useMemo(() => {
@@ -101,7 +97,6 @@ const Transactions: React.FC = () => {
   const bookTotals = React.useMemo(() => {
     return validTransactions.reduce((acc, transaction) => {
       transaction.books?.forEach(book => {
-        // Use the book's size field if available, otherwise determine by price
         const bookSize = book.size;
         if (bookSize === BookSize.LARGE) {
           acc.large += book.quantity;
@@ -114,19 +109,19 @@ const Transactions: React.FC = () => {
   }, [validTransactions]);
 
   const tabs = [
-    { id: 'finances', label: 'Finances', icon: <DollarSign size={18} />, path: '/transactions/finances' },
-    { id: 'delivered-books', label: 'Delivered Books', icon: <BookText size={18} />, path: '/transactions/delivered-books' },
+    { id: 'finances', label: t('transactions.finances'), icon: <DollarSign size={18} />, path: '/transactions/finances' },
+    { id: 'delivered-books', label: t('transactions.deliveredBooks'), icon: <BookText size={18} />, path: '/transactions/delivered-books' },
   ];
 
   if (isLoading) {
-    return <LoadingScreen message="Loading transactions..." />;
+    return <LoadingScreen message={t('common.loading')} />;
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:justify-between sm:items-start">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('dashboard.dailyTransactions')}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('transactions.title')}</h1>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2">
             <div className="flex items-center bg-white rounded-lg shadow-sm border border-gray-200">
               <Button
@@ -166,7 +161,7 @@ const Transactions: React.FC = () => {
               onClick={goToToday}
               className="w-full sm:w-auto"
             >
-              Today
+              {t('transactions.today')}
             </Button>
           </div>
         </div>
@@ -178,7 +173,7 @@ const Transactions: React.FC = () => {
               onChange={(e) => setSelectedLeader(e.target.value)}
               className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
             >
-              <option value="">{t('common.all')} {t('common.leader').toLowerCase()}s</option>
+              <option value="">{t('common.all')} {t('common.leader')}s</option>
               {leaderTotals.map(leader => (
                 <option key={leader.id} value={leader.id}>
                   {leader.name}
@@ -193,7 +188,7 @@ const Transactions: React.FC = () => {
             onClick={() => navigate('/transactions/new')}
             className="w-full sm:w-auto"
           >
-            New Transaction
+            {t('transactions.newTransaction')}
           </Button>
         </div>
       </div>
@@ -227,28 +222,26 @@ const Transactions: React.FC = () => {
             />
           ) : (
             <Card>
-              {/* Books view */}
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead>
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0">
-                        Colporter
+                        {t('transactions.colporter')}
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-primary-700">
-                        Large Books
+                        {t('transactions.largeBooks')}
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-success-600">
-                        Small Books
+                        {t('transactions.smallBooks')}
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85]">
-                        Total Books
+                        {t('transactions.totalBooks')}
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {validTransactions.map((transaction, index) => {
-                      // Calculate book counts for this transaction
                       const largeBooks = transaction.books?.reduce((sum, book) => {
                         const bookSize = book.size;
                         return sum + (bookSize === BookSize.LARGE ? book.quantity : 0);
@@ -283,7 +276,7 @@ const Transactions: React.FC = () => {
                     })}
                     <tr>
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-white bg-[#0052B4] sticky left-0">
-                        TOTALES
+                        {t('common.totals')}
                       </td>
                       <td className="px-4 py-3 text-center bg-primary-900 text-white">
                         <Badge variant="primary" className="bg-white">
@@ -321,7 +314,7 @@ const Transactions: React.FC = () => {
                       <div className="min-w-0">
                         <span className="text-sm font-medium text-primary-700 block truncate">{leader.name}</span>
                         <span className="text-xs text-primary-600 block">
-                          {leader.transactions} {t('dashboard.dailyTransactions').toLowerCase()}
+                          {leader.transactions} {t('transactions.transactionsCount')}
                         </span>
                       </div>
                       <Badge variant="primary" size="lg" className="ml-2 flex-shrink-0">
@@ -340,15 +333,15 @@ const Transactions: React.FC = () => {
               ) : (
                 <>
                   <div className="flex justify-between items-center p-3 bg-primary-50 rounded-lg">
-                    <span className="text-sm font-medium text-primary-700">Large Books</span>
+                    <span className="text-sm font-medium text-primary-700">{t('transactions.largeBooks')}</span>
                     <Badge variant="primary" size="lg">{bookTotals.large}</Badge>
                   </div>
                   <div className="flex justify-between items-center p-3 bg-success-50 rounded-lg">
-                    <span className="text-sm font-medium text-success-700">Small Books</span>
+                    <span className="text-sm font-medium text-success-700">{t('transactions.smallBooks')}</span>
                     <Badge variant="success" size="lg">{bookTotals.small}</Badge>
                   </div>
                   <div className="flex justify-between items-center p-3 bg-[#0052B4] rounded-lg border-t-2 border-[#003D85]">
-                    <span className="text-sm font-medium text-white">Total Books</span>
+                    <span className="text-sm font-medium text-white">{t('transactions.totalBooks')}</span>
                     <Badge variant="primary" size="lg" className="bg-white text-[#0052B4]">
                       {bookTotals.large + bookTotals.small}
                     </Badge>

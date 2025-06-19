@@ -16,7 +16,7 @@ const ExpenseLayout: React.FC = () => {
   }, [location, navigate]);
 
   const tabs = [
-    { path: 'all', label: 'All', icon: <LayoutGrid size={18} /> },
+    { path: 'all', label: t('common.all'), icon: <LayoutGrid size={18} /> },
     { path: 'food', label: t('expenses.food'), icon: <Utensils size={18} /> },
     { path: 'health', label: t('expenses.health'), icon: <FirstAid size={18} /> },
     { path: 'supplies', label: t('expenses.supplies'), icon: <ShoppingBag size={18} /> },
@@ -27,10 +27,8 @@ const ExpenseLayout: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">{t('navigation.expenses')}</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Manage and track all program expenses
-        </p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('expenses.title')}</h1>
+        <p className="mt-1 text-sm text-gray-500">{t('expenses.description')}</p>
       </div>
 
       <div className="border-b border-gray-200">

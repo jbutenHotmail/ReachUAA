@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BookText, Heart, Calendar, UserCog, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import SummerReport from '../../components/reports/SummerReport';
 import SummerBooksReport from '../../components/reports/SummerBooksReport';
 import Card from '../../components/ui/Card';
@@ -12,6 +13,7 @@ import LoadingScreen from '../../components/ui/LoadingScreen';
 type TimePeriod = 'day' | 'week' | 'month' | 'all';
 
 const DonationsReport: React.FC = () => {
+  const { t } = useTranslation();
   const [showColporters, setShowColporters] = useState(true);
   const [showLeaders, setShowLeaders] = useState(false);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
@@ -61,18 +63,15 @@ const DonationsReport: React.FC = () => {
   };
 
   const tabs = [
-    { id: 'finances', label: 'Donations', icon: <Heart size={18} />, path: '/reports/donations/finances' },
-    { id: 'delivered-books', label: 'Delivered Books', icon: <BookText size={18} />, path: '/reports/donations/delivered-books' },
+    { id: 'finances', label: t('donationsReport.donations'), icon: <Heart size={18} />, path: '/reports/donations/finances' },
+    { id: 'delivered-books', label: t('reports.deliveredBooks'), icon: <BookText size={18} />, path: '/reports/donations/delivered-books' },
   ];
 
-  // Filter transactions based on selected time period
-  // IMPORTANT: Only include APPROVED transactions
   const getFilteredTransactions = () => {
     if (!transactions || transactions.length === 0) {
       return [];
     }
     
-    // First filter to only include APPROVED transactions
     const approvedTransactions = transactions.filter(t => t.status === 'APPROVED');
     
     if (timePeriod === 'all') {
@@ -89,13 +88,11 @@ const DonationsReport: React.FC = () => {
       if (timePeriod === 'day') {
         return transactionDate.getTime() === today.getTime();
       } else if (timePeriod === 'week') {
-        // Get start of week (Sunday)
         const startOfWeek = new Date(today);
-        const day = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
-        startOfWeek.setDate(today.getDate() - day); // Go back to Sunday
+        const day = today.getDay();
+        startOfWeek.setDate(today.getDate() - day);
         startOfWeek.setHours(0, 0, 0, 0);
         
-        // Get end of week (Saturday)
         const endOfWeek = new Date(startOfWeek);
         endOfWeek.setDate(startOfWeek.getDate() + 6);
         endOfWeek.setHours(23, 59, 59, 999);
@@ -110,11 +107,9 @@ const DonationsReport: React.FC = () => {
     });
   };
 
-  // Transform transaction data into the format expected by the reports
   const transformTransactionsToSalesData = () => {
     const filteredTransactions = getFilteredTransactions();
     
-    // Group transactions by colporter
     const colporterMap = new Map();
     
     filteredTransactions.forEach(transaction => {
@@ -129,7 +124,6 @@ const DonationsReport: React.FC = () => {
       
       const colporterData = colporterMap.get(transaction.studentId);
       
-      // Initialize the date if it doesn't exist
       if (!colporterData.dailySales[transaction.date]) {
         colporterData.dailySales[transaction.date] = 0;
       }
@@ -144,7 +138,6 @@ const DonationsReport: React.FC = () => {
   const transformTransactionsToBookData = () => {
     const filteredTransactions = getFilteredTransactions();
     
-    // Group transactions by colporter
     const colporterMap = new Map();
     
     filteredTransactions.forEach(transaction => {
@@ -159,15 +152,12 @@ const DonationsReport: React.FC = () => {
       
       const colporterData = colporterMap.get(transaction.studentId);
       
-      // Process books for this transaction
       if (transaction.books && transaction.books.length > 0) {
-        // Initialize the date if it doesn't exist
         if (!colporterData.dailyBooks[transaction.date]) {
           colporterData.dailyBooks[transaction.date] = { large: 0, small: 0 };
         }
         
         transaction.books.forEach(book => {
-          
           if (book.size === 'LARGE') {
             colporterData.dailyBooks[transaction.date].large += book.quantity;
             colporterData.totalBooks.large += book.quantity;
@@ -184,7 +174,7 @@ const DonationsReport: React.FC = () => {
 
   const formatDateRange = () => {
     if (timePeriod === 'all') {
-      return 'Complete Program (May 1 - August 31, 2025)';
+      return t('donationsReport.completeProgram');
     }
     
     const startDate = selectedDate;
@@ -197,12 +187,10 @@ const DonationsReport: React.FC = () => {
         day: 'numeric'
       });
     } else if (timePeriod === 'week') {
-      // Get start of week (Sunday)
-      const day = startDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      const day = startDate.getDay();
       const sunday = new Date(startDate);
-      sunday.setDate(startDate.getDate() - day); // Go back to Sunday
+      sunday.setDate(startDate.getDate() - day);
       
-      // Get end of week (Saturday)
       const saturday = new Date(sunday);
       saturday.setDate(sunday.getDate() + 6);
       
@@ -219,7 +207,7 @@ const DonationsReport: React.FC = () => {
 
   if (isLoading) {
     return (
-      <LoadingScreen message="Loading donation report..." />
+      <LoadingScreen message={t('donationsReport.loading')} />
     );
   }
 
@@ -227,7 +215,7 @@ const DonationsReport: React.FC = () => {
     return (
       <Card>
         <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
-          <p className="font-medium">Error loading report data</p>
+          <p className="font-medium">{t('common.error')}</p>
           <p>{error}</p>
         </div>
       </Card>
@@ -240,7 +228,7 @@ const DonationsReport: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Heart className="text-red-500" size={28} />
-            Donations Report
+            {t('donationsReport.title')}
           </h1>
           <div className="flex items-center gap-2 mt-2">
             <Calendar size={16} className="text-gray-500" />
@@ -251,7 +239,6 @@ const DonationsReport: React.FC = () => {
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          {/* Time Period Selector */}
           <Card className="p-0 shadow-sm">
             <div className="flex items-center divide-x">
               {(['day', 'week', 'month', 'all'] as TimePeriod[]).map((period) => (
@@ -265,13 +252,12 @@ const DonationsReport: React.FC = () => {
                       : 'bg-white text-gray-600 hover:bg-gray-50'
                   )}
                 >
-                  {period.charAt(0).toUpperCase() + period.slice(1)}
+                  {t(`donationsReport.${period}`)}
                 </button>
               ))}
             </div>
           </Card>
           
-          {/* Date Navigation (only show when not viewing all) */}
           {timePeriod !== 'all' && (
             <div className="flex items-center bg-white rounded-lg shadow-sm border border-gray-200">
               <Button
@@ -287,7 +273,7 @@ const DonationsReport: React.FC = () => {
                 <Calendar size={16} className="text-gray-500" />
                 <span className="text-sm font-medium">
                   {timePeriod === 'day' && selectedDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
-                  {timePeriod === 'week' && `Week of ${selectedDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}`}
+                  {timePeriod === 'week' && t('donationsReport.weekOf', { date: selectedDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) })}
                   {timePeriod === 'month' && selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                 </span>
               </div>
@@ -303,14 +289,13 @@ const DonationsReport: React.FC = () => {
             </div>
           )}
           
-          {/* Grouping Toggle */}
           <Button
             variant="outline"
             size="sm"
             onClick={handleToggleGrouping}
             leftIcon={showLeaders ? <Users size={16} /> : <UserCog size={16} />}
           >
-            {showLeaders ? 'By Colporters' : 'By Leaders'}
+            {showLeaders ? t('donationsReport.byColporters') : t('donationsReport.byLeaders')}
           </Button>
         </div>
       </div>

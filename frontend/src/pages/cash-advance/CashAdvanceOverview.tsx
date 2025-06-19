@@ -1,3 +1,4 @@
+// CashAdvanceOverview.tsx
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
@@ -50,10 +51,10 @@ const CashAdvanceOverview: React.FC = () => {
     setActionSuccess(null);
     try {
       await approveAdvance(id);
-      setActionSuccess('Cash advance approved successfully');
+      setActionSuccess(t('cashAdvance.successApproved'));
       setTimeout(() => setActionSuccess(null), 3000);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'Failed to approve cash advance');
+      setActionError(error instanceof Error ? error.message : t('cashAdvance.errorApprove'));
     } finally {
       setActionLoading(false);
     }
@@ -67,10 +68,10 @@ const CashAdvanceOverview: React.FC = () => {
     setActionSuccess(null);
     try {
       await rejectAdvance(id);
-      setActionSuccess('Cash advance rejected successfully');
+      setActionSuccess(t('cashAdvance.successRejected'));
       setTimeout(() => setActionSuccess(null), 3000);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'Failed to reject cash advance');
+      setActionError(error instanceof Error ? error.message : t('cashAdvance.errorReject'));
     } finally {
       setActionLoading(false);
     }
@@ -140,14 +141,14 @@ const CashAdvanceOverview: React.FC = () => {
 
   if (isLoading) {
     return (
-      <LoadingScreen message="Loading cash advances..." />
+      <LoadingScreen message={t('cashAdvance.loading')} />
     );
   }
 
   if (error) {
     return (
       <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
-        <p className="font-medium">Error loading cash advances</p>
+        <p className="font-medium">{t('cashAdvance.errorLoading')}</p>
         <p>{error}</p>
       </div>
     );
@@ -163,7 +164,7 @@ const CashAdvanceOverview: React.FC = () => {
 
       {actionError && (
         <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
-          <p className="font-medium">Error</p>
+          <p className="font-medium">{t('cashAdvance.error')}</p>
           <p>{actionError}</p>
         </div>
       )}
@@ -172,7 +173,7 @@ const CashAdvanceOverview: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <div className="text-center">
-            <p className="text-sm font-medium text-gray-500">Total Advances (Approved + Pending)</p>
+            <p className="text-sm font-medium text-gray-500">{t('cashAdvance.totalAdvances')}</p>
             <p className="mt-2 text-2xl font-bold text-gray-900">{totals.total.count}</p>
             <p className="text-lg font-semibold text-gray-700">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totals.total.amount)}</p>
           </div>
@@ -180,7 +181,7 @@ const CashAdvanceOverview: React.FC = () => {
         
         <Card>
           <div className="text-center">
-            <p className="text-sm font-medium text-gray-500">Pending</p>
+            <p className="text-sm font-medium text-gray-500">{t('cashAdvance.pending')}</p>
             <p className="mt-2 text-2xl font-bold text-warning-600">{totals.pending.count}</p>
             <p className="text-lg font-semibold text-warning-700">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totals.pending.amount)}</p>
           </div>
@@ -188,7 +189,7 @@ const CashAdvanceOverview: React.FC = () => {
         
         <Card>
           <div className="text-center">
-            <p className="text-sm font-medium text-gray-500">Approved</p>
+            <p className="text-sm font-medium text-gray-500">{t('cashAdvance.approved')}</p>
             <p className="mt-2 text-2xl font-bold text-success-600">{totals.approved.count}</p>
             <p className="text-lg font-semibold text-success-700">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totals.approved.amount)}</p>
           </div>
@@ -196,7 +197,7 @@ const CashAdvanceOverview: React.FC = () => {
         
         <Card>
           <div className="text-center">
-            <p className="text-sm font-medium text-gray-500">Rejected</p>
+            <p className="text-sm font-medium text-gray-500">{t('cashAdvance.rejected')}</p>
             <p className="mt-2 text-2xl font-bold text-danger-600">{totals.rejected.count}</p>
             <p className="text-lg font-semibold text-danger-700">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totals.rejected.amount)}</p>
           </div>
@@ -210,7 +211,7 @@ const CashAdvanceOverview: React.FC = () => {
           leftIcon={<Filter size={16} />}
           onClick={() => setShowFilters(!showFilters)}
         >
-          {showFilters ? 'Hide Filters' : 'Show Filters'}
+          {showFilters ? t('cashAdvance.hideFilters') : t('cashAdvance.showFilters')}
         </Button>
         
         {(statusFilter || personTypeFilter || weekFilter) && (
@@ -219,7 +220,7 @@ const CashAdvanceOverview: React.FC = () => {
             size="sm"
             onClick={clearFilters}
           >
-            Clear Filters
+            {t('cashAdvance.clearFilters')}
           </Button>
         )}
       </div>
@@ -229,48 +230,48 @@ const CashAdvanceOverview: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
+                {t('cashAdvance.status')}
               </label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm py-2"
               >
-                <option value="">All Statuses</option>
-                <option value="PENDING">Pending</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
+                <option value="">{t('cashAdvance.allStatuses')}</option>
+                <option value="PENDING">{t('cashAdvance.pending')}</option>
+                <option value="APPROVED">{t('cashAdvance.approved')}</option>
+                <option value="REJECTED">{t('cashAdvance.rejected')}</option>
               </select>
             </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Person Type
+                {t('cashAdvance.personType')}
               </label>
               <select
                 value={personTypeFilter}
                 onChange={(e) => setPersonTypeFilter(e.target.value)}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm py-2"
               >
-                <option value="">All Types</option>
-                <option value="COLPORTER">Colporters</option>
-                <option value="LEADER">Leaders</option>
+                <option value="">{t('cashAdvance.allTypes')}</option>
+                <option value="COLPORTER">{t('cashAdvance.colporter')}</option>
+                <option value="LEADER">{t('cashAdvance.leader')}</option>
               </select>
             </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Week
+                {t('cashAdvance.week')}
               </label>
               <select
                 value={weekFilter}
                 onChange={(e) => setWeekFilter(e.target.value)}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm py-2"
               >
-                <option value="">All Weeks</option>
+                <option value="">{t('cashAdvance.allWeeks')}</option>
                 {uniqueWeeks.map(week => (
                   <option key={week} value={week}>
-                    Week of {new Date(week).toLocaleDateString()}
+                    {t('cashAdvance.weekOf')} {new Date(week).toLocaleDateString()}
                   </option>
                 ))}
               </select>
@@ -291,26 +292,26 @@ const CashAdvanceOverview: React.FC = () => {
                 <thead>
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('common.student')}
+                      {t('cashAdvance.student')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Week
+                      {t('cashAdvance.week')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Weekly Sales
+                      {t('cashAdvance.weeklySales')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Advance Amount
+                      {t('cashAdvance.advanceAmount')}
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
+                      {t('cashAdvance.status')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Request Date
+                      {t('cashAdvance.requestDate')}
                     </th>
                     {isAdmin && (
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
+                        {t('cashAdvance.actions')}
                       </th>
                     )}
                   </tr>
@@ -329,7 +330,7 @@ const CashAdvanceOverview: React.FC = () => {
                             variant={advance.personType === 'COLPORTER' ? 'primary' : 'success'} 
                             size="sm"
                           >
-                            {advance.personType}
+                            {t(`cashAdvance.${advance.personType.toLowerCase()}`)}
                           </Badge>
                         </div>
                       </td>
@@ -399,7 +400,7 @@ const CashAdvanceOverview: React.FC = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-semibold text-gray-900">
-                    Cash Advance Details
+                    {t('cashAdvance.detailsTitle')}
                   </h2>
                   <button
                     type="button"
@@ -412,42 +413,42 @@ const CashAdvanceOverview: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Person</p>
+                    <p className="text-sm font-medium text-gray-500">{t('cashAdvance.person')}</p>
                     <p className="font-medium">{selectedAdvance.personName}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Type</p>
+                    <p className="text-sm font-medium text-gray-500">{t('cashAdvance.type')}</p>
                     <Badge 
                       variant={selectedAdvance.personType === 'COLPORTER' ? 'primary' : 'success'}
                     >
-                      {selectedAdvance.personType}
+                      {t(`cashAdvance.${selectedAdvance.personType.toLowerCase()}`)}
                     </Badge>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Week</p>
+                    <p className="text-sm font-medium text-gray-500">{t('cashAdvance.week')}</p>
                     <p className="font-medium">
                       {new Date(selectedAdvance.weekStartDate).toLocaleDateString()} - {new Date(selectedAdvance.weekEndDate).toLocaleDateString()}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Status</p>
+                    <p className="text-sm font-medium text-gray-500">{t('cashAdvance.status')}</p>
                     {getStatusBadge(selectedAdvance.status)}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Weekly Sales</p>
+                    <p className="text-sm font-medium text-gray-500">{t('cashAdvance.weeklySales')}</p>
                     <p className="font-medium">${selectedAdvance.totalSales.toFixed(2)}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Advance Amount</p>
+                    <p className="text-sm font-medium text-gray-500">{t('cashAdvance.advanceAmount')}</p>
                     <p className="font-medium">${selectedAdvance.advanceAmount.toFixed(2)}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Request Date</p>
+                    <p className="text-sm font-medium text-gray-500">{t('cashAdvance.requestDate')}</p>
                     <p className="font-medium">{new Date(selectedAdvance.requestDate).toLocaleDateString()}</p>
                   </div>
                   {selectedAdvance.approvedDate && (
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Approved Date</p>
+                      <p className="text-sm font-medium text-gray-500">{t('cashAdvance.approvedDate')}</p>
                       <p className="font-medium">{new Date(selectedAdvance.approvedDate).toLocaleDateString()}</p>
                     </div>
                   )}
@@ -459,7 +460,7 @@ const CashAdvanceOverview: React.FC = () => {
                       variant="outline"
                       onClick={() => setSelectedAdvance(null)}
                     >
-                      Close
+                      {t('cashAdvance.close')}
                     </Button>
                     <Button
                       variant="success"
@@ -469,7 +470,7 @@ const CashAdvanceOverview: React.FC = () => {
                       }}
                       disabled={actionLoading}
                     >
-                      Approve
+                      {t('cashAdvance.approve')}
                     </Button>
                     <Button
                       variant="danger"
@@ -479,7 +480,7 @@ const CashAdvanceOverview: React.FC = () => {
                       }}
                       disabled={actionLoading}
                     >
-                      Reject
+                      {t('cashAdvance.reject')}
                     </Button>
                   </div>
                 )}
@@ -490,7 +491,7 @@ const CashAdvanceOverview: React.FC = () => {
                       variant="outline"
                       onClick={() => setSelectedAdvance(null)}
                     >
-                      Close
+                      {t('cashAdvance.close')}
                     </Button>
                   </div>
                 )}

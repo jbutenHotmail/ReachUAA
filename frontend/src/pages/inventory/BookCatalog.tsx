@@ -1,3 +1,4 @@
+// BookCatalog.tsx
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Search, Package, Edit, DollarSign, AlertTriangle, X, CheckCircle } from 'lucide-react';
@@ -21,7 +22,6 @@ const BookCatalog: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
   const { books, isLoading, fetchBooks, createBook, updateBook, 
-    // deleteBook, 
     toggleBookStatus, wereBooksLoaded } = useInventoryStore();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -31,6 +31,7 @@ const BookCatalog: React.FC = () => {
     book: null,
     action: 'deactivate'
   });
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (!wereBooksLoaded) {
@@ -56,6 +57,8 @@ const BookCatalog: React.FC = () => {
     try {
       await createBook(data);
       setShowAddForm(false);
+      setSuccess(t('inventory.successCreated'));
+      setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
       console.error('Error creating book:', error);
     }
@@ -66,25 +69,16 @@ const BookCatalog: React.FC = () => {
     try {
       await updateBook(editingBook.id, data);
       setEditingBook(null);
+      setSuccess(t('inventory.successUpdated'));
+      setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
       console.error('Error updating book:', error);
     }
   };
 
-  // const handleDeleteBook = async (id: string) => {
-  //   if (!window.confirm('Are you sure you want to delete this book?')) return;
-  //   try {
-  //     await deleteBook(id);
-  //   } catch (error) {
-  //     console.error('Error deleting book:', error);
-  //   }
-  // };
-
   const handleStatusToggle = (book: Book) => {
-    // Only allow admins to toggle book status
     if (!canToggleBookStatus) return;
     
-
     const action = book.is_active ? 'deactivate' : 'activate';
     setConfirmationModal({
       isOpen: true,
@@ -94,12 +88,13 @@ const BookCatalog: React.FC = () => {
   };
 
   const confirmStatusToggle = async () => {
-    console.log(confirmationModal.book)
     if (!confirmationModal.book) return;
     
     try {
       await toggleBookStatus(confirmationModal.book.id);
       setConfirmationModal({ isOpen: false, book: null, action: 'deactivate' });
+      setSuccess(t(`inventory.success${confirmationModal.action === 'activate' ? 'Activated' : 'Deactivated'}`));
+      setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
       console.error('Error toggling book status:', error);
     }
@@ -117,17 +112,27 @@ const BookCatalog: React.FC = () => {
         variant={size === BookSize.LARGE ? "primary" : "success"}
         size="sm"
       >
-        {size === BookSize.LARGE ? "Large" : "Small"}
+        {t(`inventory.size.${size.toLowerCase()}`)}
       </Badge>
     );
   };
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {success && (
+        <div className="p-4 bg-success-50 border border-success-200 rounded-lg text-success-700">
+          <p className="font-medium">{success}</p>
+        </div>
+      )}
+
       <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
         <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Package className="text-primary-600" size={28} />
+            {t('inventory.title')}
+          </h1>
           <p className="text-gray-600 mt-1 text-sm">
-            {t('inventory.books')}: {books.length} ({books.filter(b => b.is_active).length} active, {books.filter(b => !b.is_active).length} inactive)
+            {t('inventory.books')}: {books.length} ({books.filter(b => b.is_active).length} {t('inventory.active')}, {books.filter(b => !b.is_active).length} {t('inventory.inactive')})
           </p>
         </div>
         
@@ -137,7 +142,7 @@ const BookCatalog: React.FC = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             leftIcon={<Search size={18} />}
-            className="w-full sm:w-64"
+            className="w-full sm:w-64 py-2"
           />
           
           {canAddBooks && (
@@ -147,7 +152,7 @@ const BookCatalog: React.FC = () => {
               onClick={() => setShowAddForm(true)}
               className="w-full sm:w-auto"
             >
-              {t('inventory.addBook')}
+              {t('inventory.add')}
             </Button>
           )}
         </div>
@@ -155,7 +160,7 @@ const BookCatalog: React.FC = () => {
 
       {isLoading && books.length === 0 ? (
         <div className="flex items-center justify-center h-64">
-          <LoadingScreen message='Loading books...' />
+          <LoadingScreen message={t('inventory.loading')} />
         </div>
       ) : filteredBooks.length > 0 ? (
         <Card>
@@ -182,7 +187,7 @@ const BookCatalog: React.FC = () => {
                         <h3 className="text-sm font-medium text-gray-900 truncate">
                           {book.title}
                           {!book.is_active && (
-                            <span className="ml-2 text-xs text-red-500 font-normal">(Inactive)</span>
+                            <span className="ml-2 text-xs text-red-500 font-normal">({t('inventory.inactive')})</span>
                           )}
                         </h3>
                         <p className="text-xs text-gray-500">{book.author}</p>
@@ -191,7 +196,7 @@ const BookCatalog: React.FC = () => {
                       <div className="flex items-center space-x-2 ml-2">
                         <DollarSign size={14} className="text-gray-400" />
                         <span className="text-sm font-semibold text-gray-900">
-                          {Number(book.price).toFixed(2)}
+                         {Number(book.stock).toFixed(2)}
                         </span>
                       </div>
                     </div>
@@ -199,14 +204,14 @@ const BookCatalog: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <Badge variant="primary" size="sm">
-                          {book.category}
+                          {t(`category.${book.category.toLowerCase()}`)}
                         </Badge>
                         {getBookSizeBadge(book)}
                         <Badge 
                           variant={book.stock > 10 ? "success" : book.stock > 0 ? "warning" : "danger"}
                           size="sm"
                         >
-                          Stock: {book.stock}
+                          {t('inventory.stock')}: ${book.stock}
                         </Badge>
                       </div>
                       
@@ -226,7 +231,7 @@ const BookCatalog: React.FC = () => {
                             variant={book.is_active ? "success" : "danger"}
                             size="sm"
                           >
-                            {book.is_active ? 'Active' : 'Inactive'}
+                            {t(`inventory.${book.is_active ? 'active' : 'inactive'}`)}
                           </Badge>
                         )}
                         
@@ -253,32 +258,32 @@ const BookCatalog: React.FC = () => {
               <thead>
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Book
+                    {t('inventory.book')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Author
+                    {t('inventory.author')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
+                    {t('inventory.category')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Size
+                    {t('inventory.size.size')}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Price
+                    {t('inventory.price')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Stock
+                    {t('inventory.stock')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Sold
+                    {t('inventory.sold')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    {t('inventory.status')}
                   </th>
                   {canAddBooks && (
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
+                      {t('inventory.actions')}
                     </th>
                   )}
                 </tr>
@@ -304,7 +309,7 @@ const BookCatalog: React.FC = () => {
                           <div className="text-sm font-medium text-gray-900 truncate max-w-xs">
                             {book.title}
                             {!book.is_active && (
-                              <span className="ml-2 text-xs text-red-500 font-normal">(Inactive)</span>
+                              <span className="ml-2 text-xs text-red-500 font-normal">({t('inventory.inactive')})</span>
                             )}
                           </div>
                           <div className="text-xs text-gray-500">
@@ -318,7 +323,7 @@ const BookCatalog: React.FC = () => {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
                       <Badge variant="primary" size="sm">
-                        {book.category}
+                        {t(`category.${book.category.toLowerCase()}`)}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
@@ -328,7 +333,7 @@ const BookCatalog: React.FC = () => {
                       <div className="flex items-center justify-end">
                         <DollarSign size={14} className="text-gray-400 mr-1" />
                         <span className="text-sm font-semibold text-gray-900">
-                          {Number(book.price).toFixed(2)}
+                          {Number(book.stock).toFixed(2)}
                         </span>
                       </div>
                     </td>
@@ -337,12 +342,12 @@ const BookCatalog: React.FC = () => {
                         variant={book.stock > 10 ? "success" : book.stock > 0 ? "warning" : "danger"}
                         size="sm"
                       >
-                        {book.stock}
+                       {book.stock}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
                       <Badge variant="primary" size="sm">
-                        {book.sold}
+                       {book.sold}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
@@ -361,7 +366,7 @@ const BookCatalog: React.FC = () => {
                           variant={book.is_active ? "success" : "danger"}
                           size="sm"
                         >
-                          {book.is_active ? 'Active' : 'Inactive'}
+                          {t(`inventory.${book.is_active ? 'active' : 'inactive'}`)}
                         </Badge>
                       )}
                     </td>
@@ -391,10 +396,10 @@ const BookCatalog: React.FC = () => {
             <Package size={48} />
           </div>
           <h3 className="mt-2 text-lg font-medium text-gray-900">
-            {searchTerm ? 'No results found' : 'No books in inventory'}
+            {searchTerm ? t('inventory.noResults') : t('inventory.noBooks')}
           </h3>
           <p className="mt-1 text-sm text-gray-500">
-            {searchTerm ? 'Try adjusting your search terms' : 'Get started by adding a new book.'}
+            {searchTerm ? t('inventory.adjustSearch') : t('inventory.startAdd')}
           </p>
           {canAddBooks && (
             <div className="mt-6">
@@ -404,7 +409,7 @@ const BookCatalog: React.FC = () => {
                 leftIcon={<Plus size={18} />}
                 onClick={() => setShowAddForm(true)}
               >
-                {t('inventory.addBook')}
+                {t('inventory.add')}
               </Button>
             </div>
           )}
@@ -420,26 +425,25 @@ const BookCatalog: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <AlertTriangle className="text-warning-500" size={24} />
                   <h3 className="text-lg font-semibold text-gray-900">
-                    {confirmationModal.action === 'deactivate' ? 'Deactivate Book' : 'Activate Book'}
+                    {t(`inventory.${confirmationModal.action}Book`)}
                   </h3>
                 </div>
                 
                 <div className="space-y-3">
                   <p className="text-sm text-gray-600">
-                    You are about to <strong>{confirmationModal.action}</strong> the book:{' '}
-                    <strong>"{confirmationModal.book.title}"</strong>
+                    {t('inventory.confirmAction')} "${confirmationModal.book.title}"
                   </p>
                   
                   {confirmationModal.action === 'deactivate' && (
                     <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg">
                       <p className="text-sm text-warning-700">
-                        <strong>⚠️ Important:</strong> If you deactivate this book:
+                        <strong>{t('inventory.warning')}:</strong> ${t('inventory.deactivateWarning')}
                       </p>
                       <ul className="mt-2 text-sm text-warning-700 list-disc list-inside space-y-1">
-                        <li>It will <strong>NOT be counted</strong> in statistics and reports</li>
-                        <li>It will <strong>NOT be available</strong> for selection in new transactions</li>
-                        <li>Inventory tracking will be <strong>disabled</strong> while inactive</li>
-                        <li>Existing transaction data will be preserved but excluded from calculations</li>
+                        <li>{t('inventory.deactivateImpact1')}</li>
+                        <li>{t('inventory.deactivateImpact2')}</li>
+                        <li>{t('inventory.deactivateImpact3')}</li>
+                        <li>{t('inventory.deactivateImpact4')}</li>
                       </ul>
                     </div>
                   )}
@@ -447,13 +451,13 @@ const BookCatalog: React.FC = () => {
                   {confirmationModal.action === 'activate' && (
                     <div className="p-4 bg-success-50 border border-success-200 rounded-lg">
                       <p className="text-sm text-success-700">
-                        <strong>✅ Activating this book will:</strong>
+                        <strong>{t('inventory.activateInfo')}:</strong>
                       </p>
                       <ul className="mt-2 text-sm text-success-700 list-disc list-inside space-y-1">
-                        <li>Include it in statistics and reports</li>
-                        <li>Make it available for selection in new transactions</li>
-                        <li>Enable inventory tracking</li>
-                        <li>Restore its visibility in the system</li>
+                        <li>{t('inventory.activateImpact1')}</li>
+                        <li>{t('inventory.activateImpact2')}</li>
+                        <li>{t('inventory.activateImpact3')}</li>
+                        <li>{t('inventory.activateImpact4')}</li>
                       </ul>
                     </div>
                   )}
@@ -466,7 +470,7 @@ const BookCatalog: React.FC = () => {
                     leftIcon={<X size={16} />}
                     className="w-full sm:w-auto"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </Button>
                   <Button
                     variant={confirmationModal.action === 'deactivate' ? 'danger' : 'success'}
@@ -474,7 +478,7 @@ const BookCatalog: React.FC = () => {
                     leftIcon={confirmationModal.action === 'deactivate' ? <AlertTriangle size={16} /> : <CheckCircle size={16} />}
                     className="w-full sm:w-auto"
                   >
-                    {confirmationModal.action === 'deactivate' ? 'Deactivate Book' : 'Activate Book'}
+                    {t(`inventory.${confirmationModal.action}Book`)}
                   </Button>
                 </div>
               </div>

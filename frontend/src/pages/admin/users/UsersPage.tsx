@@ -1,3 +1,4 @@
+// UsersPage.tsx
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
@@ -78,7 +79,7 @@ const UsersPage: React.FC = () => {
         leftIcon={getRoleIcon(role)}
         className="capitalize"
       >
-        {role.toLowerCase()}
+        {t(`userForm.roles.${role.toLowerCase()}`)}
       </Badge>
     );
   };
@@ -138,7 +139,7 @@ const UsersPage: React.FC = () => {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+    if (!window.confirm(t('userForm.deleteConfirmation'))) {
       return;
     }
     
@@ -168,7 +169,7 @@ const UsersPage: React.FC = () => {
 
   const columns = [
     columnHelper.accessor('name', {
-      header: 'User',
+      header: t('userForm.name'),
       cell: info => (
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700">
@@ -182,18 +183,18 @@ const UsersPage: React.FC = () => {
       ),
     }),
     columnHelper.accessor('personType', {
-      header: 'Type',
+      header: t('userForm.personType'),
       cell: info => (
         <Badge
           variant={info.getValue() === 'COLPORTER' ? 'primary' : 'success'}
           size="sm"
         >
-          {info.getValue()}
+          {t(`userForm.types.${info.getValue()?.toLowerCase()}`) || 'Admin'}
         </Badge>
       ),
     }),
     columnHelper.accessor('role', {
-      header: 'Role',
+      header: t('userForm.userRole'),
       cell: info => (
         <div>
           {editingUser === info.row.original.id ? (
@@ -203,9 +204,9 @@ const UsersPage: React.FC = () => {
                 onChange={(e) => setEditingRole(e.target.value as UserRole)}
                 className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                <option value={UserRole.ADMIN}>Admin</option>
-                <option value={UserRole.SUPERVISOR}>Supervisor</option>
-                <option value={UserRole.VIEWER}>Viewer</option>
+                <option value={UserRole.ADMIN}>{t('userForm.roles.admin')}</option>
+                <option value={UserRole.SUPERVISOR}>{t('userForm.roles.supervisor')}</option>
+                <option value={UserRole.VIEWER}>{t('userForm.roles.viewer')}</option>
               </select>
               <Button
                 variant="success"
@@ -238,14 +239,14 @@ const UsersPage: React.FC = () => {
       ),
     }),
     columnHelper.accessor('status', {
-      header: 'Status',
+      header: t('userForm.accountStatus'),
       cell: info => (
         <div className="flex items-center gap-2">
           <Badge
             variant={info.getValue() === 'ACTIVE' ? 'success' : 'danger'}
             rounded
           >
-            {info.getValue()}
+            {t(`userForm.status.${info.getValue().toLowerCase()}`)}
           </Badge>
           <Button
             variant="ghost"
@@ -258,7 +259,7 @@ const UsersPage: React.FC = () => {
       ),
     }),
     columnHelper.accessor('lastLogin', {
-      header: 'Last Login',
+      header: t('userForm.lastLogin'),
       cell: info => (
         info.getValue() ? (
           <div>
@@ -268,17 +269,17 @@ const UsersPage: React.FC = () => {
             </div>
           </div>
         ) : (
-          <span className="text-gray-400">Never</span>
+          <span className="text-gray-400">{t('userForm.neverLoggedIn')}</span>
         )
       ),
     }),
     columnHelper.accessor('createdAt', {
-      header: 'Created',
+      header: t('userForm.createdAt'),
       cell: info => new Date(info.getValue()).toLocaleDateString(),
     }),
     columnHelper.display({
       id: 'actions',
-      header: 'Actions',
+      header: t('common.actions'),
       cell: info => (
         <div className="flex items-center gap-2">
           <Button
@@ -317,7 +318,7 @@ const UsersPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <LoadingScreen message='Loading users...' />
+        <LoadingScreen message={t('userForm.loadingUsers')} />
       </div>
     );
   }
@@ -325,7 +326,7 @@ const UsersPage: React.FC = () => {
   if (error) {
     return (
       <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
-        <p className="font-medium">Error loading users</p>
+        <p className="font-medium">{t('userForm.errorLoadingUsers')}</p>
         <p>{error}</p>
       </div>
     );
@@ -340,9 +341,9 @@ const UsersPage: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <ShieldCheck className="text-red-500" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Administrators</p>
+            <p className="text-sm font-medium text-gray-500">{t('userForm.roles.admin')}</p>
             <p className="mt-1 text-2xl font-bold text-red-600">{roleStats[UserRole.ADMIN] || 0}</p>
-            <p className="text-xs text-gray-500">Full system access</p>
+            <p className="text-xs text-gray-500">{t('userForm.roleDescriptions.admin')}</p>
           </div>
         </Card>
         
@@ -351,9 +352,9 @@ const UsersPage: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <Shield className="text-blue-500" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Supervisors</p>
+            <p className="text-sm font-medium text-gray-500">{t('userForm.roles.supervisor')}</p>
             <p className="mt-1 text-2xl font-bold text-blue-600">{roleStats[UserRole.SUPERVISOR] || 0}</p>
-            <p className="text-xs text-gray-500">Program leaders</p>
+            <p className="text-xs text-gray-500">{t('userForm.roleDescriptions.supervisor')}</p>
           </div>
         </Card>
         
@@ -362,9 +363,9 @@ const UsersPage: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <Eye className="text-green-500" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Viewers</p>
+            <p className="text-sm font-medium text-gray-500">{t('userForm.roles.viewer')}</p>
             <p className="mt-1 text-2xl font-bold text-green-600">{roleStats[UserRole.VIEWER] || 0}</p>
-            <p className="text-xs text-gray-500">Read-only access</p>
+            <p className="text-xs text-gray-500">{t('userForm.roleDescriptions.viewer')}</p>
           </div>
         </Card>
       </div>
@@ -374,7 +375,7 @@ const UsersPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div className="flex flex-col sm:flex-row gap-4">
               <Input
-                placeholder="Search users..."
+                placeholder={t('userForm.searchPlaceholder')}
                 value={globalFilter}
                 onChange={(e) => setGlobalFilter(e.target.value)}
                 leftIcon={<Search size={18} />}
@@ -386,10 +387,10 @@ const UsersPage: React.FC = () => {
                 onChange={(e) => setRoleFilter(e.target.value as UserRole | '')}
                 className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               >
-                <option value="">All Roles</option>
-                <option value={UserRole.ADMIN}>Admin</option>
-                <option value={UserRole.SUPERVISOR}>Supervisor</option>
-                <option value={UserRole.VIEWER}>Viewer</option>
+                <option value="">{t('common.allTypes')}</option>
+                <option value={UserRole.ADMIN}>{t('userForm.roles.admin')}</option>
+                <option value={UserRole.SUPERVISOR}>{t('userForm.roles.supervisor')}</option>
+                <option value={UserRole.VIEWER}>{t('userForm.roles.viewer')}</option>
               </select>
 
               <select
@@ -397,9 +398,9 @@ const UsersPage: React.FC = () => {
                 onChange={(e) => setStatusFilter(e.target.value as 'ACTIVE' | 'INACTIVE' | '')}
                 className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               >
-                <option value="">All Status</option>
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
+                <option value="">{t('common.all')}</option>
+                <option value="ACTIVE">{t('userForm.status.active')}</option>
+                <option value="INACTIVE">{t('userForm.status.inactive')}</option>
               </select>
             </div>
             
@@ -408,7 +409,7 @@ const UsersPage: React.FC = () => {
                 variant="outline"
                 leftIcon={<Download size={18} />}
               >
-                Export
+                {t('common.export')}
               </Button>
               
               <Button
@@ -416,7 +417,7 @@ const UsersPage: React.FC = () => {
                 leftIcon={<UserPlus size={18} />}
                 onClick={() => setShowAddForm(true)}
               >
-                Add User
+                {t('userForm.addUser')}
               </Button>
             </div>
           </div>
@@ -440,18 +441,18 @@ const UsersPage: React.FC = () => {
                 <div className="space-y-3">
                   {/* Type */}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Type:</span>
+                    <span className="text-sm font-medium text-gray-700">{t('userForm.personType')}:</span>
                     <Badge
                       variant={user.personType === 'COLPORTER' ? 'primary' : 'success'}
                       size="sm"
                     >
-                      {user.personType}
+                      {t(`userForm.types.${user.personType?.toLowerCase()}`) || 'Admin'}
                     </Badge>
                   </div>
                   
                   {/* Role */}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Role:</span>
+                    <span className="text-sm font-medium text-gray-700">{t('userForm.userRole')}:</span>
                     {editingUser === user.id ? (
                       <div className="flex items-center gap-2">
                         <select
@@ -459,9 +460,9 @@ const UsersPage: React.FC = () => {
                           onChange={(e) => setEditingRole(e.target.value as UserRole)}
                           className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500"
                         >
-                          <option value={UserRole.ADMIN}>Admin</option>
-                          <option value={UserRole.SUPERVISOR}>Supervisor</option>
-                          <option value={UserRole.VIEWER}>Viewer</option>
+                          <option value={UserRole.ADMIN}>{t('userForm.roles.admin')}</option>
+                          <option value={UserRole.SUPERVISOR}>{t('userForm.roles.supervisor')}</option>
+                          <option value={UserRole.VIEWER}>{t('userForm.roles.viewer')}</option>
                         </select>
                         <Button
                           variant="success"
@@ -494,13 +495,13 @@ const UsersPage: React.FC = () => {
 
                   {/* Status */}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Status:</span>
+                    <span className="text-sm font-medium text-gray-700">{t('userForm.accountStatus')}:</span>
                     <div className="flex items-center gap-2">
                       <Badge
                         variant={user.status === 'ACTIVE' ? 'success' : 'danger'}
                         rounded
                       >
-                        {user.status}
+                        {t(`userForm.status.${user.status.toLowerCase()}`)}
                       </Badge>
                       <Button
                         variant="ghost"
@@ -514,7 +515,7 @@ const UsersPage: React.FC = () => {
 
                   {/* Last Login */}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Last Login:</span>
+                    <span className="text-sm font-medium text-gray-700">{t('userForm.lastLogin')}:</span>
                     <span className="text-sm text-gray-600">
                       {user.lastLogin ? (
                         <>
@@ -522,7 +523,7 @@ const UsersPage: React.FC = () => {
                           {new Date(user.lastLogin).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </>
                       ) : (
-                        'Never'
+                        t('userForm.neverLoggedIn')
                       )}
                     </span>
                   </div>
@@ -534,14 +535,14 @@ const UsersPage: React.FC = () => {
                       size="sm"
                       onClick={() => handleEditUser(user)}
                     >
-                      Edit
+                      {t('common.edit')}
                     </Button>
                     <Button
                       variant="danger"
                       size="sm"
                       onClick={() => handleDeleteUser(user.id)}
                     >
-                      Delete
+                      {t('common.delete')}
                     </Button>
                   </div>
                 </div>
@@ -610,13 +611,13 @@ const UsersPage: React.FC = () => {
         <div className="flex items-start gap-4">
           <AlertCircle className="text-warning-500 flex-shrink-0 mt-1" size={24} />
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Role Management Guidelines</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('userForm.roleManagementGuidelines')}</h3>
             <ul className="text-sm text-gray-600 space-y-2">
-              <li>• <strong>Admin:</strong> Full system access, can manage all users, settings, and data.</li>
-              <li>• <strong>Supervisor:</strong> Can manage colporters, view reports, and handle daily operations.</li>
-              <li>• <strong>Viewer:</strong> Read-only access to their own data and basic features.</li>
-              <li>• <strong>Status Changes:</strong> Inactive users cannot log in but their data is preserved.</li>
-              <li>• <strong>Role Changes:</strong> Take effect immediately and may require users to log in again.</li>
+              <li>• <strong>{t('userForm.roles.admin')}:</strong> {t('userForm.roleDescriptions.admin')}</li>
+              <li>• <strong>{t('userForm.roles.supervisor')}:</strong> {t('userForm.roleDescriptions.supervisor')}</li>
+              <li>• <strong>{t('userForm.roles.viewer')}:</strong> {t('userForm.roleDescriptions.viewer')}</li>
+              <li>• <strong>{t('userForm.statusChanges')}:</strong> {t('userForm.statusDescriptions.inactive')}</li>
+              <li>• <strong>{t('userForm.roleChanges')}:</strong> {t('userForm.roleChangeEffect')}</li>
             </ul>
           </div>
         </div>

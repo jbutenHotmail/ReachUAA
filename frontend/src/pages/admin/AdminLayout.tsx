@@ -2,11 +2,12 @@ import React from 'react';
 import { Outlet, useNavigate, useLocation, NavLink } from 'react-router-dom';
 import { Users, Settings, UserCog } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useTranslation } from 'react-i18next';
 
 const AdminLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-
+  const { t } = useTranslation();
   React.useEffect(() => {
     if (location.pathname === '/admin') {
       navigate('/admin/users/manage');
@@ -51,13 +52,13 @@ const AdminLayout: React.FC = () => {
     const section = getCurrentSection();
     switch (section) {
       case 'users':
-        return 'User Management';
+        return t('admin.userManagement');
       case 'people':
-        return 'People Management';
+        return t('admin.peopleManagement');
       case 'settings':
-        return 'Program Settings';
+        return t('admin.programSettings');
       default:
-        return 'Administration';
+        return t('admin.administration');
     }
   };
 
@@ -66,13 +67,13 @@ const AdminLayout: React.FC = () => {
     const section = getCurrentSection();
     switch (section) {
       case 'users':
-        return 'Manage system users and their permissions';
+        return t('admin.descriptions.manageSystemUsers');
       case 'people':
-        return 'Manage colporters, leaders, and other personnel';
+        return t('admin.descriptions.managePeople');
       case 'settings':
-        return 'Configure program settings and working days';
+        return t('admin.descriptions.configureProgramSettings');
       default:
-        return 'System settings and configurations';
+        return t('admin.descriptions.systemSettings');
     }
   };
 

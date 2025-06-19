@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Calendar, TrendingUp, BookOpen, DollarSign, Users } from 'lucide-react';
 import Card from '../../components/ui/Card';
@@ -33,6 +34,7 @@ interface ColporterSummerStats {
 }
 
 const SummerColporterReport: React.FC = () => {
+  const { t } = useTranslation();
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
@@ -78,17 +80,17 @@ const SummerColporterReport: React.FC = () => {
           return;
         }
         
-        setError('Person not found');
+        setError(t('summerColporterReport.noDataAvailable'));
       } catch (err) {
         console.error('Error fetching person:', err);
-        setError('Failed to load person data');
+        setError(t('common.error'));
       }
     };
     
     if (name) {
       getPersonId();
     }
-  }, [name]);
+  }, [name, t]);
 
   // Fetch transactions for this person
   useEffect(() => {
@@ -113,7 +115,7 @@ const SummerColporterReport: React.FC = () => {
         }
       } catch (err) {
         console.error('Error fetching transaction data:', err);
-        setError('Failed to load transaction data');
+        setError(t('common.error'));
       } finally {
         setIsLoading(false);
       }
@@ -122,10 +124,10 @@ const SummerColporterReport: React.FC = () => {
     if (personId) {
       loadTransactionData();
     }
-  }, [personId, personType]);
+  }, [personId, personType, t]);
 
   // Fetch team members for a leader
-  const fetchTeamMembers = async (leaderTransactions: any[]) => {
+  const fetchTeamMembers = async (leaderId: string, leaderTransactions: any[]) => {
     try {
       // Get unique colporter IDs from transactions
       const colporterIds = new Set<string>();
@@ -258,7 +260,7 @@ const SummerColporterReport: React.FC = () => {
     
     validTransactions.forEach(transaction => {
       const date = new Date(transaction.date);
-      const month = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const month = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
       
       if (!monthlyDataObj[month]) {
         monthlyDataObj[month] = { 
@@ -273,7 +275,7 @@ const SummerColporterReport: React.FC = () => {
       const isNewDay = !validTransactions.some(t => 
         t.date === dateStr && 
         t.id !== transaction.id && 
-        new Date(t.date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) === month
+        new Date(t.date).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }) === month
       );
       
       if (isNewDay) {
@@ -318,7 +320,7 @@ const SummerColporterReport: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <LoadingScreen message='Loading stats...' />
+        <LoadingScreen message={t('common.loading')} />
       </div>
     );
   }
@@ -326,7 +328,7 @@ const SummerColporterReport: React.FC = () => {
   if (error) {
     return (
       <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
-        <p className="font-medium">Error</p>
+        <p className="font-medium">{t('common.error')}</p>
         <p>{error}</p>
       </div>
     );
@@ -335,18 +337,25 @@ const SummerColporterReport: React.FC = () => {
   if (!stats || Object.keys(monthlyData).length === 0) {
     return (
       <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg text-warning-700">
-        <p className="font-medium">No Data Available</p>
-        <p>There is no transaction data available for this {personType.toLowerCase()}.</p>
+        <p className="font-medium">{t('summerColporterReport.noDataAvailable')}</p>
+        <p>{t('summerColporterReport.noTransactionData', { type: personType.toLowerCase() })}</p>
         <Button
           variant="outline"
           className="mt-4"
           onClick={() => navigate('/reports/donations/finances')}
         >
-          Go back
+          {t('common.back')}
         </Button>
       </div>
     );
   }
+
+  const totalBooks = stats.libros.grandes + stats.libros.pequenos;
+  const largeBooksPercentage = totalBooks > 0 ? ((stats.libros.grandes / totalBooks) * 100).toFixed(0) : 0;
+  const smallBooksPercentage = totalBooks > 0 ? ((stats.libros.pequenos / totalBooks) * 100).toFixed(0) : 0;
+  const percentage = personType === 'COLPORTER'
+    ? program?.financialConfig?.colporter_percentage || 50
+    : program?.financialConfig?.leader_percentage || 15;
 
   return (
     <div className="space-y-6">
@@ -360,11 +369,11 @@ const SummerColporterReport: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <TrendingUp className="text-primary-600" size={28} />
-            {name} - {personType === 'LEADER' ? 'Leader' : 'Colporter'} Report
+            {name} - {t(`common.${personType.toLowerCase()}`)}
           </h1>
           <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
             <Calendar size={16} />
-            Complete Program • {stats.workingDays} working days
+            {t('summerColporterReport.completeProgram')} • {stats.workingDays} días laborales
           </p>
         </div>
       </div>
@@ -376,9 +385,9 @@ const SummerColporterReport: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <DollarSign className="text-primary-600" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Total Sales (Bruto)</p>
+            <p className="text-sm font-medium text-gray-500">{t('summerColporterReport.totalSalesBruto')}</p>
             <p className="mt-1 text-2xl font-bold text-primary-600">${stats.bruto.total.toFixed(2)}</p>
-            <p className="text-xs text-gray-500">100% of sales</p>
+            <p className="text-xs text-gray-500">100% de las ventas</p>
           </div>
         </Card>
 
@@ -387,13 +396,9 @@ const SummerColporterReport: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <DollarSign className="text-success-600" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Net Earnings (Neto)</p>
+            <p className="text-sm font-medium text-gray-500">{t('summerColporterReport.netEarningsNeto')}</p>
             <p className="mt-1 text-2xl font-bold text-success-600">${stats.neto.total.toFixed(2)}</p>
-            <p className="text-xs text-gray-500">
-              {personType === 'COLPORTER' 
-                ? program?.financialConfig?.colporter_percentage || 50
-                : program?.financialConfig?.leader_percentage || 15}% of sales
-            </p>
+            <p className="text-xs text-gray-500">{percentage}% de las ventas</p>
           </div>
         </Card>
 
@@ -402,9 +407,11 @@ const SummerColporterReport: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <BookOpen className="text-warning-600" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Total Books</p>
-            <p className="mt-1 text-2xl font-bold text-warning-600">{stats.libros.grandes + stats.libros.pequenos}</p>
-            <p className="text-xs text-gray-500">{stats.libros.grandes} large, {stats.libros.pequenos} small</p>
+            <p className="text-sm font-medium text-gray-500">{t('summerColporterReport.totalBooks')}</p>
+            <p className="mt-1 text-2xl font-bold text-warning-600">{totalBooks}</p>
+            <p className="text-xs text-gray-500">
+              {stats.libros.grandes} grandes ({largeBooksPercentage}%), {stats.libros.pequenos} pequeños ({smallBooksPercentage}%)
+            </p>
           </div>
         </Card>
 
@@ -413,20 +420,20 @@ const SummerColporterReport: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <Calendar className="text-info-600" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Daily Average</p>
+            <p className="text-sm font-medium text-gray-500">{t('summerColporterReport.dailyAverage')}</p>
             <p className="mt-1 text-2xl font-bold text-info-600">${stats.bruto.promedio.toFixed(2)}</p>
-            <p className="text-xs text-gray-500">Per working day</p>
+            <p className="text-xs text-gray-500">{t('summerColporterReport.perWorkingDay')}</p>
           </div>
         </Card>
       </div>
 
       {/* Performance Highlights - More Compact */}
-      <Card title="Performance Highlights" icon={<TrendingUp size={20} />}>
+      <Card title={t('summerColporterReport.performanceHighlights')} icon={<TrendingUp size={20} />}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-3 bg-success-50 rounded-lg">
-            <h4 className="font-semibold text-success-700 text-sm">Best Day</h4>
+            <h4 className="font-semibold text-success-700 text-sm">{t('summerColporterReport.bestDay')}</h4>
             <p className="text-xs text-success-600 mt-1">
-              {stats.bestDay.date ? new Date(stats.bestDay.date).toLocaleDateString('en-US', {
+              {stats.bestDay.date ? new Date(stats.bestDay.date).toLocaleDateString('es-ES', {
                 weekday: 'short',
                 month: 'short',
                 day: 'numeric'
@@ -436,9 +443,9 @@ const SummerColporterReport: React.FC = () => {
           </div>
 
           <div className="p-3 bg-warning-50 rounded-lg">
-            <h4 className="font-semibold text-warning-700 text-sm">Lowest Day</h4>
+            <h4 className="font-semibold text-warning-700 text-sm">{t('summerColporterReport.lowestDay')}</h4>
             <p className="text-xs text-warning-600 mt-1">
-              {stats.worstDay.date ? new Date(stats.worstDay.date).toLocaleDateString('en-US', {
+              {stats.worstDay.date ? new Date(stats.worstDay.date).toLocaleDateString('es-ES', {
                 weekday: 'short',
                 month: 'short',
                 day: 'numeric'
@@ -450,14 +457,18 @@ const SummerColporterReport: React.FC = () => {
           </div>
 
           <div className="p-3 bg-primary-50 rounded-lg">
-            <h4 className="font-semibold text-primary-700 text-sm">Book Distribution</h4>
+            <h4 className="font-semibold text-primary-700 text-sm">{t('summerColporterReport.bookDistribution')}</h4>
             <div className="flex justify-between text-xs mt-1">
-              <span className="text-primary-600">Large:</span>
-              <span className="font-medium text-primary-700">{stats.libros.grandes} ({((stats.libros.grandes / (stats.libros.grandes + stats.libros.pequenos)) * 100).toFixed(0)}%)</span>
+              <span className="text-primary-600">{t('summerColporterReport.largeBooks')}:</span>
+              <span className="font-medium text-primary-700">
+                {stats.libros.grandes} ({largeBooksPercentage}%)
+              </span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-success-600">Small:</span>
-              <span className="font-medium text-success-700">{stats.libros.pequenos} ({((stats.libros.pequenos / (stats.libros.grandes + stats.libros.pequenos)) * 100).toFixed(0)}%)</span>
+              <span className="text-success-600">{t('summerColporterReport.smallBooks')}:</span>
+              <span className="font-medium text-success-700">
+                {stats.libros.pequenos} ({smallBooksPercentage}%)
+              </span>
             </div>
           </div>
         </div>
@@ -465,25 +476,25 @@ const SummerColporterReport: React.FC = () => {
 
       {/* Team Members (only for leaders) */}
       {personType === 'LEADER' && teamMembers.length > 0 && (
-        <Card title="Team Performance" icon={<Users size={20} />}>
+        <Card title={t('summerColporterReport.teamPerformance')} icon={<Users size={20} />}>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Colporter
+                    {t('summerColporterReport.colporter')}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Sales
+                    {t('summerColporterReport.totalSales')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Large Books
+                    {t('summerColporterReport.largeBooks')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Small Books
+                    {t('summerColporterReport.smallBooks')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Transactions
+                    {t('summerColporterReport.transactions')}
                   </th>
                 </tr>
               </thead>
@@ -509,7 +520,7 @@ const SummerColporterReport: React.FC = () => {
                 ))}
                 <tr className="bg-gray-100 font-semibold">
                   <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
-                    TOTAL
+                    {t('common.totals')}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
                     ${teamMembers.reduce((sum, m) => sum + m.totalSales, 0).toFixed(2)}
@@ -531,18 +542,18 @@ const SummerColporterReport: React.FC = () => {
       )}
 
       <div className="mt-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Detalle de Ventas</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('summerColporterReport.salesDetail')}</h2>
         <Card>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0 z-10 border-b">
-                    {personType === 'LEADER' ? 'Leader' : 'Colporter'}
+                    {t(`summerColporterReport.${personType.toLowerCase()}`)}
                   </th>
                   {Object.keys(dailySales).sort().map((date) => (
                     <th key={date} className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                      {new Date(date).toLocaleDateString('en-US', { 
+                      {new Date(date).toLocaleDateString('es-ES', { 
                         weekday: 'short',
                         month: '2-digit',
                         day: '2-digit'
@@ -550,7 +561,7 @@ const SummerColporterReport: React.FC = () => {
                     </th>
                   ))}
                   <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                    Total
+                    {t('common.total')}
                   </th>
                 </tr>
               </thead>
@@ -576,26 +587,26 @@ const SummerColporterReport: React.FC = () => {
       
       {/* Books Table */}
       <div className="mt-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Detalle de Libros por Mes</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('summerColporterReport.booksByMonthDetail')}</h2>
         <Card>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0 z-10 border-b">
-                    Mes
+                    {t('summerColporterReport.month')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-primary-700 border-b">
-                    Libros Grandes
+                    {t('summerColporterReport.largeBooks')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-success-600 border-b">
-                    Libros Pequeños
+                    {t('summerColporterReport.smallBooks')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                    Total Libros
+                    {t('summerColporterReport.totalBooksLabel')}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                    Ventas
+                    {t('summerColporterReport.sales')}
                   </th>
                 </tr>
               </thead>
@@ -621,7 +632,7 @@ const SummerColporterReport: React.FC = () => {
                 ))}
                 <tr className="bg-gray-100">
                   <td className="px-4 py-3 text-sm font-bold text-gray-900 sticky left-0 z-10 bg-gray-100">
-                    TOTAL
+                    {t('common.totals')}
                   </td>
                   <td className="px-4 py-3 text-sm text-center font-bold">
                     <Badge variant="primary">{stats.libros.grandes}</Badge>
@@ -630,7 +641,7 @@ const SummerColporterReport: React.FC = () => {
                     <Badge variant="success">{stats.libros.pequenos}</Badge>
                   </td>
                   <td className="px-4 py-3 text-sm text-center font-bold">
-                    <Badge variant="secondary">{stats.libros.grandes + stats.libros.pequenos}</Badge>
+                    <Badge variant="secondary">{totalBooks}</Badge>
                   </td>
                   <td className="px-4 py-3 text-sm text-right font-bold">
                     ${stats.bruto.total.toFixed(2)}
@@ -644,26 +655,26 @@ const SummerColporterReport: React.FC = () => {
       
       {/* Daily Books Breakdown */}
       <div className="mt-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Detalle de Libros por Día</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('summerColporterReport.booksByDayDetail')}</h2>
         <Card>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0 z-10 border-b">
-                    Fecha
+                    {t('summerColporterReport.date')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-primary-700 border-b">
-                    Libros Grandes
+                    {t('summerColporterReport.largeBooks')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-success-600 border-b">
-                    Libros Pequeños
+                    {t('summerColporterReport.smallBooks')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                    Total Libros
+                    {t('summerColporterReport.totalBooksLabel')}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                    Ventas
+                    {t('summerColporterReport.sales')}
                   </th>
                 </tr>
               </thead>
@@ -671,7 +682,7 @@ const SummerColporterReport: React.FC = () => {
                 {Object.keys(dailySales).sort().map((date) => (
                   <tr key={date} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 z-10 bg-white">
-                      {new Date(date).toLocaleDateString('en-US', {
+                      {new Date(date).toLocaleDateString('es-ES', {
                         weekday: 'short',
                         year: 'numeric',
                         month: 'short',

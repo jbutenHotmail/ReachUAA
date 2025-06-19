@@ -5,7 +5,6 @@ import {
   Globe, 
   Moon, 
   Sun, 
-  Bell, 
   Check,
   ChevronRight
 } from 'lucide-react';
@@ -15,7 +14,7 @@ import { clsx } from 'clsx';
 
 const SettingsPage: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { settings, changeLanguage, changeTheme, toggleNotifications } = useSettingsStore();
+  const { settings, changeLanguage, changeTheme } = useSettingsStore();
   
   // Sync i18n with store on component mount
   useEffect(() => {

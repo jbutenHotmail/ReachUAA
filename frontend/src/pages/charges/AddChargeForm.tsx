@@ -1,3 +1,4 @@
+// AddChargeForm.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, ChevronDown, DollarSign } from 'lucide-react';
@@ -32,7 +33,7 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
     reason: initialData?.reason || '',
     description: initialData?.description || '',
     category: initialData?.category || 'FINE',
-    status: initialData?.status || 'PENDING', // Default to PENDING
+    status: initialData?.status || 'PENDING',
     appliedBy: user?.id || '',
     appliedByName: user?.name || '',
     date: initialData?.date || new Date().toISOString().split('T')[0],
@@ -77,7 +78,7 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
       ...formData,
       personId: selectedPerson?.id,
       personName: selectedPerson?.name,
-      status: 'PENDING', // Always set to PENDING when submitting
+      status: 'PENDING',
     });
   };
 
@@ -96,10 +97,10 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
   };
 
   const categories = [
-    { value: 'FINE', label: 'Fine', description: 'Monetary penalty for rule violations' },
-    { value: 'DEDUCTION', label: 'Deduction', description: 'Amount deducted from earnings' },
-    { value: 'PENALTY', label: 'Penalty', description: 'Disciplinary charge' },
-    { value: 'OTHER', label: 'Other', description: 'Other type of charge' },
+    { value: 'FINE', label: t('addChargeForm.fine'), description: t('addChargeForm.fineDescription') },
+    { value: 'DEDUCTION', label: t('addChargeForm.deduction'), description: t('addChargeForm.deductionDescription') },
+    { value: 'PENALTY', label: t('addChargeForm.penalty'), description: t('addChargeForm.penaltyDescription') },
+    { value: 'OTHER', label: t('addChargeForm.other'), description: t('addChargeForm.otherDescription') },
   ];
 
   return (
@@ -109,7 +110,7 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">
-                {initialData ? 'Edit Charge' : 'Add New Charge'}
+                {initialData ? t('addChargeForm.editTitle') : t('addChargeForm.addTitle')}
               </h2>
               <button
                 type="button"
@@ -122,7 +123,7 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input
-                label="Date"
+                label={t('addChargeForm.date')}
                 type="date"
                 name="date"
                 value={formData.date}
@@ -132,7 +133,7 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Person Type
+                  {t('addChargeForm.personType')}
                 </label>
                 <select
                   name="personType"
@@ -141,14 +142,14 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                   required
                 >
-                  <option value="COLPORTER">Colporter</option>
-                  <option value="LEADER">Leader</option>
+                  <option value="COLPORTER">{t('addChargeForm.colporter')}</option>
+                  <option value="LEADER">{t('addChargeForm.leader')}</option>
                 </select>
               </div>
 
               <div className="md:col-span-2 relative" ref={personDropdownRef}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select {formData.personType === 'COLPORTER' ? 'Colporter' : 'Leader'}
+                  {t('addChargeForm.selectPerson')} {formData.personType === 'COLPORTER' ? t('addChargeForm.colporter') : t('addChargeForm.leader')}
                 </label>
                 <div
                   className={clsx(
@@ -159,7 +160,7 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
                   <div className="flex items-center">
                     <input
                       type="text"
-                      placeholder={`Search ${formData.personType.toLowerCase()}...`}
+                      placeholder={`${t('addChargeForm.searchPlaceholder')} ${formData.personType.toLowerCase()}...`}
                       value={personSearch}
                       onChange={(e) => {
                         setPersonSearch(e.target.value);
@@ -222,7 +223,7 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
                         ))
                       ) : (
                         <div className="px-4 py-2 text-sm text-gray-500">
-                          No {formData.personType.toLowerCase()}s found
+                          {t('addChargeForm.noPeopleFound')} {formData.personType.toLowerCase()}s {t('addChargeForm.noPeopleFoundSuffix')}
                         </div>
                       )}
                     </div>
@@ -231,7 +232,7 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
               </div>
 
               <Input
-                label="Amount ($)"
+                label={t('addChargeForm.amount')}
                 type="number"
                 name="amount"
                 value={formData.amount || ''}
@@ -244,7 +245,7 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category
+                  {t('addChargeForm.category')}
                 </label>
                 <select
                   name="category"
@@ -266,11 +267,11 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
 
               <div className="md:col-span-2">
                 <Input
-                  label="Reason"
+                  label={t('addChargeForm.reason')}
                   name="reason"
                   value={formData.reason}
                   onChange={handleChange}
-                  placeholder="Brief reason for the charge"
+                  placeholder={t('addChargeForm.reasonPlaceholder')}
                   maxLength={100}
                   required
                 />
@@ -278,7 +279,7 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description (Optional)
+                  {t('addChargeForm.description')}
                 </label>
                 <textarea
                   name="description"
@@ -286,14 +287,14 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
                   value={formData.description}
                   onChange={handleChange}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  placeholder="Additional details about the charge..."
+                  placeholder={t('addChargeForm.descriptionPlaceholder')}
                 />
               </div>
 
               {initialData && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Status
+                    {t('addChargeForm.status')}
                   </label>
                   <select
                     name="status"
@@ -301,9 +302,9 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
                     onChange={handleChange}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                   >
-                    <option value="PENDING">Pending</option>
-                    <option value="APPLIED">Applied</option>
-                    <option value="CANCELLED">Cancelled</option>
+                    <option value="PENDING">{t('addChargeForm.pending')}</option>
+                    <option value="APPLIED">{t('addChargeForm.applied')}</option>
+                    <option value="CANCELLED">{t('addChargeForm.cancelled')}</option>
                   </select>
                 </div>
               )}
@@ -315,14 +316,14 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
                 variant="outline"
                 onClick={onClose}
               >
-                Cancel
+                {t('addChargeForm.cancel')}
               </Button>
               <Button
                 type="submit"
                 variant="primary"
                 disabled={!selectedPerson}
               >
-                {initialData ? 'Save Changes' : 'Add Charge'}
+                {initialData ? t('addChargeForm.saveChanges') : t('addChargeForm.addCharge')}
               </Button>
             </div>
           </form>

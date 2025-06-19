@@ -36,19 +36,17 @@ import ColportersPage from './pages/admin/people/ColportersPage';
 import LeadersPage from './pages/admin/people/LeadersPage';
 import AllPeoplePage from './pages/admin/people/AllPeoplePage';
 import UsersPage from './pages/admin/users/UsersPage';
-import ManageRolesPage from './pages/admin/users/ManageRolesPage';
+// import ManageRolesPage from './pages/admin/users/ManageRolesPage';
 import ProgramSettings from './pages/admin/settings/ProgramSettings';
 import ProgramSetup from './pages/admin/setup/ProgramSetup';
 import ProfilePage from './pages/profile/ProfilePage';
 import AccessDeniedPage from './pages/reports/AccessDeniedPage';
 import ViewerDashboard from './pages/dashboard/ViewerDashboard';
 import SettingsPage from './pages/settings/SettingsPage';
-import { useSettingsStore } from './stores/settingsStore';
 
 function App() {
   const { isAuthenticated, user, refreshToken } = useAuthStore();
   const { program, fetchProgram } = useProgramStore();
-  const { settings } = useSettingsStore();
 
   // Check if admin user needs to set up program
   const needsProgramSetup = isAuthenticated && user?.role === UserRole.ADMIN && !program;
@@ -297,7 +295,7 @@ function App() {
           <Route path="users">
             <Route index element={<Navigate to="manage" replace />} />
             <Route path="manage" element={<UsersPage />} />
-            <Route path="roles" element={<ManageRolesPage />} />
+            <Route path="roles" element={<AccessDeniedPage />} />
           </Route>
           <Route path="people">
             <Route index element={<Navigate to="all" replace />} />

@@ -11,7 +11,7 @@ interface AddBookFormProps {
   onClose: () => void;
   onSubmit: (data: any) => void;
   initialData?: Book;
-  isProgramSetup?: boolean; // New prop to indicate if this is being used in program setup
+  isProgramSetup?: boolean;
 }
 
 const AddBookForm: React.FC<AddBookFormProps> = ({ 
@@ -27,13 +27,13 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
     author: initialData?.author || '',
     publisher: initialData?.publisher || '',
     price: initialData?.price || 0,
-    size: initialData?.size || BookSize.SMALL, // Default to SMALL if not specified
+    size: initialData?.size || BookSize.SMALL,
     category: initialData?.category || '',
     description: initialData?.description || '',
     stock: initialData?.stock || 0,
     sold: initialData?.sold || 0,
     imageUrl: initialData?.image_url || '',
-    is_active: initialData?.is_active ?? true, // Default to active for new books
+    is_active: initialData?.is_active ?? true,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -72,16 +72,16 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
   };
 
   const categories = [
-    'Devotional',
-    'Health',
-    'Family',
-    'Prophecy',
-    'History',
-    'Education',
-    'Cooking',
-    'Children',
-    'Youth',
-    'Other'
+    t('inventory.categories.devotional'),
+    t('inventory.categories.health'),
+    t('inventory.categories.family'),
+    t('inventory.categories.prophecy'),
+    t('inventory.categories.history'),
+    t('inventory.categories.education'),
+    t('inventory.categories.cooking'),
+    t('inventory.categories.children'),
+    t('inventory.categories.youth'),
+    t('inventory.categories.other')
   ];
 
   return (
@@ -91,7 +91,7 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">
-                {initialData ? 'Edit Book' : 'Add New Book'}
+                {initialData ? t('addBookForm.editBook') : t('addBookForm.addBook')}
               </h2>
               <button
                 type="button"
@@ -103,10 +103,9 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Book Image */}
               <div className="lg:col-span-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Book Cover
+                  {t('addBookForm.imageUrl')}
                 </label>
                 <ImageUpload
                   value={formData.imageUrl}
@@ -115,11 +114,10 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
                 />
               </div>
 
-              {/* Book Details */}
               <div className="lg:col-span-2 space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
-                    label="ISBN (Optional)"
+                    label={t('addBookForm.isbn')}
                     name="isbn"
                     value={formData.isbn}
                     onChange={handleChange}
@@ -128,7 +126,7 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Category
+                      {t('addBookForm.category')}
                     </label>
                     <select
                       name="category"
@@ -137,7 +135,7 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                       required
                     >
-                      <option value="">Select Category</option>
+                      <option value="">{t('common.select')}</option>
                       {categories.map(category => (
                         <option key={category} value={category}>
                           {category}
@@ -148,35 +146,35 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
                 </div>
 
                 <Input
-                  label="Title"
+                  label={t('addBookForm.title')}
                   name="title"
                   value={formData.title}
                   onChange={handleChange}
                   required
-                  placeholder="Book title"
+                  placeholder={t('addBookForm.title')}
                 />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
-                    label="Author (Optional)"
+                    label={t('addBookForm.author')}
                     name="author"
                     value={formData.author}
                     onChange={handleChange}
-                    placeholder="Author name"
+                    placeholder={t('addBookForm.author')}
                   />
 
                   <Input
-                    label="Publisher (Optional)"
+                    label={t('inventory.publisher')}
                     name="publisher"
                     value={formData.publisher}
                     onChange={handleChange}
-                    placeholder="Publisher name"
+                    placeholder={t('inventory.publisher')}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <Input
-                    label="Price ($)"
+                    label={t('addBookForm.price')}
                     type="number"
                     name="price"
                     value={formData.price || ''}
@@ -188,23 +186,23 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Book Size
+                      {t('inventory.size.size')}
                     </label>
                     <select
                       name="size"
                       value={formData.size}
                       onChange={handleChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                      className="mt-1 block w-full  py-2 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                       required
                     >
-                      <option value={BookSize.LARGE}>Large</option>
-                      <option value={BookSize.SMALL}>Small</option>
+                      <option value={BookSize.LARGE}>{t('inventory.large')}</option>
+                      <option value={BookSize.SMALL}>{t('inventory.small')}</option>
                     </select>
                   </div>
 
                   {isProgramSetup ? (
                     <Input
-                      label="Initial Stock"
+                      label={t('addBookForm.initialStock')}
                       type="number"
                       name="stock"
                       value={formData.stock || ''}
@@ -215,7 +213,7 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
                   ) : (
                     <>
                       <Input
-                        label="Stock"
+                        label={t('inventory.stock')}
                         type="number"
                         name="stock"
                         value={formData.stock || ''}
@@ -225,7 +223,7 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
                       />
 
                       <Input
-                        label="Sold"
+                        label={t('inventory.sold')}
                         type="number"
                         name="sold"
                         value={formData.sold || ''}
@@ -236,24 +234,23 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
                   )}
                 </div>
 
-                {/* Active Status */}
                 <div className="flex items-center space-x-3">
                   <input
                     type="checkbox"
                     id="isActive"
-                    name="isActive"
+                    name="is_active"
                     checked={formData.is_active}
                     onChange={handleChange}
                     className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                   />
                   <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
-                    Book is active (available for transactions and statistics)
+                    {t('addBookForm.isActive')}
                   </label>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
+                    {t('inventory.description')}
                   </label>
                   <textarea
                     name="description"
@@ -261,7 +258,7 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
                     value={formData.description}
                     onChange={handleChange}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                    placeholder="Book description..."
+                    placeholder={t('inventory.description')}
                   />
                 </div>
               </div>
@@ -273,13 +270,13 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
                 variant="outline"
                 onClick={onClose}
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button
                 type="submit"
                 variant="primary"
               >
-                {initialData ? 'Save Changes' : 'Add Book'}
+                {initialData ? t('common.save') : t('common.add')}
               </Button>
             </div>
           </form>

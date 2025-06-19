@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
-  Search, Download, Filter, 
   Mail, Phone, School, MapPin, User,
   Pencil, Trash2
 } from 'lucide-react';
@@ -16,7 +15,6 @@ import {
 } from '@tanstack/react-table';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
 import Badge from '../../../components/ui/Badge';
 import AddPersonForm from './AddPersonForm';
 import { useUserStore } from '../../../stores/userStore';
@@ -223,33 +221,6 @@ const ColportersPage: React.FC = () => {
     <div className="space-y-6">
       <Card>
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between gap-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Input
-                placeholder={t('colportersPage.searchPlaceholder')}
-                value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
-                leftIcon={<Search size={18} />}
-                className="w-full sm:w-64"
-              />
-              
-              <Button
-                variant="outline"
-                leftIcon={<Filter size={18} />}
-              >
-                {t('common.filter')}
-              </Button>
-            </div>
-            
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                leftIcon={<Download size={18} />}
-              >
-                {t('common.export')}
-              </Button>
-            </div>
-          </div>
 
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">

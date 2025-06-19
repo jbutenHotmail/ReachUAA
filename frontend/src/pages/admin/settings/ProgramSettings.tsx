@@ -735,19 +735,7 @@ const ProgramSettings: React.FC = () => {
               </div>
             </div>
           </Card>
-
-          <div className="mt-6">
-            <Button
-              variant="primary"
-              onClick={handleSaveFinancialConfig}
-              isLoading={isLoading}
-              leftIcon={<Save size={18} />}
-              fullWidth
-            >
-              {t("programSettings.saveAllChanges")}
-            </Button>
-          </div>
-
+        
           <Card
             title={t("programSettings.programBooks")}
             icon={<BookText size={20} />}

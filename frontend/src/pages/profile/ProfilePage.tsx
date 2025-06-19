@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   User, 
   Mail, 
   Phone, 
   MapPin, 
-  Calendar, 
   Shield, 
   Edit3, 
   Save, 
@@ -21,11 +20,11 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
-// import ImageUpload from '../../components/ui/ImageUpload';
+import ImageUpload from '../../components/ui/ImageUpload';
 
 const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
-  const { user, updateProfile } = useAuthStore();
+  const { user, updateProfile, changePassword: updatePassword } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -46,6 +45,20 @@ const ProfilePage: React.FC = () => {
   });
 
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+
+  // Update form data when user data changes
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        address: user.address || '',
+        profileImage: user.profile_image_url || '',
+      });
+    }
+  }, [user]);
 
   const isAdmin = user?.role === UserRole.ADMIN;
   const canEdit = isAdmin; // Only admins can edit for now
@@ -56,6 +69,11 @@ const ProfilePage: React.FC = () => {
       ...prev,
       [name]: value,
     }));
+    
+    // Clear password error when user types
+    if (passwordError) {
+      setPasswordError('');
+    }
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,6 +82,11 @@ const ProfilePage: React.FC = () => {
       ...prev,
       [name]: value,
     }));
+    
+    // Clear error when user types
+    if (passwordError) {
+      setPasswordError('');
+    }
   };
 
   const handleImageChange = (file: File | null) => {
@@ -84,7 +107,8 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  const handleSaveProfile = async () => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsLoading(true);
     setErrorMessage('');
     setSuccessMessage('');
@@ -92,43 +116,46 @@ const ProfilePage: React.FC = () => {
     try {
       await updateProfile(formData);
       setIsEditing(false);
-      setSuccessMessage('Profile updated successfully!');
+      setSuccessMessage(t('profile.updateSuccess'));
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to update profile');
+      setErrorMessage(error instanceof Error ? error.message : t('profile.updateError'));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleChangePassword = async () => {
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate passwords
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setErrorMessage('New passwords do not match');
+      setPasswordError(t('profile.passwordMismatch'));
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      setErrorMessage('New password must be at least 6 characters long');
+      setPasswordError(t('profile.passwordLength'));
       return;
     }
 
     setIsLoading(true);
-    setErrorMessage('');
+    setPasswordError('');
     setSuccessMessage('');
 
     try {
-      // In a real app, this would call an API to change password
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await updatePassword(passwordData.currentPassword, passwordData.newPassword);
       setShowPasswordForm(false);
       setPasswordData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
       });
-      setSuccessMessage('Password changed successfully!');
+      setSuccessMessage(t('profile.passwordSuccess'));
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to change password');
+      const errorMsg = error instanceof Error ? error.message : t('profile.passwordError');
+      setPasswordError(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -165,7 +192,7 @@ const ProfilePage: React.FC = () => {
         leftIcon={icons[role]}
         className="capitalize"
       >
-        {role.toLowerCase()}
+        {t(`profile.role.${role.toLowerCase()}`)}
       </Badge>
     );
   };
@@ -173,7 +200,7 @@ const ProfilePage: React.FC = () => {
   if (!user) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">User not found</p>
+        <p className="text-gray-500">{t('profile.userNotFound')}</p>
       </div>
     );
   }
@@ -187,7 +214,7 @@ const ProfilePage: React.FC = () => {
             {t('profile.title')}
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            {canEdit ? 'Manage your account settings and preferences' : 'View your account information'}
+            {canEdit ? t('profile.canEdit') : t('profile.readOnly')}
           </p>
         </div>
         
@@ -197,7 +224,7 @@ const ProfilePage: React.FC = () => {
             leftIcon={<Edit3 size={18} />}
             onClick={() => setIsEditing(true)}
           >
-            Edit Profile
+            {t('profile.edit')}
           </Button>
         )}
       </div>
@@ -207,7 +234,7 @@ const ProfilePage: React.FC = () => {
         <div className="p-4 bg-success-50 border border-success-200 rounded-lg flex items-start gap-3">
           <CheckCircle className="text-success-500 flex-shrink-0 mt-0.5" size={20} />
           <div className="text-sm text-success-700">
-            <p className="font-medium">Success!</p>
+            <p className="font-medium">{t('common.success')}</p>
             <p>{successMessage}</p>
           </div>
         </div>
@@ -217,7 +244,7 @@ const ProfilePage: React.FC = () => {
         <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg flex items-start gap-3">
           <AlertCircle className="text-danger-500 flex-shrink-0 mt-0.5" size={20} />
           <div className="text-sm text-danger-700">
-            <p className="font-medium">Error</p>
+            <p className="font-medium">{t('profile.error')}</p>
             <p>{errorMessage}</p>
           </div>
         </div>
@@ -233,7 +260,7 @@ const ProfilePage: React.FC = () => {
                   {formData.profileImage ? (
                     <img
                       src={formData.profileImage}
-                      alt={user.name}
+                      alt={`${user.name}`}
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -266,23 +293,12 @@ const ProfilePage: React.FC = () => {
                   {getRoleBadge(user.role)}
                 </div>
               </div>
-
-              <div className="pt-4 border-t border-gray-200 space-y-2">
-                <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-                  <Calendar size={14} />
-                  <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
-                </div>
-                <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-                  <Calendar size={14} />
-                  <span>Last updated {new Date(user.updatedAt).toLocaleDateString()}</span>
-                </div>
-              </div>
             </div>
           </Card>
 
           {/* Change Password Card */}
           {canEdit && (
-            <Card title="Security" icon={<Lock size={20} />} className="mt-6">
+            <Card title={t('profile.security')} icon={<Lock size={20} />} className="mt-6">
               <div className="space-y-4">
                 {!showPasswordForm ? (
                   <Button
@@ -291,12 +307,12 @@ const ProfilePage: React.FC = () => {
                     leftIcon={<Lock size={18} />}
                     onClick={() => setShowPasswordForm(true)}
                   >
-                    Change Password
+                    {t('profile.changePassword')}
                   </Button>
                 ) : (
-                  <div className="space-y-4">
+                  <form onSubmit={handleChangePassword} className="space-y-4">
                     <Input
-                      label="Current Password"
+                      label={t('profile.currentPassword')}
                       type="password"
                       name="currentPassword"
                       value={passwordData.currentPassword}
@@ -305,7 +321,7 @@ const ProfilePage: React.FC = () => {
                     />
                     
                     <Input
-                      label="New Password"
+                      label={t('profile.newPassword')}
                       type="password"
                       name="newPassword"
                       value={passwordData.newPassword}
@@ -314,7 +330,7 @@ const ProfilePage: React.FC = () => {
                     />
                     
                     <Input
-                      label="Confirm New Password"
+                      label={t('profile.confirmPassword')}
                       type="password"
                       name="confirmPassword"
                       value={passwordData.confirmPassword}
@@ -322,17 +338,24 @@ const ProfilePage: React.FC = () => {
                       required
                     />
                     
+                    {passwordError && (
+                      <div className="p-3 bg-danger-50 border border-danger-200 rounded-lg text-sm text-danger-700">
+                        {passwordError}
+                      </div>
+                    )}
+                    
                     <div className="flex gap-2">
                       <Button
+                        type="submit"
                         variant="primary"
                         size="sm"
-                        onClick={handleChangePassword}
                         isLoading={isLoading}
                         disabled={!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
                       >
-                        Update
+                        {t('profile.update')}
                       </Button>
                       <Button
+                        type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => {
@@ -342,13 +365,13 @@ const ProfilePage: React.FC = () => {
                             newPassword: '',
                             confirmPassword: '',
                           });
-                          setErrorMessage('');
+                          setPasswordError('');
                         }}
                       >
-                        Cancel
+                        {t('common.cancel')}
                       </Button>
                     </div>
-                  </div>
+                  </form>
                 )}
               </div>
             </Card>
@@ -358,7 +381,7 @@ const ProfilePage: React.FC = () => {
         {/* Personal Information */}
         <div className="lg:col-span-2">
           <Card title={t('profile.personalInfo')} icon={<User size={20} />}>
-            <div className="space-y-6">
+            <form onSubmit={handleSaveProfile} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Input
                   label={t('profile.name')}
@@ -389,7 +412,7 @@ const ProfilePage: React.FC = () => {
                   onChange={handleInputChange}
                   leftIcon={<Phone size={18} />}
                   disabled={!isEditing || !canEdit}
-                  placeholder="Enter phone number"
+                  placeholder={t('profile.phonePlaceholder')}
                 />
 
                 <div className="md:col-span-2">
@@ -400,29 +423,27 @@ const ProfilePage: React.FC = () => {
                     onChange={handleInputChange}
                     leftIcon={<MapPin size={18} />}
                     disabled={!isEditing || !canEdit}
-                    placeholder="Enter address"
+                    placeholder={t('profile.addressPlaceholder')}
                   />
                 </div>
               </div>
 
-              {/* Role Information (Read-only) */}
+              {/* Account Information (Read-only) */}
               <div className="pt-6 border-t border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Account Information</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">{t('profile.accountInfo')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Role
+                      {t('profile.role.role')}
                     </label>
-                    <div className="flex items-center">
-                      {getRoleBadge(user.role)}
-                    </div>
+                    <div className="flex items-center">{getRoleBadge(user.role)}</div>
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Account Status
+                      {t('profile.status')}
                     </label>
-                    <Badge variant="success">Active</Badge>
+                    <Badge variant="success">{t('profile.active')}</Badge>
                   </div>
                 </div>
               </div>
@@ -431,21 +452,22 @@ const ProfilePage: React.FC = () => {
               {isEditing && canEdit && (
                 <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
                   <Button
+                    type="button"
                     variant="outline"
                     onClick={handleCancel}
                     disabled={isLoading}
                   >
                     <X size={18} className="mr-2" />
-                    Cancel
+                    {t('common.cancel')}
                   </Button>
                   <Button
+                    type="submit"
                     variant="primary"
-                    onClick={handleSaveProfile}
                     isLoading={isLoading}
                     disabled={!formData.name || !formData.email}
                   >
                     <Save size={18} className="mr-2" />
-                    Save Changes
+                    {t('common.save')}
                   </Button>
                 </div>
               )}
@@ -456,13 +478,13 @@ const ProfilePage: React.FC = () => {
                   <div className="flex items-start gap-3">
                     <AlertCircle className="text-gray-500 flex-shrink-0 mt-0.5" size={20} />
                     <div className="text-sm text-gray-600">
-                      <p className="font-medium">Read-Only Profile</p>
-                      <p>Contact an administrator to make changes to your profile information.</p>
+                      <p className="font-medium">{t('profile.readOnly')}</p>
+                      <p>{t('profile.contactAdmin')}</p>
                     </div>
                   </div>
                 </div>
               )}
-            </div>
+            </form>
           </Card>
         </div>
       </div>

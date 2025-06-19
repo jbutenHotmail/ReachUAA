@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
-  UserPlus, Search, Download, Filter, 
+  UserPlus, Search, Download, 
   Mail, Phone, Building2, MapPin, User,
   Pencil, Trash2, UserCog
 } from 'lucide-react';
@@ -266,13 +266,6 @@ const AllPeoplePage: React.FC = () => {
                 <option value="COLPORTER">{t('common.colporters')}</option>
                 <option value="LEADER">{t('common.leaders')}</option>
               </select>
-
-              <Button
-                variant="outline"
-                leftIcon={<Filter size={18} />}
-              >
-                {t('common.filter')}
-              </Button>
             </div>
             
             <div className="flex gap-2">

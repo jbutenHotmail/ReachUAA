@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Calendar, BookText, DollarSign, Users, ChevronRight, TrendingUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -9,6 +10,7 @@ import { api } from '../../api';
 import LoadingScreen from '../../components/ui/LoadingScreen';
 
 const LeaderDetailPage: React.FC = () => {
+  const { t } = useTranslation();
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
@@ -27,7 +29,6 @@ const LeaderDetailPage: React.FC = () => {
   useEffect(() => {
     const getLeaderId = async () => {
       try {
-        // In a real implementation, we would fetch the leader by name
         const people = await api.get('/people/leaders');
         const leader = people.find((p: any) => 
           `${p.name} ${p.apellido}` === name || 
@@ -37,18 +38,18 @@ const LeaderDetailPage: React.FC = () => {
         if (leader) {
           setLeaderId(leader.id);
         } else {
-          setError('Leader not found');
+          setError(t('common.error'));
         }
       } catch (err) {
         console.error('Error fetching leader:', err);
-        setError('Failed to load leader data');
+        setError(t('common.error'));
       }
     };
     
     if (name) {
       getLeaderId();
     }
-  }, [name]);
+  }, [name, t]);
 
   // Fetch transactions for this leader's team and total program sales
   useEffect(() => {
@@ -57,30 +58,25 @@ const LeaderDetailPage: React.FC = () => {
       
       setIsLoading(true);
       try {
-        // Get all transactions for this leader's team - ONLY APPROVED TRANSACTIONS
         const leaderTransactions = await api.get('/transactions', { 
           params: { leaderId, status: 'APPROVED' } 
         });
         
-        // Get all program transactions to calculate total program sales - ONLY APPROVED TRANSACTIONS
         const allTransactions = await api.get('/transactions', {
           params: { status: 'APPROVED' }
         });
         
-        // Calculate total program sales
         const totalProgramSales = allTransactions.reduce((sum: number, t: any) => sum + t.total, 0);
         setProgramTotalSales(totalProgramSales);
         
-        // Get total number of leaders in the program
         const leaders = await api.get('/people/leaders');
         const activeLeaders = leaders.filter((l: any) => l.status === 'ACTIVE');
-        setTotalLeadersCount(activeLeaders.length || 1); // Ensure we don't divide by zero
+        setTotalLeadersCount(activeLeaders.length || 1);
         
-        // Process the transactions to get statistics
         processTransactionData(leaderTransactions, totalProgramSales);
       } catch (err) {
         console.error('Error fetching transaction data:', err);
-        setError('Failed to load transaction data');
+        setError(t('common.error'));
       } finally {
         setIsLoading(false);
       }
@@ -89,7 +85,7 @@ const LeaderDetailPage: React.FC = () => {
     if (leaderId) {
       loadTransactionData();
     }
-  }, [leaderId]);
+  }, [leaderId, t]);
 
   // Process transaction data to get statistics
   const processTransactionData = (leaderTransactions: any[] ) => {
@@ -99,16 +95,13 @@ const LeaderDetailPage: React.FC = () => {
       setMonthlyData({});
       return;
     }
-        // Get the leader percentage from program config
     
-    // Calculate total sales and books
     const totalSales = leaderTransactions.reduce((sum, t) => sum + t.total, 0);
     const totalBooks = {
       large: 0,
       small: 0
     };
     
-    // Process books
     leaderTransactions.forEach(transaction => {
       if (transaction.books && transaction.books.length > 0) {
         transaction.books.forEach((book: any) => {
@@ -121,7 +114,6 @@ const LeaderDetailPage: React.FC = () => {
       }
     });
     
-    // Group transactions by colporter
     const colporterMap = new Map();
     
     leaderTransactions.forEach(transaction => {
@@ -146,7 +138,6 @@ const LeaderDetailPage: React.FC = () => {
       colporter.totalSales += transaction.total;
       colporter.transactions.push(transaction);
       
-      // Update best day if this transaction is better
       if (transaction.total > colporter.bestDay.amount) {
         colporter.bestDay = {
           date: transaction.date,
@@ -154,7 +145,6 @@ const LeaderDetailPage: React.FC = () => {
         };
       }
       
-      // Process books for this transaction
       if (transaction.books && transaction.books.length > 0) {
         transaction.books.forEach((book: any) => {
           if (book.size === 'LARGE') {
@@ -166,18 +156,16 @@ const LeaderDetailPage: React.FC = () => {
       }
     });
     
-    // Calculate colporter stats
     const colporterStatsArray = Array.from(colporterMap.values()).map(colporter => ({
       ...colporter,
       averageSales: colporter.totalSales / colporter.transactions.length
     }));
     
-    // Group data by months
     const monthlyDataObj: Record<string, { sales: number; days: number; books: { large: number; small: number } }> = {};
     
     leaderTransactions.forEach(transaction => {
       const date = new Date(transaction.date);
-      const month = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const month = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
       
       if (!monthlyDataObj[month]) {
         monthlyDataObj[month] = { 
@@ -187,12 +175,11 @@ const LeaderDetailPage: React.FC = () => {
         };
       }
       
-      // Check if this is a new day for this month
       const dateStr = transaction.date;
       const isNewDay = !leaderTransactions.some(t => 
         t.date === dateStr && 
         t.id !== transaction.id && 
-        new Date(t.date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) === month
+        new Date(t.date).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }) === month
       );
       
       if (isNewDay) {
@@ -201,7 +188,6 @@ const LeaderDetailPage: React.FC = () => {
       
       monthlyDataObj[month].sales += transaction.total;
       
-      // Process books for this transaction
       if (transaction.books && transaction.books.length > 0) {
         transaction.books.forEach((book: any) => {
           if (book.size === 'LARGE') {
@@ -213,7 +199,6 @@ const LeaderDetailPage: React.FC = () => {
       }
     });
     
-    // Find best and worst days
     const salesByDay = leaderTransactions.reduce((acc: Record<string, number>, transaction) => {
       const date = transaction.date;
       acc[date] = (acc[date] || 0) + transaction.total;
@@ -230,10 +215,8 @@ const LeaderDetailPage: React.FC = () => {
       { date: '', amount: Infinity }
     );
     
-    // Calculate working days
     const workingDays = Object.keys(salesByDay).length;
     
-    // Set state with processed data
     setLeaderStats({
       totalSales,
       averageSales: totalSales / workingDays,
@@ -248,9 +231,8 @@ const LeaderDetailPage: React.FC = () => {
     setMonthlyData(monthlyDataObj);
   };
 
-  // Format currency
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
@@ -260,7 +242,7 @@ const LeaderDetailPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <LoadingScreen message='Loading leader...' />
+        <LoadingScreen message={t('common.loading')} />
       </div>
     );
   }
@@ -268,7 +250,7 @@ const LeaderDetailPage: React.FC = () => {
   if (error) {
     return (
       <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
-        <p className="font-medium">Error</p>
+        <p className="font-medium">{t('common.error')}</p>
         <p>{error}</p>
       </div>
     );
@@ -277,20 +259,19 @@ const LeaderDetailPage: React.FC = () => {
   if (!leaderStats || colporterStats.length === 0) {
     return (
       <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg text-warning-700">
-        <p className="font-medium">No Data Available</p>
-        <p>There is no transaction data available for this leader's team.</p>
+        <p className="font-medium">{t('colporterReport.noData')}</p>
+        <p>{t('colporterReport.noDataDescription')}</p>
         <Button
           variant="outline"
           className="mt-4"
           onClick={() => navigate('/reports/donations/finances')}
         >
-          Go back
+          {t('common.back')}
         </Button>
       </div>
     );
   }
 
-  // Calculate leader earnings based on total program sales divided by number of leaders
   const leaderEarnings = (programTotalSales * (program?.financialConfig?.leader_percentage 
     ? parseFloat(program.financialConfig.leader_percentage) / 100 
     : 0.15)) / totalLeadersCount;
@@ -307,25 +288,24 @@ const LeaderDetailPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Users className="text-primary-600" size={28} />
-            {name} - Leader Report
+            {name} - {t('dashboard.title')}
           </h1>
           <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
             <Calendar size={16} />
-            Complete Program • {leaderStats.workingDays} working days
+            {t('reports.completeProgram')} • {leaderStats.workingDays} {t('common.days')}
           </p>
         </div>
       </div>
 
-      {/* Summary Statistics */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <Card>
           <div className="text-center">
             <div className="flex items-center justify-center mb-2">
               <DollarSign className="text-primary-600" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Total Team Sales</p>
+            <p className="text-sm font-medium text-gray-500">{t('dashboard.totalSales')}</p>
             <p className="mt-1 text-2xl font-bold text-primary-600">{formatCurrency(leaderStats.totalSales)}</p>
-            <p className="text-xs text-gray-500">{leaderStats.colporterCount} colporters</p>
+            <p className="text-xs text-gray-500">{leaderStats.colporterCount} {t('common.colporters')}</p>
           </div>
         </Card>
 
@@ -334,11 +314,11 @@ const LeaderDetailPage: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <Users className="text-success-600" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Average Per Colporter</p>
+            <p className="text-sm font-medium text-gray-500">{t('reports.perColporter')}</p>
             <p className="mt-1 text-2xl font-bold text-success-600">
               {formatCurrency(leaderStats.totalSales / leaderStats.colporterCount)}
             </p>
-            <p className="text-xs text-gray-500">For the entire program</p>
+            <p className="text-xs text-gray-500">{t('reports.completeProgram')}</p>
           </div>
         </Card>
 
@@ -347,12 +327,12 @@ const LeaderDetailPage: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <BookText className="text-warning-600" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Total Books</p>
+            <p className="text-sm font-medium text-gray-500">{t('reports.totalBooks')}</p>
             <p className="mt-1 text-2xl font-bold text-warning-600">
               {leaderStats.totalBooks.large + leaderStats.totalBooks.small}
             </p>
             <p className="text-xs text-gray-500">
-              {leaderStats.totalBooks.large} large, {leaderStats.totalBooks.small} small
+              {leaderStats.totalBooks.large} {t('colporterReport.largeBooks')}, {leaderStats.totalBooks.small} {t('colporterReport.smallBooks')}
             </p>
           </div>
         </Card>
@@ -362,99 +342,97 @@ const LeaderDetailPage: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <Calendar className="text-info-600" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Daily Team Average</p>
+            <p className="text-sm font-medium text-gray-500">{t('dashboard.dailyAverage')}</p>
             <p className="mt-1 text-2xl font-bold text-info-600">
               {formatCurrency(leaderStats.totalSales / leaderStats.workingDays)}
             </p>
-            <p className="text-xs text-gray-500">Per working day</p>
+            <p className="text-xs text-gray-500">{t('dashboard.perWorkingDay')}</p>
           </div>
         </Card>
       </div>
 
-      {/* Leader Earnings - Prominently displayed */}
-      <Card title="Leader Earnings (Based on Total Program Sales)" icon={<DollarSign size={20} />}>
+      <Card title={t('dashboard.earningsBreakdown')} icon={<DollarSign size={20} />}>
         <div className="space-y-4">
           <div className="p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg border border-purple-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-700">Leader Commission ({program?.financialConfig?.leader_percentage || 15}%)</p>
+                <p className="text-sm font-medium text-purple-700">{t('programSettings.leaderPercentage')} ({program?.financialConfig?.leader_percentage || 15}%)</p>
                 <p className="text-2xl font-bold text-purple-800 mt-1">
                   {formatCurrency(leaderEarnings)}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-purple-600">Based on total program sales of</p>
+                <p className="text-sm text-purple-600">{t('dashboard.basedOnSales')}</p>
                 <p className="text-lg font-semibold text-purple-700">{formatCurrency(programTotalSales)}</p>
               </div>
             </div>
             
             <div className="mt-4 p-3 bg-white rounded-lg border border-purple-100">
               <p className="text-sm text-purple-800">
-                <strong>Important:</strong> Leader earnings are calculated as {program?.financialConfig?.leader_percentage || 15}% of the <strong>total program sales</strong> ({formatCurrency(programTotalSales)}), divided by the total number of leaders ({totalLeadersCount}).
+                <strong>{t('confirmationStep.importantNotes')}:</strong> {t('programSettings.leaderPercentage')} {t('reports.distributionExpenses')} ({formatCurrency(programTotalSales)}), {t('common.totals')} ({totalLeadersCount} {t('common.leaders')}).
               </p>
             </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm font-medium text-gray-700">Team Contribution</p>
+              <p className="text-sm font-medium text-gray-700">{t('confirmationStep.programPeople')}</p>
               <p className="text-lg font-bold text-gray-900">
                 {((leaderStats.totalSales / programTotalSales) * 100).toFixed(1)}%
               </p>
               <p className="text-xs text-gray-500">
-                {formatCurrency(leaderStats.totalSales)} of {formatCurrency(programTotalSales)}
+                {formatCurrency(leaderStats.totalSales)} {t('common.of')} {formatCurrency(programTotalSales)}
               </p>
             </div>
             
             <div className="p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm font-medium text-gray-700">Per Colporter</p>
+              <p className="text-sm font-medium text-gray-700">{t('reports.perColporter')}</p>
               <p className="text-lg font-bold text-gray-900">
                 {formatCurrency(leaderEarnings / leaderStats.colporterCount)}
               </p>
               <p className="text-xs text-gray-500">
-                Earnings divided by team size
+                {t('confirmationStep.programPeople')}
               </p>
             </div>
             
             <div className="p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm font-medium text-gray-700">Per Working Day</p>
+              <p className="text-sm font-medium text-gray-700">{t('dashboard.perWorkingDay')}</p>
               <p className="text-lg font-bold text-gray-900">
                 {formatCurrency(leaderEarnings / leaderStats.workingDays)}
               </p>
               <p className="text-xs text-gray-500">
-                Earnings per day worked
+                {t('dashboard.perWorkingDay')}
               </p>
             </div>
           </div>
         </div>
       </Card>
 
-      {/* Colporter Performance Table */}
-      <Card title="Colporter Performance" icon={<Users size={20} />}>
+      <Card title={t('colporterReport.salesDetails')} icon={<Users size={20} />}>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead>
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Colporter
+                  {t('common.colporter')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total Sales
+                  {t('dashboard.totalSales')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Daily Average
+                  {t('dashboard.dailyAverage')}
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Large Books
+                  {t('colporterReport.largeBooks')}
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Small Books
+                  {t('colporterReport.smallBooks')}
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Best Day
+                  {t('colporterReport.bestDay')}
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Details
+                  {t('common.details')}
                 </th>
               </tr>
             </thead>
@@ -478,7 +456,7 @@ const LeaderDetailPage: React.FC = () => {
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                     <div className="text-xs text-gray-500">
-                      {colporter.bestDay.date ? new Date(colporter.bestDay.date).toLocaleDateString('en-US', {
+                      {colporter.bestDay.date ? new Date(colporter.bestDay.date).toLocaleDateString('es-ES', {
                         month: 'short',
                         day: 'numeric'
                       }) : 'N/A'}
@@ -502,7 +480,7 @@ const LeaderDetailPage: React.FC = () => {
             <tfoot>
               <tr className="bg-gray-100">
                 <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
-                  TOTAL
+                  {t('common.total')}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
                   {formatCurrency(leaderStats.totalSales)}
@@ -523,29 +501,28 @@ const LeaderDetailPage: React.FC = () => {
         </div>
       </Card>
 
-      {/* Monthly Breakdown */}
-      <Card title="Monthly Performance" icon={<Calendar size={20} />}>
+      <Card title={t('reports.monthly')} icon={<Calendar size={20} />}>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead>
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Month
+                  {t('programSettings.months')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total Sales
+                  {t('dashboard.totalSales')}
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Working Days
+                  {t('programSettings.workingDays')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Daily Average
+                  {t('dashboard.dailyAverage')}
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Large Books
+                  {t('colporterReport.largeBooks')}
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Small Books
+                  {t('colporterReport.smallBooks')}
                 </th>
               </tr>
             </thead>
@@ -556,13 +533,13 @@ const LeaderDetailPage: React.FC = () => {
                     {month}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                    ${data.sales.toFixed(2)}
+                    {formatCurrency(data.sales)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-500">
                     {data.days}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                    ${(data.sales / data.days).toFixed(2)}
+                    {formatCurrency(data.sales / data.days)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                     <Badge variant="primary">{data.books.large}</Badge>
@@ -577,26 +554,25 @@ const LeaderDetailPage: React.FC = () => {
         </div>
       </Card>
 
-      {/* Team Performance Metrics */}
-      <Card title="Team Performance Metrics" icon={<TrendingUp size={20} />}>
+      <Card title={t('dashboard.performanceForecast')} icon={<TrendingUp size={20} />}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
-            <h4 className="font-semibold text-gray-900">Sales Metrics</h4>
+            <h4 className="font-semibold text-gray-900">{t('colporterReport.salesDetails')}</h4>
             <div className="space-y-3">
               <div className="flex justify-between items-center p-3 bg-primary-50 rounded-lg">
-                <span className="text-sm font-medium text-primary-700">Average Per Colporter</span>
+                <span className="text-sm font-medium text-primary-700">{t('reports.perColporter')}</span>
                 <span className="text-lg font-bold text-primary-700">
                   {formatCurrency(leaderStats.totalSales / leaderStats.colporterCount)}
                 </span>
               </div>
               <div className="flex justify-between items-center p-3 bg-success-50 rounded-lg">
-                <span className="text-sm font-medium text-success-700">Team Daily Average</span>
+                <span className="text-sm font-medium text-success-700">{t('dashboard.dailyAverage')}</span>
                 <span className="text-lg font-bold text-success-700">
                   {formatCurrency(leaderStats.totalSales / leaderStats.workingDays)}
                 </span>
               </div>
               <div className="flex justify-between items-center p-3 bg-warning-50 rounded-lg">
-                <span className="text-sm font-medium text-warning-700">Best Team Day</span>
+                <span className="text-sm font-medium text-warning-700">{t('colporterReport.bestDay')}</span>
                 <span className="text-lg font-bold text-warning-700">
                   {leaderStats.bestDay.date ? formatCurrency(leaderStats.bestDay.amount) : '-'}
                 </span>
@@ -605,22 +581,22 @@ const LeaderDetailPage: React.FC = () => {
           </div>
 
           <div className="space-y-4">
-            <h4 className="font-semibold text-gray-900">Book Metrics</h4>
+            <h4 className="font-semibold text-gray-900">{t('colporterReport.bookDetails')}</h4>
             <div className="space-y-3">
               <div className="flex justify-between items-center p-3 bg-primary-50 rounded-lg">
-                <span className="text-sm font-medium text-primary-700">Books Per Colporter</span>
+                <span className="text-sm font-medium text-primary-700">{t('reports.perColporter')}</span>
                 <span className="text-lg font-bold text-primary-700">
                   {Math.round((leaderStats.totalBooks.large + leaderStats.totalBooks.small) / leaderStats.colporterCount)}
                 </span>
               </div>
               <div className="flex justify-between items-center p-3 bg-success-50 rounded-lg">
-                <span className="text-sm font-medium text-success-700">Books Per Day</span>
+                <span className="text-sm font-medium text-success-700">{t('reports.booksPerDay')}</span>
                 <span className="text-lg font-bold text-success-700">
                   {((leaderStats.totalBooks.large + leaderStats.totalBooks.small) / leaderStats.workingDays).toFixed(1)}
                 </span>
               </div>
               <div className="flex justify-between items-center p-3 bg-warning-50 rounded-lg">
-                <span className="text-sm font-medium text-warning-700">Large/Small Ratio</span>
+                <span className="text-sm font-medium text-warning-700">{t('colporterReport.largeBooks')}/{t('colporterReport.smallBooks')} {t('reports.byColporters')}</span>
                 <span className="text-lg font-bold text-warning-700">
                   {leaderStats.totalBooks.small > 0 
                     ? (leaderStats.totalBooks.large / leaderStats.totalBooks.small).toFixed(1) 

@@ -1,3 +1,4 @@
+// ViewerDashboard.tsx
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
@@ -72,7 +73,7 @@ const ViewerDashboard: React.FC = () => {
         const userData = await api.get(`/users/${user.id}`);
         
         if (!userData.personId) {
-          setError('Your account is not linked to a colporter or leader profile');
+          setError(t('dashboard.errorNoProfile'));
           setIsLoading(false);
           return;
         }
@@ -100,7 +101,7 @@ const ViewerDashboard: React.FC = () => {
         setPersonalStats(stats);
       } catch (err) {
         console.error('Error fetching personal stats:', err);
-        setError('Failed to load your personal statistics');
+        setError(t('dashboard.errorLoadingStats'));
       } finally {
         setIsLoading(false);
       }
@@ -120,7 +121,7 @@ const ViewerDashboard: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <LoadingScreen message='Loading stats...' />
+        <LoadingScreen message={t('dashboard.loading')} />
       </div>
     );
   }
@@ -132,10 +133,10 @@ const ViewerDashboard: React.FC = () => {
           <div className="text-danger-500 mb-4">
             <FileText size={48} className="mx-auto" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Error Loading Data</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">{t('dashboard.errorTitle')}</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <Button variant="primary" onClick={() => window.location.reload()}>
-            Try Again
+            {t('dashboard.tryAgain')}
           </Button>
         </div>
       </Card>
@@ -164,7 +165,7 @@ const ViewerDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <FileText className="text-primary-600" size={24} />
-              Your Personal Report
+              {t('dashboard.personalReport')}
             </h2>
             <span className="text-sm text-gray-500">
               {new Date(personalStats.startDate).toLocaleDateString()} - {new Date(personalStats.endDate).toLocaleDateString()}
@@ -178,11 +179,11 @@ const ViewerDashboard: React.FC = () => {
                 <div className="flex items-center justify-center mb-2">
                   <DollarSign className="text-primary-600" size={24} />
                 </div>
-                <p className="text-sm font-medium text-gray-500">Total Sales</p>
+                <p className="text-sm font-medium text-gray-500">{t('dashboard.totalSales')}</p>
                 <p className="mt-1 text-2xl font-bold text-primary-600">
                   ${personalStats.totals.total.toFixed(2)}
                 </p>
-                <p className="text-xs text-gray-500">Current month</p>
+                <p className="text-xs text-gray-500">{t('dashboard.currentMonth')}</p>
               </div>
             </Card>
             
@@ -191,11 +192,11 @@ const ViewerDashboard: React.FC = () => {
                 <div className="flex items-center justify-center mb-2">
                   <Calendar className="text-success-600" size={24} />
                 </div>
-                <p className="text-sm font-medium text-gray-500">Working Days</p>
+                <p className="text-sm font-medium text-gray-500">{t('dashboard.workingDays')}</p>
                 <p className="mt-1 text-2xl font-bold text-success-600">
                   {Object.keys(personalStats.dailyEarnings).length}
                 </p>
-                <p className="text-xs text-gray-500">Days with sales</p>
+                <p className="text-xs text-gray-500">{t('dashboard.daysWithSales')}</p>
               </div>
             </Card>
             
@@ -204,11 +205,11 @@ const ViewerDashboard: React.FC = () => {
                 <div className="flex items-center justify-center mb-2">
                   <BookText className="text-warning-600" size={24} />
                 </div>
-                <p className="text-sm font-medium text-gray-500">Transactions</p>
+                <p className="text-sm font-medium text-gray-500">{t('dashboard.transactions')}</p>
                 <p className="mt-1 text-2xl font-bold text-warning-600">
                   {personalStats.transactions.length}
                 </p>
-                <p className="text-xs text-gray-500">Approved transactions</p>
+                <p className="text-xs text-gray-500">{t('dashboard.approvedTransactions')}</p>
               </div>
             </Card>
             
@@ -217,28 +218,28 @@ const ViewerDashboard: React.FC = () => {
                 <div className="flex items-center justify-center mb-2">
                   <TrendingUp className="text-cta-600" size={24} />
                 </div>
-                <p className="text-sm font-medium text-gray-500">Daily Average</p>
+                <p className="text-sm font-medium text-gray-500">{t('dashboard.dailyAverage')}</p>
                 <p className="mt-1 text-2xl font-bold text-cta-600">
                   ${(personalStats.totals.total / Math.max(1, Object.keys(personalStats.dailyEarnings).length)).toFixed(2)}
                 </p>
-                <p className="text-xs text-gray-500">Per working day</p>
+                <p className="text-xs text-gray-500">{t('dashboard.perWorkingDay')}</p>
               </div>
             </Card>
           </div>
           
           {/* Earnings Breakdown */}
-          <Card title="Earnings Breakdown" icon={<DollarSign size={20} />}>
+          <Card title={t('dashboard.earningsBreakdown')} icon={<DollarSign size={20} />}>
             <div className="space-y-4">
               <div className="p-4 bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg border border-primary-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-primary-600">Your Earnings ({personalStats.earnings.percentage}%)</p>
+                    <p className="text-sm font-medium text-primary-600">{t('dashboard.yourEarnings')} (${personalStats.earnings.percentage}%)</p>
                     <p className="text-2xl font-bold text-primary-700 mt-1">
                       ${personalStats.earnings.net.toFixed(2)}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-primary-600">Based on total sales of</p>
+                    <p className="text-sm text-primary-600">{t('dashboard.basedOnSales')}</p>
                     <p className="text-lg font-semibold text-primary-700">${personalStats.totals.total.toFixed(2)}</p>
                   </div>
                 </div>
@@ -247,42 +248,42 @@ const ViewerDashboard: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {personalStats.earnings.charges > 0 && (
                   <div className="p-3 bg-danger-50 rounded-lg">
-                    <p className="text-sm font-medium text-danger-700">Charges & Fines</p>
+                    <p className="text-sm font-medium text-danger-700">{t('dashboard.chargesFines')}</p>
                     <p className="text-lg font-bold text-danger-700">
                       -${personalStats.earnings.charges.toFixed(2)}
                     </p>
                     <p className="text-xs text-danger-600 mt-1">
-                      {personalStats.charges.length} active charges
+                      ${personalStats.charges.length} ${t('dashboard.activeCharges')}
                     </p>
                   </div>
                 )}
                 
                 {personalStats.earnings.advances > 0 && (
                   <div className="p-3 bg-warning-50 rounded-lg">
-                    <p className="text-sm font-medium text-warning-700">Cash Advances</p>
+                    <p className="text-sm font-medium text-warning-700">{t('dashboard.cashAdvances')}</p>
                     <p className="text-lg font-bold text-warning-700">
                       -${personalStats.earnings.advances.toFixed(2)}
                     </p>
                     <p className="text-xs text-warning-600 mt-1">
-                      {personalStats.advances.length} approved advances
+                      ${personalStats.advances.length} ${t('dashboard.approvedAdvances')}
                     </p>
                   </div>
                 )}
                 
                 <div className="p-3 bg-success-50 rounded-lg md:col-span-1">
-                  <p className="text-sm font-medium text-success-700">Final Amount</p>
+                  <p className="text-sm font-medium text-success-700">{t('dashboard.finalAmount')}</p>
                   <p className="text-lg font-bold text-success-700">
                     ${personalStats.earnings.final.toFixed(2)}
                   </p>
                   <p className="text-xs text-success-600 mt-1">
-                    After all deductions
+                    ${t('dashboard.afterDeductions')}
                   </p>
                 </div>
               </div>
               
               {/* Daily Sales Chart (simplified) */}
               <div className="pt-4 border-t border-gray-200">
-                <h3 className="text-sm font-medium text-gray-700 mb-3">Daily Sales</h3>
+                <h3 className="text-sm font-medium text-gray-700 mb-3">{t('dashboard.dailySales')}</h3>
                 <div className="grid grid-cols-7 gap-2">
                   {Object.entries(personalStats.dailyEarnings)
                     .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
@@ -319,7 +320,7 @@ const ViewerDashboard: React.FC = () => {
                   onClick={() => navigate('/transactions/new')}
                   rightIcon={<ChevronRight size={16} />}
                 >
-                  Create New Transaction
+                  {t('dashboard.createTransaction')}
                 </Button>
               </div>
             </div>
@@ -327,7 +328,7 @@ const ViewerDashboard: React.FC = () => {
           
           {/* Recent Transactions */}
           {personalStats.transactions.length > 0 && (
-            <Card title="Recent Transactions" icon={<FileText size={20} />}>
+            <Card title={t('dashboard.recentTransactions')} icon={<FileText size={20} />}>
               <div className="space-y-4">
                 {personalStats.transactions.slice(0, 5).map((transaction) => (
                   <div key={transaction.id} className="p-3 bg-gray-50 rounded-lg">
@@ -347,19 +348,19 @@ const ViewerDashboard: React.FC = () => {
                     
                     <div className="mt-2 grid grid-cols-4 gap-2 text-xs">
                       <div className="flex flex-col items-center p-1 bg-green-50 rounded">
-                        <span className="text-green-600">Cash</span>
+                        <span className="text-green-600">{t('dashboard.cash')}</span>
                         <span className="font-medium">${transaction.cash.toFixed(2)}</span>
                       </div>
                       <div className="flex flex-col items-center p-1 bg-blue-50 rounded">
-                        <span className="text-blue-600">Checks</span>
+                        <span className="text-blue-600">{t('dashboard.checks')}</span>
                         <span className="font-medium">${transaction.checks.toFixed(2)}</span>
                       </div>
                       <div className="flex flex-col items-center p-1 bg-purple-50 rounded">
-                        <span className="text-purple-600">ATM</span>
+                        <span className="text-purple-600">{t('dashboard.atm')}</span>
                         <span className="font-medium">${transaction.atmMobile?.toFixed(2)}</span>
                       </div>
                       <div className="flex flex-col items-center p-1 bg-indigo-50 rounded">
-                        <span className="text-indigo-600">PayPal</span>
+                        <span className="text-indigo-600">{t('dashboard.paypal')}</span>
                         <span className="font-medium">${transaction.paypal.toFixed(2)}</span>
                       </div>
                     </div>
@@ -369,7 +370,7 @@ const ViewerDashboard: React.FC = () => {
                 {personalStats.transactions.length > 5 && (
                   <div className="text-center pt-2">
                     <span className="text-sm text-gray-500">
-                      Showing 5 of {personalStats.transactions.length} transactions
+                      ${t('dashboard.showingTransactions')} 5 ${t('dashboard.of')} ${personalStats.transactions.length} ${t('dashboard.transactions')}
                     </span>
                   </div>
                 )}

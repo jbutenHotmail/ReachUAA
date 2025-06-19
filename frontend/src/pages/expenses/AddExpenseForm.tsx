@@ -38,11 +38,10 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
       amount: 0,
       category: '',
       notes: '',
-      status: 'PENDING', // Default to PENDING status
+      status: 'PENDING',
     }
   );
 
-  // Leader selection state
   const [leaderSearch, setLeaderSearch] = useState('');
   const [selectedLeader, setSelectedLeader] = useState<{ id: string; name: string } | null>(
     initialData?.leaderId && initialData?.leaderName 
@@ -85,7 +84,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
       ...formData,
       leaderId: selectedLeader?.id,
       leaderName: selectedLeader?.name,
-      status: 'PENDING', // Always set to PENDING when submitting
+      status: 'PENDING',
     });
   };
 
@@ -149,7 +148,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                   <div className="flex items-center">
                     <input
                       type="text"
-                      placeholder={t('common.leader')}
+                      placeholder={t('common.search')}
                       value={leaderSearch}
                       onChange={(e) => {
                         setLeaderSearch(e.target.value);
@@ -212,7 +211,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                         ))
                       ) : (
                         <div className="px-4 py-2 text-sm text-gray-500">
-                          No leaders found
+                          {t('addBookForm.noBooksFound')}
                         </div>
                       )}
                     </div>
@@ -249,6 +248,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                   <option value="supplies">{t('expenses.supplies')}</option>
                   <option value="maintenance">{t('expenses.maintenance')}</option>
                   <option value="vehicle">{t('expenses.vehicle')}</option>
+                  <option value="program">{t('expenses.programCosts')}</option>
                 </select>
               </div>
 
@@ -268,7 +268,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
               {initialData && (
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Status
+                    {t('common.status')}
                   </label>
                   <select
                     name="status"
@@ -277,9 +277,9 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                     required
                   >
-                    <option value="PENDING">Pending</option>
-                    <option value="APPROVED">Approved</option>
-                    <option value="REJECTED">Rejected</option>
+                    <option value="PENDING">{t('transactions.pending')}</option>
+                    <option value="APPROVED">{t('transactions.approved')}</option>
+                    <option value="REJECTED">{t('transactions.rejected')}</option>
                   </select>
                 </div>
               )}
