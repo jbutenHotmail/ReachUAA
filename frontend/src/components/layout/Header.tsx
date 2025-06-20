@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom'; // Import NavLink
 import { Menu, Bell, User, LogOut } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import Avatar from '../ui/Avatar';
@@ -11,7 +11,6 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
 
@@ -31,7 +30,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
           
           {/* Logo for mobile */}
           <div className="md:hidden ml-2">
-              <img src="/src/assets/logo_reach.webp" alt="Reach UAA" className="h-12 sm:h-16 w-auto" />
+            <img src="/src/assets/logo_reach.webp" alt="Reach UAA" className="h-12 sm:h-16 w-auto" />
           </div>
         </div>
         
@@ -61,17 +60,16 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
             
             {dropdownOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 z-50">
-                <a
-                  href="/profile"
+                <NavLink
+                  to="/profile"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                   onClick={() => {
                     setDropdownOpen(false);
-                    navigate('/profile');
                   }}
                 >
                   <User size={16} className="mr-2" />
                   {t('profile.title')}
-                </a>
+                </NavLink>
                 <button
                   onClick={() => {
                     logout();
