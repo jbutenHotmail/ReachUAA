@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { AuthState, User, UserRole } from '../types';
+import { AuthState, User } from '../types';
 import { api, refreshAccessToken } from '../api';
 
 interface LoginResponse {

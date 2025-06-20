@@ -95,9 +95,10 @@ export const useChargeStore = create<ChargeStore>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const { charge } = await api.patch<{ message: string; charge: Charge }>(`/charges/${id}/apply`);
+      console.log(charge);
       set(state => ({
         charges: state.charges.map(c => 
-          c.id === id 
+          Number(c.id) === Number(id)
             ? charge
             : c
         ),

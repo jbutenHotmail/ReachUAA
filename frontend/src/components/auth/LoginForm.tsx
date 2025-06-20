@@ -26,7 +26,7 @@ const LoginForm: React.FC = () => {
       await login(data.email, data.password);
       navigate('/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed. Please check your credentials.');
+      setError('Login failed. Please check your credentials.');
     }
   };
 
