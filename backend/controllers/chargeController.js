@@ -278,7 +278,7 @@ export const applyCharge = async (req, res) => {
        FROM charges c
        JOIN people p ON c.person_id = p.id
        JOIN users u ON c.applied_by = u.id
-       JOIN people ap ON u.person_id = p.id
+       JOIN people ap ON u.person_id = ap.id
        WHERE c.id = ?`,
       [id]
     );
@@ -327,7 +327,7 @@ export const cancelCharge = async (req, res) => {
        FROM charges c
        JOIN people p ON c.person_id = p.id
        JOIN users u ON c.applied_by = u.id
-       JOIN people ap ON u.person_id = p.id
+       JOIN people ap ON u.person_id = ap.id
        WHERE c.id = ?`,
       [id]
     );

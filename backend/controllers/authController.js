@@ -70,7 +70,7 @@ export const login = async (req, res) => {
         email: user.email,
         role: user.role,
         name: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : email,
-        profileImage: user.profile_image_url
+        profile_image_url: user.profile_image_url
       },
       accessToken
     });
