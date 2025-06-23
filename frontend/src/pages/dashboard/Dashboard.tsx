@@ -60,9 +60,9 @@ const Dashboard: React.FC = () => {
       // Fetch today's transactions using the consistent date format
       const today = getCurrentDate();
       console.log('Frontend today date:', today);
-      !wereTransactionsFetched && fetchTransactions(today);
+      !wereTransactionsFetched && !wereStatsFetched && fetchTransactions(today);
     }
-  }, [user, fetchSummary, fetchSalesHistory, fetchTransactions, fetchDashboardStats, fetchAdvances, selectedPeriod, fetchProgram, wasSummaryFetched, wasSalesHistoryFetched, wereStatsFetched, wereAdvancesFetched, wasProgramFetched, wereTransactionsFetched]);
+  }, []);
 
 
   useEffect(() => {

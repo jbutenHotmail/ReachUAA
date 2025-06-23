@@ -41,6 +41,7 @@ export default {
     colporter: "Colportor",
     category: "Categoría",
     note: "Nota",
+    success: 'Éxito'
   },
   bookSetup: {
     title: "Configuración de Libros",
@@ -601,11 +602,18 @@ export default {
   },
   transactions: {
     cash: "Efectivo",
+    successCreated: "Transacción creada exitosamente",
+    alreadyTransacted: "Estudiante ya tiene una transacción para esta fecha",
+    transactionAproved: "Transacción aprobada exitosamente",
+    noTransactionsFound: "No se encontraron transacciones",
     title: "Transacciones",
+    successRejected: "Transacción rechazada exitosamente",
+    todaySupervisor: "Supervisor de Hoy",
     description:
       "Vista diaria de transacciones financieras y libros entregados",
     finances: "Finanzas",
     deliveredBooks: "Libros Entregados",
+    successApproved: 'Transacción aprobada exitosamente',
     newTransaction: "Nueva Transacción",
     largeBooks: "Libros Grandes",
     smallBooks: "Libros Pequeños",

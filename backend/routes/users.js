@@ -6,6 +6,8 @@ import {
   updateUser, 
   deleteUser,
   changePassword,
+  getUserProfile,
+  updateProfile,
   getRolePermissions,
   updateRolePermissions
 } from '../controllers/userController.js';
@@ -17,7 +19,10 @@ const router = express.Router();
 router.get('/', authenticateToken, authorizeRoles(['ADMIN']), getUsers);
 
 // Get user by ID (admin only)
-router.get('/:id', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR', 'VIEWER']), getUserById);
+router.get('/:id', authenticateToken, authorizeRoles(['ADMIN']), getUserById);
+
+// Update user profile (any authenticated user)
+router.put('/profile', authenticateToken, updateProfile);
 
 // Create new user (admin only)
 router.post('/', authenticateToken, authorizeRoles(['ADMIN']), createUser);
@@ -27,6 +32,9 @@ router.put('/:id', authenticateToken, authorizeRoles(['ADMIN']), updateUser);
 
 // Delete user (admin only)
 router.delete('/:id', authenticateToken, authorizeRoles(['ADMIN']), deleteUser);
+
+// Get user profile (any authenticated user)
+router.get('/profile/me', authenticateToken, getUserProfile);
 
 // Change password (any authenticated user for their own password)
 router.post('/change-password', authenticateToken, changePassword);

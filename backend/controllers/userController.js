@@ -82,14 +82,14 @@ export const createUser = async (req, res) => {
         return res.status(400).json({ message: 'Person already has a user account' });
       }
     }
+    
     // Hash password
-    console.log(personId, email, password, role,)
     const passwordHash = await bcrypt.hash(password, 10);
     
     // Insert user
     const userId = await db.insert(
       'INSERT INTO users (person_id, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)',
-      [personId, email, passwordHash, role, 'ACTIVE']
+      [personId || null, email, passwordHash, role, 'ACTIVE']
     );
     
     // Get the created user
@@ -256,6 +256,124 @@ export const changePassword = async (req, res) => {
   }
 };
 
+// Get user profile
+export const getUserProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Get user with person details
+    const user = await db.getOne(
+      `SELECT u.id, u.email, u.role, u.status, 
+       p.id as person_id, p.first_name, p.last_name, p.phone, p.address, p.profile_image_url
+       FROM users u
+       LEFT JOIN people p ON u.person_id = p.id
+       WHERE u.id = ?`,
+      [userId]
+    );
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Format response
+    const profile = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      name: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : '',
+      phone: user.phone || '',
+      address: user.address || '',
+      profile_image_url: user.profile_image_url || null
+    };
+    
+    res.json(profile);
+  } catch (error) {
+    console.error('Error getting user profile:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Update user profile
+export const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { name, phone, address, profileImage } = req.body;
+    // Get user
+    const user = await db.getOne(
+      'SELECT * FROM users WHERE id = ?',
+      [userId]
+    );
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Check if user has a person record
+    if (!user.person_id) {
+      return res.status(400).json({ message: 'User does not have an associated person record' });
+    }
+    
+    // Get person
+    const person = await db.getOne(
+      'SELECT * FROM people WHERE id = ?',
+      [user.person_id]
+    );
+    
+    if (!person) {
+      return res.status(404).json({ message: 'Person record not found' });
+    }
+    
+    // Split name into first and last name
+    let firstName = person.first_name;
+    let lastName = person.last_name;
+    
+    if (name && name.trim() !== '') {
+      const nameParts = name.trim().split(' ');
+      if (nameParts.length > 1) {
+        firstName = nameParts[0];
+        lastName = nameParts.slice(1).join(' ');
+      } else {
+        firstName = name;
+        lastName = '';
+      }
+    }
+    
+    // Update person
+    await db.update(
+      'UPDATE people SET first_name = ?, last_name = ?, phone = ?, address = ?, profile_image_url = ?, updated_at = NOW() WHERE id = ?',
+      [firstName, lastName, phone || person.phone, address || person.address, profileImage || person.profile_image_url, user.person_id]
+    );
+    
+    // Get updated user profile
+    const updatedUser = await db.getOne(
+      `SELECT u.id, u.email, u.role, u.status, 
+       p.id as person_id, p.first_name, p.last_name, p.phone, p.address, p.profile_image_url
+       FROM users u
+       LEFT JOIN people p ON u.person_id = p.id
+       WHERE u.id = ?`,
+      [userId]
+    );
+    
+    // Format response
+    const updatedProfile = {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      status: updatedUser.status,
+      name: updatedUser.first_name && updatedUser.last_name ? `${updatedUser.first_name} ${updatedUser.last_name}` : '',
+      phone: updatedUser.phone || '',
+      address: updatedUser.address || '',
+      profile_image_url: updatedUser.profile_image_url || null
+    };
+    
+    res.json(updatedProfile);
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 // Get role permissions
 export const getRolePermissions = async (req, res) => {
   try {
@@ -342,4 +460,17 @@ export const updateRolePermissions = async (req, res) => {
     console.error('Error updating role permissions:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
+};
+
+export default {
+  getUsers,
+  getUserById,
+  createUser,
+  updateUser,
+  deleteUser,
+  changePassword,
+  getUserProfile,
+  updateProfile,
+  getRolePermissions,
+  updateRolePermissions
 };

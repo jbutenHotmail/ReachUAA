@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, X, DollarSign, BookText, Calendar, AlertTriangle, Settings, ChevronRight } from 'lucide-react';
+import { ChevronDown, X, DollarSign, BookText, Calendar, AlertTriangle, Settings, ChevronRight, CheckCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useUserStore } from '../../stores/userStore';
 import { useTransactionStore } from '../../stores/transactionStore';
@@ -39,7 +39,9 @@ const NewTransaction: React.FC = () => {
   const [bookQuantities, setBookQuantities] = useState<Record<string, number>>({});
   const [stayOnPage, setStayOnPage] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const leaderDropdownRef = useRef<HTMLDivElement>(null);
   const colporterDropdownRef = useRef<HTMLDivElement>(null);
@@ -109,8 +111,11 @@ const NewTransaction: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedLeader || !selectedColporter) return;
+    
     setError(null);
-
+    setSuccess(null);
+    setIsSubmitting(true);
+    setIsLoading(true);
     try {
       // Use the consistent date format for today
       const todayFormatted = getCurrentDate();
@@ -136,12 +141,15 @@ const NewTransaction: React.FC = () => {
               quantity,
               title: book?.title || '',
               price: book?.price || 0,
-              size: book?.size,
+              size: book?.size || (book?.price && book.price >= 20 ? BookSize.LARGE : BookSize.SMALL),
             };
           }),
       });
 
+      setSuccess(t('transactions.successCreated'));
+
       if (stayOnPage) {
+        // Reset form for a new transaction
         setSelectedColporter(null);
         setColporterSearch('');
         setCash(0);
@@ -149,12 +157,19 @@ const NewTransaction: React.FC = () => {
         setAtmMobile(0);
         setPaypal(0);
         setBookQuantities({});
+        
+        // Keep success message visible for 3 seconds
+        setTimeout(() => setSuccess(null), 3000);
       } else {
-        navigate('/transactions');
+        // Navigate after a short delay to show the success message
+        setTimeout(() => navigate('/transactions'), 1500);
       }
     } catch (error) {
       console.error('Error creating transaction:', error);
-      setError(error instanceof Error ? error.message : 'An error occurred while creating the transaction');
+      setError(error instanceof Error ? error.message : t('transactions.errorCreating'));
+    } finally {
+      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
@@ -177,7 +192,6 @@ const NewTransaction: React.FC = () => {
       <LoadingScreen message={t('transactions.preparingTransactionForm')} />
     );
   }
-
   // If today is not a colportable day and user is not admin, show restriction screen
   if (!isToday) {
     return (
@@ -246,7 +260,7 @@ const NewTransaction: React.FC = () => {
                     onClick={() => navigate('/admin/settings')}
                     leftIcon={<Settings size={16} />}
                   >
-                    {t('programSetup.title')}
+                    {t('programSettings.title')}
                   </Button>
                 )}
               </div>
@@ -288,8 +302,22 @@ const NewTransaction: React.FC = () => {
       </div>
 
       {error && (
-        <div className="p-3 bg-danger-50 border border-danger-200 rounded-lg text-danger-700 text-sm">
-          {error}
+        <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg flex items-start gap-3">
+          <AlertTriangle className="text-danger-500 flex-shrink-0 mt-0.5" size={20} />
+          <div className="text-sm text-danger-700">
+            <p className="font-medium">{t('common.error')}</p>
+            <p>{error}</p>
+          </div>
+        </div>
+      )}
+
+      {success && (
+        <div className="p-4 bg-success-50 border border-success-200 rounded-lg flex items-start gap-3">
+          <CheckCircle className="text-success-500 flex-shrink-0 mt-0.5" size={20} />
+          <div className="text-sm text-success-700">
+            <p className="font-medium">{t('common.success')}</p>
+            <p>{success}</p>
+          </div>
         </div>
       )}
 
@@ -300,7 +328,7 @@ const NewTransaction: React.FC = () => {
             <Card className="overflow-visible">
               <div className="space-y-3 sm:space-y-4">
                 <label className="block text-sm font-medium text-gray-700">
-                  {t('common.leader')} (Today's Supervisor)
+                  {t('common.leader')} ({t('transactions.todaySupervisor')})
                 </label>
                 <div className="relative">
                   <div
@@ -391,7 +419,7 @@ const NewTransaction: React.FC = () => {
             <Card className="overflow-visible">
               <div className="space-y-3 sm:space-y-4">
                 <label className="block text-sm font-medium text-gray-700">
-                  {t('common.student')} (Colporter)
+                  {t('common.student')} ({t('common.colporter')})
                 </label>
                 <div className="relative">
                   <div
@@ -583,7 +611,8 @@ const NewTransaction: React.FC = () => {
           <Button
             variant="primary"
             type="submit"
-            disabled={!selectedLeader || !selectedColporter || total <= 0 || totalBooks <= 0}
+            isLoading={isSubmitting}
+            disabled={!selectedLeader || !selectedColporter || total <= 0 || totalBooks <= 0 || isSubmitting}
             className="w-full sm:w-auto"
           >
             {t('common.save')}

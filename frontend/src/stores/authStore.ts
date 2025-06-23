@@ -14,7 +14,7 @@ interface AuthStore extends AuthState {
   register: (name: string, email: string, password: string) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (token: string, password: string) => Promise<void>;
-  updateProfile: (user: Partial<User>) => Promise<void>;
+  updateProfile: (user: Partial<User>) => Promise<User>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   refreshToken: () => Promise<void>;
 }
@@ -158,7 +158,7 @@ export const useAuthStore = create<AuthStore>()(
       updateProfile: async (userData) => {
         set({ isLoading: true, error: null });
         try {
-          // In a real app, this would call the update profile API
+          // Call the API to update the profile
           const updatedUser = await api.put<User>('/users/profile', userData);
           
           // Update the user in localStorage and state
@@ -167,6 +167,7 @@ export const useAuthStore = create<AuthStore>()(
             const mergedUser = { ...currentUser, ...updatedUser };
             localStorage.setItem('user', JSON.stringify(mergedUser));
             set({ user: mergedUser, isLoading: false });
+            return mergedUser;
           } else {
             throw new Error('No user found');
           }

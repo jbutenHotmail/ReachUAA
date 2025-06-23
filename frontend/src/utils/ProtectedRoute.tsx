@@ -34,13 +34,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
   }, [isAuthenticated, isLoading, refreshToken]);
   
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingScreen message='Loading...' />
-      </div>
-    );
-  }
+  // if (isLoading) {
+  //   return (
+  //     <div className="min-h-screen flex items-center justify-center">
+  //       <LoadingScreen message='Loading...' />
+  //     </div>
+  //   );
+  // }
   
   if (!isAuthenticated) {
     return <Navigate to={redirectPath} state={{ from: location }} replace />;

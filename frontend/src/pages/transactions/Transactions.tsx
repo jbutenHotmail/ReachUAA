@@ -10,7 +10,6 @@ import Badge from '../../components/ui/Badge';
 import { clsx } from 'clsx';
 import { useUserStore } from '../../stores/userStore';
 import { formatDateToString } from '../../utils/dateUtils';
-import LoadingScreen from '../../components/ui/LoadingScreen';
 import { BookSize } from '../../types';
 
 const Transactions: React.FC = () => {
@@ -18,7 +17,7 @@ const Transactions: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { fetchPeople, werePeopleFetched } = useUserStore();
-  const { transactions, isLoading, fetchTransactions } = useTransactionStore();
+  const { transactions, fetchTransactions } = useTransactionStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedLeader, setSelectedLeader] = useState<string>('');
 
@@ -90,7 +89,7 @@ const Transactions: React.FC = () => {
 
   const filteredTransactions = React.useMemo(() => {
     if (!selectedLeader) return transactions;
-    return transactions.filter(t => t.leaderId === selectedLeader);
+    return transactions.filter(t => Number(t.leaderId) === Number(selectedLeader) && formatDateToString(t.date) === selectedDate.toISOString().split('T')[0]);
   }, [transactions, selectedLeader]);
 
   // Calculate book totals from valid transactions
@@ -113,9 +112,9 @@ const Transactions: React.FC = () => {
     { id: 'delivered-books', label: t('transactions.deliveredBooks'), icon: <BookText size={18} />, path: '/transactions/delivered-books' },
   ];
 
-  if (isLoading) {
-    return <LoadingScreen message={t('common.loading')} />;
-  }
+  // if (isLoading) {
+  //   return <LoadingScreen message={t('common.loading')} />;
+  // }
 
   return (
     <div className="space-y-4 sm:space-y-6">

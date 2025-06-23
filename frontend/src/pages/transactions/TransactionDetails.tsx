@@ -16,10 +16,10 @@ const TransactionDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { transactions, approveTransaction, rejectTransaction, isLoading } = useTransactionStore();
   const { user } = useAuthStore();
-  
+  if(transactions.length === 0) {return navigate('/transactions');}
   // Check if user is admin (only admins can approve/reject)
   const isAdmin = user?.role === UserRole.ADMIN;
-
+  
   const transaction = transactions.find(t => Number(t.id) === Number(id));
 
   if (isLoading) {
@@ -139,13 +139,27 @@ const TransactionDetails: React.FC = () => {
                 <div>
                   <p className="text-sm text-gray-500">{t('transactions.date')}</p>
                   <p className="font-medium">
-                    {new Date(transaction.date).toLocaleDateString()}
+                    {// Fecha sin hora
+                    }
+                    {new Date(transaction.date).toLocaleDateString(undefined, {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">{t('transactionDetails.createdAt')}</p>
                   <p className="font-medium">
-                    {new Date(transaction.createdAt).toLocaleString()}
+                     {// Fecha sin hora
+                    }
+                    {new Date(transaction.createdAt).toLocaleDateString(undefined, {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
                   </p>
                 </div>
               </div>

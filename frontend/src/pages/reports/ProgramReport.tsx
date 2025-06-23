@@ -802,7 +802,7 @@ const ProgramReport: React.FC = () => {
                 <div>
                   <h3 className="font-semibold text-purple-800">{t('dashboard.revenueDistribution')}</h3>
                   <p className="text-sm text-purple-700 mt-1">
-                    {t('confirmationStep.distributionSummary')} ({programFinancials.distribution.leaderPercentage}% {t('common.of')} {t('reports.programSales')}) {t('reports.byLeaders')} <strong>{t('common.all')}</strong> {t('common.leaders')}, {t('common.regardless')} {t('reports.performance')}.
+                    {t('confirmationStep.distributionSummary')} ({programFinancials.distribution.leaderPercentage}% {t('common.of')} {t('reports.programSales')}) {t('reports.byLeaders')} <strong>{t('common.all')}</strong> {t('common.leaders')}.
                   </p>
                   <div className="mt-2 grid grid-cols-2 gap-4">
                     <div className="p-2 bg-white rounded border border-purple-100">

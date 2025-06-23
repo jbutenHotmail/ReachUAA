@@ -29,6 +29,7 @@ const ProfilePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
   
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -70,9 +71,9 @@ const ProfilePage: React.FC = () => {
       [name]: value,
     }));
     
-    // Clear password error when user types
-    if (passwordError) {
-      setPasswordError('');
+    // Clear error message when user types
+    if (errorMessage) {
+      setErrorMessage('');
     }
   };
 
@@ -141,7 +142,7 @@ const ProfilePage: React.FC = () => {
 
     setIsLoading(true);
     setPasswordError('');
-    setSuccessMessage('');
+    setPasswordSuccess('');
 
     try {
       await updatePassword(passwordData.currentPassword, passwordData.newPassword);
@@ -151,8 +152,8 @@ const ProfilePage: React.FC = () => {
         newPassword: '',
         confirmPassword: '',
       });
-      setSuccessMessage(t('profile.passwordSuccess'));
-      setTimeout(() => setSuccessMessage(''), 3000);
+      setPasswordSuccess(t('profile.passwordSuccess'));
+      setTimeout(() => setPasswordSuccess(''), 3000);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : t('profile.passwordError');
       setPasswordError(errorMsg);
@@ -300,6 +301,12 @@ const ProfilePage: React.FC = () => {
           {canEdit && (
             <Card title={t('profile.security')} icon={<Lock size={20} />} className="mt-6">
               <div className="space-y-4">
+                {passwordSuccess && (
+                  <div className="p-3 bg-success-50 border border-success-200 rounded-lg text-sm text-success-700">
+                    {passwordSuccess}
+                  </div>
+                )}
+                
                 {!showPasswordForm ? (
                   <Button
                     variant="outline"

@@ -1,12 +1,10 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import LoginForm from '../../components/auth/LoginForm';
 import { useAuthStore } from '../../stores/authStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 
 const Login: React.FC = () => {
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
   const { changeLanguage, settings } = useSettingsStore();
@@ -52,6 +50,10 @@ const Login: React.FC = () => {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4 sm:px-0">
         <div className="bg-white/95 backdrop-blur-sm py-8 px-4 shadow-2xl rounded-lg sm:px-10 border border-white/30 ">
           <LoginForm />
+          <div className="mt-6 text-center text-xs text-blue/70">
+            &copy; {new Date().getFullYear()} Reach UAA. All rights reserved.<br/>
+            Developed by Wilmer Buten.
+          </div>
         </div>
       </div>
     </div>

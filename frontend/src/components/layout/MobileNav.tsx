@@ -90,6 +90,9 @@ const MobileNav: React.FC = () => {
           </NavLink>
         ))}
       </div>
+      <div className="text-[9px] text-center text-gray-400 py-1 bg-gray-50 border-t border-gray-100">
+        &copy; {new Date().getFullYear()} Reach UAA - Wilmer Buten
+      </div>
     </nav>
   );
 };

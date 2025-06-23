@@ -1,4 +1,3 @@
-// BookCatalog.tsx
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Search, Package, Edit, DollarSign, AlertTriangle, X, CheckCircle } from 'lucide-react';
@@ -118,7 +117,7 @@ const BookCatalog: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 pb-16 md:pb-0">
       {success && (
         <div className="p-4 bg-success-50 border border-success-200 rounded-lg text-success-700">
           <p className="font-medium">{success}</p>
@@ -142,7 +141,7 @@ const BookCatalog: React.FC = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             leftIcon={<Search size={18} />}
-            className="w-full sm:w-64 py-2"
+            className="w-full sm:w-64"
           />
           
           {canAddBooks && (
@@ -164,16 +163,16 @@ const BookCatalog: React.FC = () => {
         </div>
       ) : filteredBooks.length > 0 ? (
         <Card>
-          {/* Mobile view */}
+          {/* Mobile view - Improved design */}
           <div className="block lg:hidden space-y-4">
             {filteredBooks.map((book, index) => (
               <div 
                 key={book.id}
-                className={`p-4 rounded-lg border ${
+                className={`p-3 rounded-lg border ${
                   index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                 } ${!book.is_active ? 'opacity-60' : ''}`}
               >
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start gap-3">
                   <div className="h-16 w-12 flex-shrink-0">
                     <img
                       src={book.image_url || 'https://images.pexels.com/photos/159711/books-bookstore-book-reading-159711.jpeg'}
@@ -182,7 +181,7 @@ const BookCatalog: React.FC = () => {
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start mb-2">
+                    <div className="flex justify-between items-start mb-1">
                       <div className="flex-1 min-w-0">
                         <h3 className="text-sm font-medium text-gray-900 truncate">
                           {book.title}
@@ -190,32 +189,34 @@ const BookCatalog: React.FC = () => {
                             <span className="ml-2 text-xs text-red-500 font-normal">({t('inventory.inactive')})</span>
                           )}
                         </h3>
-                        <p className="text-xs text-gray-500">{book.author}</p>
-                        <p className="text-xs text-gray-500">ISBN: {book.isbn}</p>
+                        <p className="text-xs text-gray-500 truncate">{book.author || t('inventory.unknownAuthor')}</p>
                       </div>
-                      <div className="flex items-center space-x-2 ml-2">
+                      <div className="flex items-center ml-2">
                         <DollarSign size={14} className="text-gray-400" />
                         <span className="text-sm font-semibold text-gray-900">
-                         {Number(book.stock).toFixed(2)}
+                          {Number(book.price).toFixed(2)}
                         </span>
                       </div>
                     </div>
                     
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="primary" size="sm">
-                          {t(`category.${book.category.toLowerCase()}`)}
-                        </Badge>
-                        {getBookSizeBadge(book)}
-                        <Badge 
-                          variant={book.stock > 10 ? "success" : book.stock > 0 ? "warning" : "danger"}
-                          size="sm"
-                        >
-                          {t('inventory.stock')}: ${book.stock}
-                        </Badge>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      <Badge variant="primary" size="sm">
+                        {t(`category.${book.category.toLowerCase()}`)}
+                      </Badge>
+                      {getBookSizeBadge(book)}
+                      <Badge 
+                        variant={book.stock > 10 ? "success" : book.stock > 0 ? "warning" : "danger"}
+                        size="sm"
+                      >
+                        {book.stock}
+                      </Badge>
+                      <Badge variant="secondary" size="sm">
+                        {t('inventory.sold')}: {book.sold}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                      <div>
                         {canToggleBookStatus ? (
                           <label className="relative inline-flex items-center cursor-pointer">
                             <input
@@ -225,6 +226,9 @@ const BookCatalog: React.FC = () => {
                               className="sr-only peer"
                             />
                             <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
+                            <span className="ml-2 text-xs text-gray-500">
+                              {book.is_active ? t('inventory.active') : t('inventory.inactive')}
+                            </span>
                           </label>
                         ) : (
                           <Badge 
@@ -234,17 +238,18 @@ const BookCatalog: React.FC = () => {
                             {t(`inventory.${book.is_active ? 'active' : 'inactive'}`)}
                           </Badge>
                         )}
-                        
-                        {canAddBooks && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditingBook(book)}
-                          >
-                            <Edit size={14} />
-                          </Button>
-                        )}
                       </div>
+                      
+                      {canAddBooks && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingBook(book)}
+                          className="ml-auto"
+                        >
+                          <Edit size={16} className="text-primary-600" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -267,7 +272,7 @@ const BookCatalog: React.FC = () => {
                     {t('inventory.category')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('inventory.size.size')}
+                    {t('inventory.size')}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {t('inventory.price')}
@@ -333,7 +338,7 @@ const BookCatalog: React.FC = () => {
                       <div className="flex items-center justify-end">
                         <DollarSign size={14} className="text-gray-400 mr-1" />
                         <span className="text-sm font-semibold text-gray-900">
-                          {Number(book.stock).toFixed(2)}
+                          {Number(book.price).toFixed(2)}
                         </span>
                       </div>
                     </td>
@@ -342,12 +347,12 @@ const BookCatalog: React.FC = () => {
                         variant={book.stock > 10 ? "success" : book.stock > 0 ? "warning" : "danger"}
                         size="sm"
                       >
-                       {book.stock}
+                        {book.stock}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
                       <Badge variant="primary" size="sm">
-                       {book.sold}
+                        {book.sold}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
@@ -431,13 +436,13 @@ const BookCatalog: React.FC = () => {
                 
                 <div className="space-y-3">
                   <p className="text-sm text-gray-600">
-                    {t('inventory.confirmAction')} "${confirmationModal.book.title}"
+                    {t('inventory.confirmAction')} "{confirmationModal.book.title}"
                   </p>
                   
                   {confirmationModal.action === 'deactivate' && (
                     <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg">
                       <p className="text-sm text-warning-700">
-                        <strong>{t('inventory.warning')}:</strong> ${t('inventory.deactivateWarning')}
+                        <strong>{t('inventory.warning')}:</strong> {t('inventory.deactivateWarning')}
                       </p>
                       <ul className="mt-2 text-sm text-warning-700 list-disc list-inside space-y-1">
                         <li>{t('inventory.deactivateImpact1')}</li>
