@@ -1,230 +1,216 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Calendar, BookText, DollarSign, Check, Users, LogOut } from 'lucide-react';
-import Button from '../../../components/ui/Button';
-import { useProgramStore } from '../../../stores/programStore';
-import { useAuthStore } from '../../../stores/authStore';
-import { Book, Colporter, Leader } from '../../../types';
 import ProgramInfoStep from './ProgramInfoStep';
 import FinancialConfigStep from './FinancialConfigStep';
 import BookSetupStep from './BookSetupStep';
 import PeopleSetupStep from './PeopleSetupStep';
 import ConfirmationStep from './ConfirmationStep';
-
-type SetupStep = 'info' | 'financial' | 'books' | 'people' | 'confirmation';
-
-interface ProgramFormData {
-  name: string;
-  motto: string;
-  startDate: string;
-  endDate: string;
-  goal: number;
-  workingDays: string[];
-  logo?: string;
-  colporterPercentage: number;
-  leaderPercentage: number;
-  colporterCashAdvancePercentage: number;
-  leaderCashAdvancePercentage: number;
-  books: Book[];
-  colporters: Colporter[];
-  leaders: Leader[];
-}
+import { useProgramStore } from '../../../stores/programStore';
+import { Book, Colporter, Leader } from '../../../types';
+import LoadingScreen from '../../../components/ui/LoadingScreen';
+import Card from '../../../components/ui/Card';
+import Button from '../../../components/ui/Button';
+import { X, AlertTriangle } from 'lucide-react';
 
 const ProgramSetup: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { createProgram, isLoading } = useProgramStore();
-  const { logout } = useAuthStore();
+  const { createProgram } = useProgramStore();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   
-  const [currentStep, setCurrentStep] = useState<SetupStep>('info');
-  const [formData, setFormData] = useState<ProgramFormData>({
+  // Form data state
+  const [formData, setFormData] = useState({
     name: '',
     motto: '',
     startDate: '',
     endDate: '',
-    goal: 0,
-    workingDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+    goal: 100000,
+    workingDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+    logo: '',
     colporterPercentage: 50,
     leaderPercentage: 15,
     colporterCashAdvancePercentage: 20,
     leaderCashAdvancePercentage: 25,
-    books: [],
-    colporters: [],
-    leaders: [],
+    books: [] as Book[],
+    colporters: [] as Colporter[],
+    leaders: [] as Leader[],
   });
-
-  const handleInfoChange = (data: Partial<ProgramFormData>) => {
+  
+  const updateFormData = (data: Partial<typeof formData>) => {
     setFormData(prev => ({ ...prev, ...data }));
   };
-
-  const handleFinancialChange = (data: Partial<ProgramFormData>) => {
-    setFormData(prev => ({ ...prev, ...data }));
+  
+  const handleNext = () => {
+    setCurrentStep(prev => prev + 1);
   };
-
-  const handleBooksChange = (books: Book[]) => {
-    setFormData(prev => ({ ...prev, books }));
+  
+  const handleBack = () => {
+    setCurrentStep(prev => prev - 1);
   };
-
-  const handleColportersChange = (colporters: Colporter[]) => {
-    setFormData(prev => ({ ...prev, colporters }));
+  
+  const handleCancel = () => {
+    setShowCancelConfirmation(true);
   };
-
-  const handleLeadersChange = (leaders: Leader[]) => {
-    setFormData(prev => ({ ...prev, leaders }));
+  
+  const confirmCancel = () => {
+    navigate('/program-select');
   };
-
+  
   const handleSubmit = async () => {
+    setIsLoading(true);
     try {
-      await createProgram({
-        name: formData.name,
-        motto: formData.motto,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        goal: formData.goal,
-        workingDays: formData.workingDays,
-        logo: formData.logo,
-        colporterPercentage: formData.colporterPercentage,
-        leaderPercentage: formData.leaderPercentage,
-        colporterCashAdvancePercentage: formData.colporterCashAdvancePercentage,
-        leaderCashAdvancePercentage: formData.leaderCashAdvancePercentage,
-        books: formData.books,
-        colporters: formData.colporters,
-        leaders: formData.leaders
-      });
-      
+      await createProgram(formData);
       navigate('/dashboard');
     } catch (error) {
       console.error('Error creating program:', error);
+      setIsLoading(false);
     }
   };
-
-  const handleLogout = () => {
-    logout().then(() => {
-      navigate('/login');
-    });
-  };
-
-  const getStepContent = () => {
-    switch (currentStep) {
-      case 'info':
-        return (
-          <ProgramInfoStep 
-            formData={formData} 
-            onChange={handleInfoChange} 
-            onNext={() => setCurrentStep('financial')} 
-          />
-        );
-      case 'financial':
-        return (
-          <FinancialConfigStep 
-            formData={formData} 
-            onChange={handleFinancialChange} 
-            onNext={() => setCurrentStep('books')} 
-            onBack={() => setCurrentStep('info')} 
-          />
-        );
-      case 'books':
-        return (
-          <BookSetupStep 
-            books={formData.books} 
-            onBooksChange={handleBooksChange} 
-            onNext={() => setCurrentStep('people')} 
-            onBack={() => setCurrentStep('financial')} 
-          />
-        );
-      case 'people':
-        return (
-          <PeopleSetupStep 
-            colporters={formData.colporters}
-            leaders={formData.leaders}
-            onColportersChange={handleColportersChange}
-            onLeadersChange={handleLeadersChange}
-            onNext={() => setCurrentStep('confirmation')} 
-            onBack={() => setCurrentStep('books')} 
-          />
-        );
-      case 'confirmation':
-        return (
-          <ConfirmationStep 
-            formData={formData} 
-            onSubmit={handleSubmit} 
-            onBack={() => setCurrentStep('people')} 
-            isLoading={isLoading}
-          />
-        );
-      default:
-        return null;
-    }
-  };
-
+  
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="py-6 px-4 sm:px-6 lg:px-8 bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center">
-              <img 
-                src="/src/assets/logo_reach_1.webp" 
-                alt={t('common.logoAlt')} 
-                className="h-20 w-30 object-contain"
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-gray-50 to-primary-100 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        {isLoading ? (
+          <LoadingScreen message={t('common.loading')} />
+        ) : (
+          <>
+            <div className="mb-8">
+              <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-gray-900">{t('programSetup.title')}</h1>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={handleCancel}
+                  >
+                    Cancel
+                  </Button>
+                  <div className="text-sm text-gray-500">
+                    {t('common.step')} {currentStep} {t('common.of')} 5
+                  </div>
+                </div>
+              </div>
+              
+              {/* Progress bar */}
+              <div className="mt-4 relative">
+                <div className="h-2 bg-gray-200 rounded-full">
+                  <div 
+                    className="h-2 bg-primary-600 rounded-full transition-all duration-300"
+                    style={{ width: `${(currentStep / 5) * 100}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between mt-2">
+                  {[1, 2, 3, 4, 5].map(step => (
+                    <div 
+                      key={step}
+                      className={`text-xs font-medium ${
+                        step <= currentStep ? 'text-primary-600' : 'text-gray-400'
+                      }`}
+                    >
+                      {step === 1 && t('programSetup.programInfo')}
+                      {step === 2 && t('programSetup.financialConfig')}
+                      {step === 3 && t('programSetup.books')}
+                      {step === 4 && t('programSetup.people')}
+                      {step === 5 && t('programSetup.confirmation')}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            {currentStep === 1 && (
+              <ProgramInfoStep 
+                formData={formData} 
+                onChange={updateFormData} 
+                onNext={handleNext} 
               />
+            )}
+            
+            {currentStep === 2 && (
+              <FinancialConfigStep 
+                formData={formData} 
+                onChange={updateFormData} 
+                onNext={handleNext} 
+                onBack={handleBack}
+              />
+            )}
+            
+            {currentStep === 3 && (
+              <BookSetupStep 
+                books={formData.books} 
+                onBooksChange={(books) => updateFormData({ books })} 
+                onNext={handleNext} 
+                onBack={handleBack}
+              />
+            )}
+            
+            {currentStep === 4 && (
+              <PeopleSetupStep 
+                colporters={formData.colporters} 
+                leaders={formData.leaders} 
+                onColportersChange={(colporters) => updateFormData({ colporters })} 
+                onLeadersChange={(leaders) => updateFormData({ leaders })} 
+                onNext={handleNext} 
+                onBack={handleBack}
+              />
+            )}
+            
+            {currentStep === 5 && (
+              <ConfirmationStep 
+                formData={formData} 
+                onSubmit={handleSubmit} 
+                onBack={handleBack}
+                isLoading={isLoading}
+              />
+            )}
+            
+            {/* Cancel Confirmation Modal */}
+            {showCancelConfirmation && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+                  <Card>
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <AlertTriangle className="text-warning-500" size={24} />
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Cancel Program Setup
+                        </h3>
+                      </div>
+                      
+                      <p className="text-sm text-gray-600">
+                        Are you sure you want to cancel the program setup? All your progress will be lost.
+                      </p>
+                      
+                      <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200">
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowCancelConfirmation(false)}
+                          leftIcon={<X size={16} />}
+                          className="w-full sm:w-auto"
+                        >
+                          No, Continue Setup
+                        </Button>
+                        <Button
+                          variant="danger"
+                          onClick={confirmCancel}
+                          className="w-full sm:w-auto"
+                        >
+                          Yes, Cancel Setup
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              </div>
+            )}
+            
+            <div className="text-xs text-center text-gray-500 mt-8">
+              &copy; {new Date().getFullYear()} Reach UAA - Developed by Wilmer Buten
             </div>
-            <div className="h-8 border-l border-gray-300"></div>
-            <h1 className="text-2xl font-bold text-gray-900">{t('programSetup.title')}</h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="outline"
-              onClick={handleLogout}
-              leftIcon={<LogOut size={18} />}
-            >
-              {t('auth.logout')}
-            </Button>
-            <div className="hidden sm:flex items-center space-x-2">
-              <div className={`flex items-center ${currentStep === 'info' || currentStep === 'financial' || currentStep === 'books' || currentStep === 'people' || currentStep === 'confirmation' ? 'text-primary-600' : 'text-gray-400'}`}>
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === 'info' || currentStep === 'financial' || currentStep === 'books' || currentStep === 'people' || currentStep === 'confirmation' ? 'bg-primary-100' : 'bg-gray-200'}`}>
-                  <Calendar size={16} />
-                </div>
-                <span className="ml-2 text-sm font-medium">{t('programSetup.programInfo')}</span>
-              </div>
-              <div className="w-8 h-0.5 bg-gray-200"></div>
-              <div className={`flex items-center ${currentStep === 'financial' || currentStep === 'books' || currentStep === 'people' || currentStep === 'confirmation' ? 'text-primary-600' : 'text-gray-400'}`}>
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === 'financial' || currentStep === 'books' || currentStep === 'people' || currentStep === 'confirmation' ? 'bg-primary-100' : 'bg-gray-200'}`}>
-                  <DollarSign size={16} />
-                </div>
-                <span className="ml-2 text-sm font-medium">{t('programSetup.financial')}</span>
-              </div>
-              <div className="w-8 h-0.5 bg-gray-200"></div>
-              <div className={`flex items-center ${currentStep === 'books' || currentStep === 'people' || currentStep === 'confirmation' ? 'text-primary-600' : 'text-gray-400'}`}>
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === 'books' || currentStep === 'people' || currentStep === 'confirmation' ? 'bg-primary-100' : 'bg-gray-200'}`}>
-                  <BookText size={16} />
-                </div>
-                <span className="ml-2 text-sm font-medium">{t('programSetup.books')}</span>
-              </div>
-              <div className="w-8 h-0.5 bg-gray-200"></div>
-              <div className={`flex items-center ${currentStep === 'people' || currentStep === 'confirmation' ? 'text-primary-600' : 'text-gray-400'}`}>
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === 'people' || currentStep === 'confirmation' ? 'bg-primary-100' : 'bg-gray-200'}`}>
-                  <Users size={16} />
-                </div>
-                <span className="ml-2 text-sm font-medium">{t('programSetup.people')}</span>
-              </div>
-              <div className="w-8 h-0.5 bg-gray-200"></div>
-              <div className={`flex items-center ${currentStep === 'confirmation' ? 'text-primary-600' : 'text-gray-400'}`}>
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === 'confirmation' ? 'bg-primary-100' : 'bg-gray-200'}`}>
-                  <Check size={16} />
-                </div>
-                <span className="ml-2 text-sm font-medium">{t('programSetup.confirmation')}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="flex-1 py-6 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          {getStepContent()}
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

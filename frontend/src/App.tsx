@@ -38,6 +38,7 @@ import AllPeoplePage from './pages/admin/people/AllPeoplePage';
 import UsersPage from './pages/admin/users/UsersPage';
 // import ManageRolesPage from './pages/admin/users/ManageRolesPage';
 import ProgramSettings from './pages/admin/settings/ProgramSettings';
+import ProgramSelectionPage from './pages/program/ProgramSelectionPage';
 import ProgramSetup from './pages/admin/setup/ProgramSetup';
 import ProfilePage from './pages/profile/ProfilePage';
 import AccessDeniedPage from './pages/reports/AccessDeniedPage';
@@ -71,7 +72,17 @@ function App() {
     <Routes>
       <Route 
         path="/login" 
-        element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />} 
+        element={!isAuthenticated ? <Login /> : <Navigate to="/program-select" replace />} 
+      />
+      
+      {/* Program Selection Page */}
+      <Route 
+        path="/program-select" 
+        element={
+          <ProtectedRoute>
+            <ProgramSelectionPage />
+          </ProtectedRoute>
+        } 
       />
       
       {/* Program Setup Route for Admin */}
@@ -90,6 +101,8 @@ function App() {
           <ProtectedRoute>
             {needsProgramSetup ? (
               <Navigate to="/setup" replace />
+            ) : !program ? (
+              <Navigate to="/program-select" replace />
             ) : (
               <Layout />
             )}
@@ -127,9 +140,7 @@ function App() {
               <AccessDeniedPage message="You don't have permission to view delivered books. You can only create new transactions." /> : 
               <Transactions />
           } />
-          <Route path="new" element={user?.role === UserRole.VIEWER ? 
-              <AccessDeniedPage message="You don't have permission to view transactions. You can only create new transactions." /> : 
-              <NewTransaction />} />
+          <Route path="new" element={<NewTransaction />} />
           <Route path=":id" element={
             user?.role === UserRole.VIEWER ? 
               <AccessDeniedPage message="You don't have permission to view transaction details." /> : 
@@ -304,6 +315,7 @@ function App() {
             <Route path="leaders" element={<LeadersPage />} />
           </Route>
           <Route path="settings" element={<ProgramSettings />} />
+          <Route path="programs" element={<ProgramSelectionPage />} />
         </Route>
         
         <Route path="profile" element={<ProfilePage />} />
@@ -313,4 +325,5 @@ function App() {
   );
 }
 
+// Copyright © {new Date().getFullYear()} Reach UAA - Developed by Wilmer Buten
 export default App;

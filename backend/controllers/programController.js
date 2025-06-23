@@ -20,15 +20,17 @@ export const createProgram = async (req, res) => {
       colporters,
       leaders
     } = req.body;
+
     // Start a transaction
     const result = await db.transaction(async (connection) => {
       // Insert program
       const [programResult] = await connection.execute(
         'INSERT INTO programs (name, motto, start_date, end_date, financial_goal, logo_url, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [name, motto, startDate, endDate, goal, logo || null, true]
+        [name, motto, startDate, endDate, goal, logo, true]
       );
       
       const programId = programResult.insertId;
+      
       // Insert working days
       for (const day of workingDays) {
         await connection.execute(
@@ -36,12 +38,12 @@ export const createProgram = async (req, res) => {
           [programId, day, true]
         );
       }
-      console.log('pasamos aqui')
+      
       // Insert non-working days
       const allDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       const nonWorkingDays = allDays.filter(day => !workingDays.includes(day));
       
-      for (const day of nonWorkingDays) { 
+      for (const day of nonWorkingDays) {
         await connection.execute(
           'INSERT INTO program_working_days (program_id, day_of_week, is_working_day) VALUES (?, ?, ?)',
           [programId, day, false]
@@ -53,7 +55,7 @@ export const createProgram = async (req, res) => {
         'INSERT INTO program_financial_config (program_id, colporter_percentage, leader_percentage, colporter_cash_advance_percentage, leader_cash_advance_percentage) VALUES (?, ?, ?, ?, ?)',
         [programId, colporterPercentage, leaderPercentage, colporterCashAdvancePercentage, leaderCashAdvancePercentage]
       );
-      console.log('pasamos alli')
+      
       // Insert books
       if (books && books.length > 0) {
         for (const book of books) {
@@ -70,18 +72,18 @@ export const createProgram = async (req, res) => {
             bookId = existingBooks[0].id;
             await connection.execute(
               'UPDATE books SET price = ?, category = ?, description = ?, image_url = ?, is_active = ? WHERE id = ?',
-              [book.price, book.category, book.description, book.imageUrl || null, book.is_active, bookId]
+              [book.price, book.category, book.description, book.image_url, book.is_active, bookId]
             );
           } else {
-            // console.log(book.isbn || null, book.title, book.author || null, book.publisher || null, book.price, book.category, book.description, book.imageUrl || null, book.stock, 0, book.is_active)
             // Insert new book
             const [bookResult] = await connection.execute(
               'INSERT INTO books (isbn, title, author, publisher, price, category, description, image_url, stock, sold, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-              [book.isbn || null, book.title, book.author || null, book.publisher || null, book.price, book.category, book.description, book.imageUrl || null, book.stock, 0, book.is_active]
+              [book.isbn || null, book.title, book.author || null, book.publisher || null, book.price, book.category, book.description, book.image_url || null, book.stock, 0, book.is_active]
             );
             
             bookId = bookResult.insertId;
           }
+          
           // Insert program book
           await connection.execute(
             'INSERT INTO program_books (program_id, book_id, price, initial_stock) VALUES (?, ?, ?, ?)',
@@ -89,7 +91,7 @@ export const createProgram = async (req, res) => {
           );
         }
       }
-      console.log('pasamos')
+      
       // Insert colporters
       if (colporters && colporters.length > 0) {
         for (const colporter of colporters) {
@@ -112,7 +114,7 @@ export const createProgram = async (req, res) => {
           }
         }
       }
-      console.log('leaders')
+      
       // Insert leaders
       if (leaders && leaders.length > 0) {
         for (const leader of leaders) {
@@ -184,27 +186,105 @@ export const getProgram = async (req, res) => {
       [program.id]
     );
     
-    // Create consolidated program object
-    const programResponse = {
-      ...program,
-      financialConfig: {
-        ...financialConfig
-      },
-      workingDays: workingDays.map(day => ({
-        ...day
-      })),
-      customDays: customDays.map(day => ({
-        ...day
-      })),
-      books: books.map(book => ({
-        ...book
-      }))
-    };
-    
-    console.log(programResponse);
-    res.json({program: programResponse});
+    res.json({
+      program,
+      financialConfig,
+      workingDays,
+      customDays,
+      books
+    });
   } catch (error) {
     console.error('Error getting program:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Get all available programs
+export const getAvailablePrograms = async (req, res) => {
+  try {
+    // Get user ID from the authenticated request
+    const userId = req.user.id;
+    
+    // For admin users, get all programs
+    // For other users, get only the active program
+    let programs;
+    
+    if (req.user.role === 'ADMIN') {
+      programs = await db.query('SELECT * FROM programs ORDER BY is_active DESC, start_date DESC');
+    } else {
+      programs = await db.query('SELECT * FROM programs WHERE is_active = true');
+    }
+    
+    res.json(programs);
+  } catch (error) {
+    console.error('Error getting available programs:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Switch to a different program
+export const switchProgram = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    
+    // Only admin users can switch programs
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ message: 'Only administrators can switch programs' });
+    }
+    
+    // Check if program exists
+    const program = await db.getOne('SELECT * FROM programs WHERE id = ?', [id]);
+    
+    if (!program) {
+      return res.status(404).json({ message: 'Program not found' });
+    }
+    
+    // If the program is not active, make it active and deactivate others
+    if (!program.is_active) {
+      await db.update('UPDATE programs SET is_active = false WHERE is_active = true');
+      await db.update('UPDATE programs SET is_active = true WHERE id = ?', [id]);
+    }
+    
+    // Get the complete program data to return
+    const updatedProgram = await db.getOne('SELECT * FROM programs WHERE id = ?', [id]);
+    
+    // Get financial config
+    const financialConfig = await db.getOne(
+      'SELECT * FROM program_financial_config WHERE program_id = ?',
+      [id]
+    );
+    
+    // Get working days
+    const workingDays = await db.query(
+      'SELECT * FROM program_working_days WHERE program_id = ?',
+      [id]
+    );
+    
+    // Get custom days
+    const customDays = await db.query(
+      'SELECT * FROM program_custom_days WHERE program_id = ?',
+      [id]
+    );
+    
+    // Get program books
+    const books = await db.query(
+      'SELECT * FROM view_program_books WHERE program_id = ?',
+      [id]
+    );
+    
+    res.json({
+      message: 'Program switched successfully',
+      program: {
+        ...updatedProgram,
+        financialConfig,
+        workingDays,
+        customDays,
+        books
+      }
+    });
+  } catch (error) {
+    console.error('Error switching program:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
@@ -226,7 +306,7 @@ export const updateProgram = async (req, res) => {
     // Update program
     await db.update(
       'UPDATE programs SET name = ?, motto = ?, start_date = ?, end_date = ?, financial_goal = ?, logo_url = ?, is_active = ?, updated_at = NOW() WHERE id = ?',
-      [name, motto, startDate, endDate, goal, logo || null, isActive, id]
+      [name, motto, startDate, endDate, goal, logo, isActive, id]
     );
     
     res.json({ message: 'Program updated successfully' });

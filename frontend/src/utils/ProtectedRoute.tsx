@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { UserRole } from '../types';
 import { useAuthStore } from '../stores/authStore';
+import { useProgramStore } from '../stores/programStore';
 import AccessDeniedPage from '../pages/reports/AccessDeniedPage';
 import LoadingScreen from '../components/ui/LoadingScreen';
 
@@ -9,15 +10,18 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: UserRole[];
   redirectPath?: string;
+  requireProgram?: boolean;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
   allowedRoles = [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.VIEWER],
-  redirectPath = '/login'
+  redirectPath = '/login',
+  requireProgram = true
 }) => {
   const location = useLocation();
   const { isAuthenticated, user, isLoading, refreshToken } = useAuthStore();
+  const { program } = useProgramStore();
   
   // Try to refresh token if not authenticated
   useEffect(() => {
@@ -34,13 +38,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
   }, [isAuthenticated, isLoading, refreshToken]);
   
-  // if (isLoading) {
-  //   return (
-  //     <div className="min-h-screen flex items-center justify-center">
-  //       <LoadingScreen message='Loading...' />
-  //     </div>
-  //   );
-  // }
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingScreen message='Loading...' />
+      </div>
+    );
+  }
   
   if (!isAuthenticated) {
     return <Navigate to={redirectPath} state={{ from: location }} replace />;
@@ -49,6 +53,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // If user doesn't have the required role, show access denied page
   if (user && !allowedRoles.includes(user.role)) {
     return <AccessDeniedPage />;
+  }
+  
+  // If program is required but not selected, redirect to program selection
+  // Skip this check for the program selection page itself to avoid infinite loop
+  if (requireProgram && !program && !location.pathname.includes('/program-select') && !location.pathname.includes('/setup')) {
+    return <Navigate to="/program-select" replace />;
   }
   
   return <>{children}</>;

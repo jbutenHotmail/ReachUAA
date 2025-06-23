@@ -136,6 +136,11 @@ export enum BookSize {
   SMALL = 'SMALL'
 }
 
+// Function to determine book size based on price or size property
+export function getBookSize(price: number): BookSize {
+  return price >= 20 ? BookSize.LARGE : BookSize.SMALL;
+}
+
 // New interface for program-specific book details
 export interface ProgramBook {
   bookId: string;
@@ -222,21 +227,6 @@ export interface WeeklySales {
   maxAdvancePercentage?: number;
 }
 
-// New interface for leader performance based on transactions
-export interface LeaderPerformance {
-  leaderId: string;
-  leaderName: string;
-  totalSales: number;
-  transactionCount: number;
-  uniqueColporters: string[];
-  averagePerTransaction: number;
-  bestDay: {
-    date: string;
-    amount: number;
-  };
-  dailySales: Record<string, number>;
-}
-
 export interface Colporter {
   id: string;
   name: string;
@@ -276,7 +266,7 @@ export interface ProgramConfig {
   end_date: string;
   financial_goal: string;
   logo_url: string | null;
-  is_active: number;
+  is_active: number | boolean;
   created_at: string;
   updated_at: string;
   achieved?: number; // Added this property
@@ -294,13 +284,20 @@ export interface ProgramConfig {
     id: number;
     program_id: number;
     day_of_week: string;
-    is_working_day: number;
+    is_working_day: number | boolean;
   }[];
   customDays: {
     id: number;
     program_id: number;
     date: string;
-    is_working_day: number;
+    is_working_day: number | boolean;
   }[];
   books: ProgramBook[];
+}
+
+// App settings interface
+export interface AppSettings {
+  language: string;
+  theme: string;
+  notifications: boolean;
 }

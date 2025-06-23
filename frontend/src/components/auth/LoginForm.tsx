@@ -24,7 +24,7 @@ const LoginForm: React.FC = () => {
     try {
       setError(null);
       await login(data.email, data.password);
-      navigate('/dashboard');
+      navigate('/program-select');
     } catch (err) {
       setError('Login failed. Please check your credentials.');
     }
@@ -75,6 +75,7 @@ const LoginForm: React.FC = () => {
           className="focus:border-[#0052B4] focus:ring-[#0052B4] py-2"
         />
       </div>
+      
       <div>
         <Button
           type="submit"
@@ -86,7 +87,6 @@ const LoginForm: React.FC = () => {
           {t('auth.login')}
         </Button>
       </div>
-      
     </form>
   );
 };

@@ -7,7 +7,9 @@ import {
   updateProgramWorkingDay,
   addCustomProgramDay,
   getFinancialConfig,
-  updateFinancialConfig
+  updateFinancialConfig,
+  getAvailablePrograms,
+  switchProgram
 } from '../controllers/programController.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
 
@@ -16,8 +18,14 @@ const router = express.Router();
 // Get active program
 router.get('/', authenticateToken, getProgram);
 
+// Get all available programs (for admin users)
+router.get('/available', authenticateToken, authorizeRoles(['ADMIN']), getAvailablePrograms);
+
+// Switch to a different program (admin only)
+router.post('/switch/:id', authenticateToken, authorizeRoles(['ADMIN']), switchProgram);
+
 // Create new program (admin only)
-router.post('/', createProgram);
+router.post('/', authenticateToken, authorizeRoles(['ADMIN']), createProgram);
 
 // Update program (admin only)
 router.put('/:id', authenticateToken, authorizeRoles(['ADMIN']), updateProgram);

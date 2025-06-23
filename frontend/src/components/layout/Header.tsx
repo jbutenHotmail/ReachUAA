@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router-dom'; // Import NavLink
-import { Menu, Bell, User, LogOut } from 'lucide-react';
+import { Menu, User, LogOut, Footprints } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
+import { useProgramStore } from '../../stores/programStore';
 import Avatar from '../ui/Avatar';
 
 interface HeaderProps {
@@ -12,6 +13,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
   const { t } = useTranslation();
   const { user, logout } = useAuthStore();
+  const { program } = useProgramStore();
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
 
   const toggleDropdown = () => setDropdownOpen(!dropdownOpen);
@@ -30,18 +32,26 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
           
           {/* Logo for mobile */}
           <div className="md:hidden ml-2">
-            <img src="/src/assets/logo_reach.webp" alt="Reach UAA" className="h-12 sm:h-16 w-auto" />
+            <img src="/src/assets/logo_reach.webp" alt="Reach UAA" className="h-8 w-16" />
           </div>
+          
+          {/* Program name for mobile */}
+          {program && (
+            <div className="ml-3 sm:flex md:flex items-center">
+              <div className="flex items-center bg-white/10 rounded-md px-2 py-1 border border-white/20">
+                <Footprints size={14} className="text-white/80 mr-1.5 flex-shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-white truncate max-w-[100px] leading-tight">
+                    {program.name}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="flex items-center space-x-2 sm:space-x-3">
-          <button
-            className="p-1.5 sm:p-2 rounded-full text-white/80 hover:text-white hover:bg-white/10"
-            aria-label="Notifications"
-          >
-            <Bell size={18} className="sm:w-5 sm:h-5" />
-          </button>
-          
+       
           <div className="relative">
             <button
               onClick={toggleDropdown}

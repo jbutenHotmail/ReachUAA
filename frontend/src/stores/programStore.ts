@@ -11,7 +11,7 @@ interface ProgramConfig {
   end_date: string;
   financial_goal: string;
   logo_url: string | null;
-  is_active: number;
+  is_active: number | boolean;
   created_at: string;
   updated_at: string;
   financialConfig: {
@@ -28,19 +28,20 @@ interface ProgramConfig {
     id: number;
     program_id: number;
     day_of_week: string;
-    is_working_day: number;
+    is_working_day: number | boolean;
   }[];
   customDays: {
     id: number;
     program_id: number;
     date: string;
-    is_working_day: number;
+    is_working_day: number | boolean;
   }[];
   books: ProgramBook[];
 }
 
 interface ProgramState {
   program: ProgramConfig | null;
+  availablePrograms: ProgramConfig[] | null;
   isLoading: boolean;
   error: string | null;
   wasProgramFetched: boolean;
@@ -50,12 +51,15 @@ interface ProgramStore extends ProgramState {
   createProgram: (programData: any) => Promise<void>;
   updateProgram: (id: number, programData: any) => Promise<void>;
   fetchProgram: () => Promise<void>;
+  fetchAvailablePrograms: () => Promise<void>;
+  switchProgram: (programId: number) => Promise<void>;
 }
 
 export const useProgramStore = create<ProgramStore>()(
   persist(
     (set, get) => ({
       program: null,
+      availablePrograms: null,
       isLoading: false,
       error: null,
       wasProgramFetched: false,
@@ -116,6 +120,42 @@ export const useProgramStore = create<ProgramStore>()(
         }
       },
 
+      fetchAvailablePrograms: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const programs = await api.get('/program/available');
+          set({ 
+            availablePrograms: programs || [], 
+            isLoading: false
+          });
+        } catch (error) {
+          set({ 
+            error: error instanceof Error ? error.message : 'An unknown error occurred', 
+            isLoading: false 
+          });
+        }
+      },
+
+      switchProgram: async (programId) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await api.post(`/program/switch/${programId}`);
+          set({ 
+            program: response.program, 
+            isLoading: false,
+            wasProgramFetched: true
+          });
+          
+          // Reload the page to refresh all data
+          window.location.href = '/dashboard';
+        } catch (error) {
+          set({ 
+            error: error instanceof Error ? error.message : 'An unknown error occurred', 
+            isLoading: false 
+          });
+          throw error;
+        }
+      },
     }),
     {
       name: 'program-storage',
