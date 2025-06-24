@@ -4,7 +4,7 @@ import * as db from '../config/database.js';
 export const getDashboardStats = async (req, res) => {
   try {
     // Log the current date for debugging
-    console.log('Backend today date:', new Date().toISOString().split('T')[0]);
+    // console.log('Backend today date:', new Date().toISOString().split('T')[0]);
     
     // Use the date from the request if provided, otherwise use server date
     const today = req.query.date || new Date().toISOString().split('T')[0];

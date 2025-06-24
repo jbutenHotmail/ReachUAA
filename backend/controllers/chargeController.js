@@ -136,7 +136,6 @@ export const createCharge = async (req, res) => {
        WHERE c.id = ?`,
       [chargeId]
     );
-    console.log('charge', charge);
     res.status(201).json(charge);
   } catch (error) {
     console.error('Error creating charge:', error);

@@ -58,9 +58,9 @@ const Dashboard: React.FC = () => {
       !wasProgramFetched && fetchProgram();
       
       // Fetch today's transactions using the consistent date format
-      const today = getCurrentDate();
-      console.log('Frontend today date:', today);
-      !wereTransactionsFetched && !wereStatsFetched && fetchTransactions(today);
+    //   const today = getCurrentDate();
+    //   console.log('Frontend today date:', today);
+    //   !wereTransactionsFetched && !wereStatsFetched && fetchTransactions(today);
     }
   }, []);
 
@@ -70,6 +70,7 @@ const Dashboard: React.FC = () => {
       try {
         // Fetch all APPROVED transactions without date filtering
         !wereTransactionsFetched && await fetchAllTransactions();
+        console.log(wereTransactionsFetched);
       } catch (err) {
         console.error('Error fetching transaction data:', err);
       }

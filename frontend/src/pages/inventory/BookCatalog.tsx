@@ -272,7 +272,7 @@ const BookCatalog: React.FC = () => {
                     {t('inventory.category')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('inventory.size')}
+                    Size
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {t('inventory.price')}

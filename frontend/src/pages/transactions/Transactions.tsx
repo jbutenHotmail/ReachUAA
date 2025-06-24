@@ -88,10 +88,9 @@ const Transactions: React.FC = () => {
   }, [validTransactions]);
 
   const filteredTransactions = React.useMemo(() => {
-    if (!selectedLeader) return transactions;
+    if (!selectedLeader) return transactions.filter(t => formatDateToString(t.date) === formatDateToString(selectedDate));
     return transactions.filter(t => Number(t.leaderId) === Number(selectedLeader) && formatDateToString(t.date) === selectedDate.toISOString().split('T')[0]);
   }, [transactions, selectedLeader]);
-
   // Calculate book totals from valid transactions
   const bookTotals = React.useMemo(() => {
     return validTransactions.reduce((acc, transaction) => {

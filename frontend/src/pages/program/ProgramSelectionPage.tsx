@@ -15,13 +15,17 @@ const ProgramSelectionPage: React.FC = () => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const { settings, changeLanguage } = useSettingsStore();
-  const { program, availablePrograms, fetchAvailablePrograms, switchProgram } = useProgramStore();
+  const { program, availablePrograms, fetchAvailablePrograms, switchProgram, wasProgramFetched } = useProgramStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
 
   // Check if we're coming from the layout (not direct navigation)
-  const isFromLayout = location.pathname === '/admin/programs' || location.pathname === '/program-select';
+  // We consider it from layout if the path is explicitly /admin/programs or /program-select
+  // Coming from login would have state.from.pathname = '/login'
+  const isFromLayout = location.pathname === '/admin/programs' || 
+                       (location.pathname === '/program-select' && location.state?.from?.pathname !== '/login');
+  console.log(location);
   const showBackButton = isFromLayout && program;
 
   useEffect(() => {
@@ -49,16 +53,17 @@ const ProgramSelectionPage: React.FC = () => {
 
   // If a program is already selected and we're not coming from the layout, redirect to dashboard
   useEffect(() => {
-    if (program && !isFromLayout) {
+    if (program && !isFromLayout && wasProgramFetched) {
       navigate('/dashboard');
     }
-  }, [program, navigate, isFromLayout]);
+  }, [program, navigate, isFromLayout, wasProgramFetched]);
 
   const handleProgramSwitch = async (programId: number) => {
     setSwitching(true);
     try {
       await switchProgram(programId);
-      // Navigation will happen automatically in the useEffect above
+      // Navigate after successful switch
+      navigate('/dashboard');
     } catch (err) {
       setError('Failed to switch program');
       console.error('Error switching program:', err);
@@ -98,22 +103,23 @@ const ProgramSelectionPage: React.FC = () => {
         <div className="bg-primary-100 rounded-full p-4 mb-4">
           <Plus size={32} className="text-primary-600" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900">{t('programSetup.addProgram')}</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Add New Program</h3>
+        <p className="text-sm text-gray-500 text-center mt-2">
+          Create a new program to manage colportage activities
+        </p>
       </div>
     </Card>
   );
 
   if (!availablePrograms || availablePrograms.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-gray-50 to-primary-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="flex flex-col items-center justify-center mb-6">
-              <img src="/src/assets/logo_reach_1.webp" alt="Reach UAA" className="h-24 mb-3" />
-            </div>
+            <img src="/src/assets/logo_reach.webp" alt="Reach UAA" className="h-24 mx-auto mb-4" />
             
             {/* Language and Logout buttons */}
-            <div className="absolute -top-4 right-4 flex gap-2">
+            <div className="absolute top-4 right-4 flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -147,20 +153,14 @@ const ProgramSelectionPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-gray-50 to-primary-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-4xl">
-        <div className="text-center mb-8 relative pt-12">
-          <div className="flex flex-col items-center justify-center mb-6">
-            <img src="/src/assets/logo_reach_1.webp" alt="Reach UAA" className="h-32 mb-8" />
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center justify-center gap-2">
-              <Building className="text-primary-600" size={32} />
-              {t('common.selectProgram')}
-            </h1>
-          </div>
+        <div className="text-center mb-8 relative">
+          <img src="/src/assets/logo_reach.webp" alt="Reach UAA" className="h-24 mx-auto mb-4" />
           
           {/* Back button if coming from layout */}
           {showBackButton && (
-            <div className="absolute -top-4 left-0">
+            <div className="absolute top-0 left-0">
               <Button
                 variant="outline"
                 size="sm"
@@ -174,7 +174,7 @@ const ProgramSelectionPage: React.FC = () => {
           )}
           
           {/* Language and Logout buttons */}
-          <div className="absolute -top-4 right-0 flex gap-2">
+          <div className="absolute top-0 right-0 flex gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -196,8 +196,12 @@ const ProgramSelectionPage: React.FC = () => {
             </Button>
           </div>
           
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center justify-center gap-2">
+            <Building className="text-primary-600" size={32} />
+            {t('common.selectProgram')}
+          </h1>
           <p className="mt-2 text-gray-600">
-            {t('programSetup.welcomingMessage', { name: user?.name || '' })}
+            Welcome, {user?.name}! Please select a program to continue.
           </p>
         </div>
 

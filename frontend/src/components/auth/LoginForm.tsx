@@ -24,7 +24,7 @@ const LoginForm: React.FC = () => {
     try {
       setError(null);
       await login(data.email, data.password);
-      navigate('/program-select');
+      navigate('/program-select', { state: { from: { pathname: '/login' } } });
     } catch (err) {
       setError('Login failed. Please check your credentials.');
     }

@@ -21,7 +21,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const location = useLocation();
   const { isAuthenticated, user, isLoading, refreshToken } = useAuthStore();
-  const { program } = useProgramStore();
+  const { program, fetchProgram, wasProgramFetched } = useProgramStore();
   
   // Try to refresh token if not authenticated
   useEffect(() => {
@@ -37,6 +37,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       tryRefresh();
     }
   }, [isAuthenticated, isLoading, refreshToken]);
+  
+  // Fetch program if authenticated and not already fetched
+  useEffect(() => {
+    if (isAuthenticated && !wasProgramFetched) {
+      console.log('Fetching program from ProtectedRoute');
+      fetchProgram();
+    }
+  }, [isAuthenticated, fetchProgram, wasProgramFetched]);
   
   if (isLoading) {
     return (
@@ -58,6 +66,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // If program is required but not selected, redirect to program selection
   // Skip this check for the program selection page itself to avoid infinite loop
   if (requireProgram && !program && !location.pathname.includes('/program-select') && !location.pathname.includes('/setup')) {
+    console.log('No program found, redirecting to program selection');
     return <Navigate to="/program-select" replace />;
   }
   

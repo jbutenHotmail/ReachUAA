@@ -19,7 +19,6 @@ import Input from "../../../components/ui/Input";
 import Badge from "../../../components/ui/Badge";
 import { useProgramStore } from "../../../stores/programStore";
 import { WorkingDay, CustomDay } from "../../../types";
-import { api } from "../../../api";
 import LoadingScreen from "../../../components/ui/LoadingScreen";
 
 interface ConfirmationModal {
@@ -41,7 +40,7 @@ const DAYS_OF_WEEK = [
 
 const ProgramSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { program, fetchProgram, wasProgramFetched } = useProgramStore();
+  const { program, fetchProgram, wasProgramFetched, updateFinancialConfig, addCustomDay } = useProgramStore();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [error, setError] = useState<string>("");
@@ -72,7 +71,9 @@ const ProgramSettings: React.FC = () => {
     const loadProgramData = async () => {
       setIsLoading(true);
       try {
-        !wasProgramFetched && await fetchProgram();
+        if (!wasProgramFetched) {
+          await fetchProgram();
+        }
       } catch (error) {
         console.error("Error fetching program:", error);
         setError(t("programSettings.noProgramFound"));
@@ -90,18 +91,10 @@ const ProgramSettings: React.FC = () => {
       // Update financial config
       if (program.financialConfig) {
         setFinancialConfig({
-          colporterPercentage: parseFloat(
-            program.financialConfig.colporter_percentage
-          ),
-          leaderPercentage: parseFloat(
-            program.financialConfig.leader_percentage
-          ),
-          colporterCashAdvancePercentage: parseFloat(
-            program.financialConfig.colporter_cash_advance_percentage
-          ),
-          leaderCashAdvancePercentage: parseFloat(
-            program.financialConfig.leader_cash_advance_percentage
-          ),
+          colporterPercentage: parseFloat(program.financialConfig.colporter_percentage) || 50,
+          leaderPercentage: parseFloat(program.financialConfig.leader_percentage) || 15,
+          colporterCashAdvancePercentage: parseFloat(program.financialConfig.colporter_cash_advance_percentage) || 20,
+          leaderCashAdvancePercentage: parseFloat(program.financialConfig.leader_cash_advance_percentage) || 25,
         });
       }
 
@@ -116,7 +109,7 @@ const ProgramSettings: React.FC = () => {
       }
     }
   }, [program]);
-
+  
   const getDayStatus = (date: Date): "work" | "rest" | "outside" => {
     if (!program) return "outside";
 
@@ -136,7 +129,9 @@ const ProgramSettings: React.FC = () => {
     });
 
     if (customDay) {
-      return customDay.is_working_day ? "work" : "rest";
+      // Use a type-safe approach to check the is_working_day property
+      // It could be a boolean or a number (1 or 0) depending on how it's stored in the database
+      return customDay.is_working_day === true || customDay.is_working_day === 1 ? "work" : "rest";
     }
 
     // Check default schedule
@@ -144,7 +139,7 @@ const ProgramSettings: React.FC = () => {
       .toLocaleDateString("en-US", { weekday: "long" })
       .toLowerCase();
     const workingDay = workingDays.find((day) => day.day_of_week === dayName);
-    return workingDay?.is_working_day ? "work" : "rest";
+    return workingDay?.is_working_day === true || workingDay?.is_working_day === 1 ? "work" : "rest";
   };
 
   const handleDateClick = (date: Date) => {
@@ -164,48 +159,17 @@ const ProgramSettings: React.FC = () => {
   };
 
   const confirmDateChange = async () => {
+    if (!program) return;
     const { date, newStatus } = confirmationModal;
 
     try {
       setIsLoading(true);
       setError("");
 
-      // Add custom day override
-      await api.post(`/program/${program?.id}/custom-days`, {
-        date,
-        isWorkingDay: newStatus === "work",
-      });
+      // Add custom day override using the store method
+      await addCustomDay(program.id, date, newStatus === "work");
 
-      // Update local state immediately for better UX
-      setCustomDays((prev) => {
-        const existingIndex = prev.findIndex((d) => {
-          const customDayStr = new Date(d.date).toISOString().split("T")[0];
-          return customDayStr === date;
-        });
-        
-        if (existingIndex >= 0) {
-          const updated = [...prev];
-          updated[existingIndex] = {
-            ...updated[existingIndex],
-            is_working_day: newStatus === "work",
-          };
-          return updated;
-        } else {
-          return [
-            ...prev,
-            {
-              id: Date.now(),
-              program_id: program?.id || 0,
-              date,
-              is_working_day: newStatus === "work",
-            },
-          ];
-        }
-      });
-
-      // Refresh program data to get updated custom days
-      await fetchProgram();
-
+      // Close the modal and show success message
       setConfirmationModal({
         isOpen: false,
         date: "",
@@ -260,7 +224,8 @@ const ProgramSettings: React.FC = () => {
     setError("");
 
     try {
-      await api.put(`/program/${program.id}/financial-config`, {
+      // Use the store method to update financial config
+      await updateFinancialConfig(program.id, {
         colporterPercentage: financialConfig.colporterPercentage,
         leaderPercentage: financialConfig.leaderPercentage,
         colporterCashAdvancePercentage:
@@ -268,8 +233,6 @@ const ProgramSettings: React.FC = () => {
         leaderCashAdvancePercentage:
           financialConfig.leaderCashAdvancePercentage,
       });
-
-      await fetchProgram();
 
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 3000);
@@ -314,7 +277,7 @@ const ProgramSettings: React.FC = () => {
   const totalWorkDays = calculateWorkDays();
   const calendarDays = generateCalendarDays();
 
-  if (isLoading) {
+  if (isLoading && !program) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingScreen message={t("programSettings.loadingProgramSettings")} />
@@ -461,6 +424,7 @@ const ProgramSettings: React.FC = () => {
                     min="0"
                     max="100"
                     step="0.1"
+                    required
                   />
                   <p className="mt-1 text-xs text-gray-500">
                     {t("programSettings.colporterPercentageDescription")}
@@ -483,6 +447,7 @@ const ProgramSettings: React.FC = () => {
                     min="0"
                     max="100"
                     step="0.1"
+                    required
                   />
                   <p className="mt-1 text-xs text-gray-500">
                     {t("programSettings.leaderPercentageDescription")}
@@ -509,6 +474,7 @@ const ProgramSettings: React.FC = () => {
                     min="0"
                     max="100"
                     step="0.1"
+                    required
                   />
                   <p className="mt-1 text-xs text-gray-500">
                     {t("programSettings.colporterCashAdvanceDescription")}
@@ -531,6 +497,7 @@ const ProgramSettings: React.FC = () => {
                     min="0"
                     max="100"
                     step="0.1"
+                    required
                   />
                   <p className="mt-1 text-xs text-gray-500">
                     {t("programSettings.leaderCashAdvanceDescription")}
@@ -857,14 +824,9 @@ const ProgramSettings: React.FC = () => {
 
       <Card>
         <div className="flex items-start gap-4">
-          <AlertCircle
-            className="text-warning-500 flex-shrink-0 mt-1"
-            size={24}
-          />
+          <AlertCircle className="text-warning-500 flex-shrink-0 mt-1" size={24} />
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {t("programSettings.importantNotes")}
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">{t("programSettings.importantNotes")}</h3>
             <ul className="text-sm text-gray-600 space-y-2">
               <li>{t("programSettings.noteProgramInformation")}</li>
               <li>{t("programSettings.noteDefaultSchedule")}</li>

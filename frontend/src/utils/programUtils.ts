@@ -28,15 +28,17 @@ export const isColportableDay = (date: Date): boolean => {
   const customDay = program.customDays?.find(day => {
     // Normalize the custom day date to YYYY-MM-DD
     const customDayStr = new Date(day.date).toISOString().split('T')[0];
+    console.log(customDayStr, dateStr, customDayStr === dateStr);
     return customDayStr === dateStr;
   });
   
   if (customDay) {
     // Use a type-safe approach to check the is_working_day property
     // It could be a boolean or a number (1 or 0) depending on how it's stored in the database
-    return customDay.is_working_day === true || customDay.is_working_day === 1;
+    console.log(customDay, Number(customDay.is_working_day) === 1)
+    return customDay.is_working_day === true || Number(customDay.is_working_day) === 1;
   }
-  
+  console.log('no custom day found');
   // Check regular working days - convert day of week to lowercase string
   const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayOfWeek = daysOfWeek[date.getDay()];

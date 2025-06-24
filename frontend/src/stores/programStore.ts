@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ProgramBook } from '../types';
+import { ProgramBook, WorkingDay, CustomDay } from '../types';
 import { api } from '../api';
 
 interface ProgramConfig {
@@ -24,18 +24,8 @@ interface ProgramConfig {
     created_at: string;
     updated_at: string;
   };
-  workingDays: {
-    id: number;
-    program_id: number;
-    day_of_week: string;
-    is_working_day: number | boolean;
-  }[];
-  customDays: {
-    id: number;
-    program_id: number;
-    date: string;
-    is_working_day: number | boolean;
-  }[];
+  workingDays: WorkingDay[];
+  customDays: CustomDay[];
   books: ProgramBook[];
 }
 
@@ -53,6 +43,9 @@ interface ProgramStore extends ProgramState {
   fetchProgram: () => Promise<void>;
   fetchAvailablePrograms: () => Promise<void>;
   switchProgram: (programId: number) => Promise<void>;
+  updateFinancialConfig: (id: number, configData: any) => Promise<void>;
+  updateWorkingDay: (id: number, day: string, isWorkingDay: boolean) => Promise<void>;
+  addCustomDay: (id: number, date: string, isWorkingDay: boolean) => Promise<void>;
 }
 
 export const useProgramStore = create<ProgramStore>()(
@@ -68,12 +61,12 @@ export const useProgramStore = create<ProgramStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await api.post('/program', programData);
-          console.log(response);
-          set({ 
-            program: response.program, 
-            isLoading: false,
-            wasProgramFetched: true
-          });
+          console.log('Program created:', response);
+          
+          // Fetch the newly created program to get complete data
+          await get().fetchProgram();
+          
+          set({ isLoading: false });
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : 'An unknown error occurred', 
@@ -88,6 +81,7 @@ export const useProgramStore = create<ProgramStore>()(
         try {
           await api.put(`/program/${id}`, programData);
           await get().fetchProgram();
+          set({ isLoading: false });
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : 'An unknown error occurred', 
@@ -101,11 +95,18 @@ export const useProgramStore = create<ProgramStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await api.get('/program');
-          set({ 
-            program: response?.program || null, 
-            isLoading: false,
-            wasProgramFetched: true
-          });
+          console.log('Fetched program data:', response.financialConfig);
+          
+          if (response && response.financialConfig) {
+            set({ 
+              program: response, 
+              isLoading: false,
+              wasProgramFetched: true
+            });
+          } else {
+            // If no program exists or it's incomplete, set program to null
+            set({ program: null, isLoading: false, wasProgramFetched: true });
+          }
         } catch (error) {
           // If 404, it means no program exists yet
           if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
@@ -113,9 +114,11 @@ export const useProgramStore = create<ProgramStore>()(
             return;
           }
           
+          console.error('Error fetching program:', error);
           set({ 
             error: error instanceof Error ? error.message : 'An unknown error occurred', 
-            isLoading: false 
+            isLoading: false,
+            wasProgramFetched: true
           });
         }
       },
@@ -129,6 +132,7 @@ export const useProgramStore = create<ProgramStore>()(
             isLoading: false
           });
         } catch (error) {
+          console.error('Error fetching available programs:', error);
           set({ 
             error: error instanceof Error ? error.message : 'An unknown error occurred', 
             isLoading: false 
@@ -140,15 +144,77 @@ export const useProgramStore = create<ProgramStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await api.post(`/program/switch/${programId}`);
-          set({ 
-            program: response.program, 
-            isLoading: false,
-            wasProgramFetched: true
-          });
+          console.log('Switched to program:', response, response.program);
           
-          // Reload the page to refresh all data
-          window.location.href = '/dashboard';
+          if (response && response.program) {
+            set({ 
+              program: response, 
+              isLoading: false,
+              wasProgramFetched: true
+            });
+          }
         } catch (error) {
+          console.error('Error switching program:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'An unknown error occurred', 
+            isLoading: false 
+          });
+          throw error;
+        }
+      },
+
+      // New method to update financial config
+      updateFinancialConfig: async (id, configData) => {
+        set({ isLoading: true, error: null });
+        try {
+          await api.put(`/program/${id}/financial-config`, configData);
+          
+          // Fetch fresh data from API instead of updating local state
+          await get().fetchProgram();
+          
+          set({ isLoading: false });
+        } catch (error) {
+          console.error('Error updating financial config:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'An unknown error occurred', 
+            isLoading: false 
+          });
+          throw error;
+        }
+      },
+
+      // New method to update working day
+      updateWorkingDay: async (id, day, isWorkingDay) => {
+        set({ isLoading: true, error: null });
+        try {
+          await api.put(`/program/${id}/working-days/${day}`, { isWorkingDay });
+          
+          // Fetch fresh data from API instead of updating local state
+          await get().fetchProgram();
+          
+          set({ isLoading: false });
+        } catch (error) {
+          console.error('Error updating working day:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'An unknown error occurred', 
+            isLoading: false 
+          });
+          throw error;
+        }
+      },
+
+      // New method to add custom day
+      addCustomDay: async (id, date, isWorkingDay) => {
+        set({ isLoading: true, error: null });
+        try {
+          await api.post(`/program/${id}/custom-days`, { date, isWorkingDay });
+          
+          // Fetch fresh data from API instead of updating local state
+          await get().fetchProgram();
+          
+          set({ isLoading: false });
+        } catch (error) {
+          console.error('Error adding custom day:', error);
           set({ 
             error: error instanceof Error ? error.message : 'An unknown error occurred', 
             isLoading: false 
@@ -159,7 +225,10 @@ export const useProgramStore = create<ProgramStore>()(
     }),
     {
       name: 'program-storage',
-      partialize: (state) => ({ program: state.program }),
+      partialize: (state) => ({ 
+        program: state.program,
+        wasProgramFetched: state.wasProgramFetched
+      }),
     }
   )
 );

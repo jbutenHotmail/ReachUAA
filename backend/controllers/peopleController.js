@@ -16,7 +16,6 @@ export const getPeople = async (req, res) => {
        ORDER BY p.first_name, p.last_name`
     );
     
-    console.log('people', people)
     res.json(people);
   } catch (error) {
     console.error('Error getting people:', error);

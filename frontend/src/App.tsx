@@ -47,17 +47,17 @@ import SettingsPage from './pages/settings/SettingsPage';
 
 function App() {
   const { isAuthenticated, user, refreshToken } = useAuthStore();
-  const { program, fetchProgram } = useProgramStore();
+  const { program, fetchProgram, wasProgramFetched } = useProgramStore();
 
   // Check if admin user needs to set up program
   const needsProgramSetup = isAuthenticated && user?.role === UserRole.ADMIN && !program;
   
   // Fetch program data on app load if authenticated
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !wasProgramFetched) {
       fetchProgram();
     }
-  }, [isAuthenticated, fetchProgram]);
+  }, [isAuthenticated, fetchProgram, wasProgramFetched]);
 
   // Try to refresh token on app load
   useEffect(() => {
@@ -72,14 +72,14 @@ function App() {
     <Routes>
       <Route 
         path="/login" 
-        element={!isAuthenticated ? <Login /> : <Navigate to="/program-select" replace />} 
+        element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />} 
       />
       
       {/* Program Selection Page */}
       <Route 
         path="/program-select" 
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requireProgram={false}>
             <ProgramSelectionPage />
           </ProtectedRoute>
         } 
@@ -89,7 +89,7 @@ function App() {
       <Route 
         path="/setup" 
         element={
-          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN]} requireProgram={false}>
             <ProgramSetup />
           </ProtectedRoute>
         } 
@@ -325,5 +325,4 @@ function App() {
   );
 }
 
-// Copyright © {new Date().getFullYear()} Reach UAA - Developed by Wilmer Buten
 export default App;

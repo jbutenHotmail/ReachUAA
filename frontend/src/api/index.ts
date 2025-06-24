@@ -1,5 +1,3 @@
-// Base API client with token refresh capabilities
-
 // Base API URL from environment variables
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -78,7 +76,7 @@ export const apiRequest = async <T>(
     const response = await fetch(`${API_BASE_URL}${endpoint}`, requestOptions);
     
     // Handle 401 Unauthorized (token expired)
-    if (response.status === 401 && !retrying) {
+    if (response.status === 401 || response.status === 403) {
       try {
         // Try to refresh the token
         const newToken = await refreshAccessToken();
@@ -157,7 +155,6 @@ export const api = {
       ...options, 
       method: 'POST', 
       body: data ? JSON.stringify(data) : undefined 
-      
     }),
 
   put: <T>(endpoint: string, data?: any, options?: Omit<RequestInit, 'method' | 'body'>) => 

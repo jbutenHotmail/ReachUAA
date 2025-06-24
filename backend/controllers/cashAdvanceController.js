@@ -138,8 +138,8 @@ export const createCashAdvance = async (req, res) => {
     
     // Calculate maximum advance amount
     const maxPercentage = personType === 'COLPORTER' 
-      ? financialConfig?.colporter_cash_advance_percentage || 20
-      : financialConfig?.leader_cash_advance_percentage || 25;
+      ? financialConfig?.colporter_cash_advance_percentage
+      : financialConfig?.leader_cash_advance_percentage;
     
     const maxAdvanceAmount = totalSales * (maxPercentage / 100);
     
