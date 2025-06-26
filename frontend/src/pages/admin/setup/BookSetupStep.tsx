@@ -32,7 +32,7 @@ const BookSetupStep: React.FC<BookSetupStepProps> = ({
       const initialBooks = defaultBooks.map((book, index) => ({
         ...book,
         id: `temp-${index + 1}`,
-        stock: 0,
+        stock: 100,
         sold: 0,
       }));
       onBooksChange(initialBooks);

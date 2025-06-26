@@ -3,11 +3,9 @@ import * as db from '../config/database.js';
 // Get dashboard stats
 export const getDashboardStats = async (req, res) => {
   try {
-    // Log the current date for debugging
-    // console.log('Backend today date:', new Date().toISOString().split('T')[0]);
-    
     // Use the date from the request if provided, otherwise use server date
     const today = req.query.date || new Date().toISOString().split('T')[0];
+    const programId = req.query.programId || req.user.currentProgramId;
     
     // Calculate start dates for week and month
     // Modified to use Sunday as start of week and Saturday as end of week
@@ -40,17 +38,21 @@ export const getDashboardStats = async (req, res) => {
       return res.status(404).json({ message: 'No active program found' });
     }
     
-    // Get today's sales - only  and APPROVED transactions
+    // Add program filter to all queries
+    const programFilter = programId ? 'AND t.program_id = ?' : '';
+    const programParams = programId ? [programId] : [];
+    
+    // Get today's sales - only APPROVED transactions
     const todaySales = await db.getOne(
       `SELECT COALESCE(SUM(total), 0) as total
-       FROM transactions
+       FROM transactions t
        WHERE transaction_date = ?
-       AND status IN ('APPROVED')`,
-      [today]
+       AND status IN ('APPROVED')
+       ${programFilter}`,
+      [today, ...programParams]
     );
     
-    // Get today's books - only  and APPROVED transactions
-    // Fix the GROUP BY clause to avoid SQL error
+    // Get today's books - only APPROVED transactions
     const todayBooks = await db.query(
       `SELECT 
          CASE WHEN b.size = 'LARGE' THEN 'large' ELSE 'small' END as book_size, 
@@ -60,27 +62,27 @@ export const getDashboardStats = async (req, res) => {
        JOIN transactions t ON tb.transaction_id = t.id
        WHERE t.transaction_date = ?
        AND t.status IN ('APPROVED')
+       ${programFilter}
        GROUP BY CASE WHEN b.size = 'LARGE' THEN 'large' ELSE 'small' END`,
-      [today]
+      [today, ...programParams]
     );
     
     // Calculate large and small books
     const todayLargeBooks = todayBooks.find(b => b.book_size === 'large')?.quantity || 0;
     const todaySmallBooks = todayBooks.find(b => b.book_size === 'small')?.quantity || 0;
     
-    // Get weekly sales - only  and APPROVED transactions
+    // Get weekly sales - only APPROVED transactions
     // Updated to use weekStartStr and weekEndStr
     const weeklySales = await db.getOne(
       `SELECT COALESCE(SUM(total), 0) as total
-       FROM transactions
+       FROM transactions t
        WHERE transaction_date BETWEEN ? AND ?
-       AND status IN ('APPROVED')`,
-      [weekStartStr, weekEndStr]
+       AND status IN ('APPROVED')
+       ${programFilter}`,
+      [weekStartStr, weekEndStr, ...programParams]
     );
     
-    // Get weekly books - only  and APPROVED transactions
-    // Fix the GROUP BY clause to avoid SQL error
-    // Updated to use weekStartStr and weekEndStr
+    // Get weekly books - only APPROVED transactions
     const weeklyBooks = await db.query(
       `SELECT 
          CASE WHEN b.size = 'LARGE' THEN 'large' ELSE 'small' END as book_size, 
@@ -90,25 +92,26 @@ export const getDashboardStats = async (req, res) => {
        JOIN transactions t ON tb.transaction_id = t.id
        WHERE t.transaction_date BETWEEN ? AND ?
        AND t.status IN ('APPROVED')
+       ${programFilter}
        GROUP BY CASE WHEN b.size = 'LARGE' THEN 'large' ELSE 'small' END`,
-      [weekStartStr, weekEndStr]
+      [weekStartStr, weekEndStr, ...programParams]
     );
     
     // Calculate large and small books for week
     const weeklyLargeBooks = weeklyBooks.find(b => b.book_size === 'large')?.quantity || 0;
     const weeklySmallBooks = weeklyBooks.find(b => b.book_size === 'small')?.quantity || 0;
     
-    // Get monthly sales - only  and APPROVED transactions
+    // Get monthly sales - only APPROVED transactions
     const monthlySales = await db.getOne(
       `SELECT COALESCE(SUM(total), 0) as total
-       FROM transactions
+       FROM transactions t
        WHERE transaction_date BETWEEN ? AND ?
-       AND status IN ('APPROVED')`,
-      [monthStartStr, today]
+       AND status IN ('APPROVED')
+       ${programFilter}`,
+      [monthStartStr, today, ...programParams]
     );
     
-    // Get monthly books - only  and APPROVED transactions
-    // Fix the GROUP BY clause to avoid SQL error
+    // Get monthly books - only APPROVED transactions
     const monthlyBooks = await db.query(
       `SELECT 
          CASE WHEN b.size = 'LARGE' THEN 'large' ELSE 'small' END as book_size, 
@@ -118,36 +121,39 @@ export const getDashboardStats = async (req, res) => {
        JOIN transactions t ON tb.transaction_id = t.id
        WHERE t.transaction_date BETWEEN ? AND ?
        AND t.status IN ('APPROVED')
+       ${programFilter}
        GROUP BY CASE WHEN b.size = 'LARGE' THEN 'large' ELSE 'small' END`,
-      [monthStartStr, today]
+      [monthStartStr, today, ...programParams]
     );
     
     // Calculate large and small books for month
     const monthlyLargeBooks = monthlyBooks.find(b => b.book_size === 'large')?.quantity || 0;
     const monthlySmallBooks = monthlyBooks.find(b => b.book_size === 'small')?.quantity || 0;
     
-    // Get program total sales - only  and APPROVED transactions
+    // Get program total sales - only APPROVED transactions
     const programSales = await db.getOne(
       `SELECT COALESCE(SUM(total), 0) as total
-       FROM transactions
+       FROM transactions t
        WHERE transaction_date BETWEEN ? AND ?
-       AND status IN ('APPROVED')`,
-      [program.start_date, today]
+       AND status IN ('APPROVED')
+       ${programFilter}`,
+      [program.start_date, today, ...programParams]
     );
     
-    // Get sales chart data (last 30 days) - only  and APPROVED transactions
+    // Get sales chart data (last 30 days) - only APPROVED transactions
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
     
     const salesChart = await db.query(
       `SELECT transaction_date as date, COALESCE(SUM(total), 0) as amount
-       FROM transactions
+       FROM transactions t
        WHERE transaction_date BETWEEN ? AND ?
        AND status IN ('APPROVED')
+       ${programFilter}
        GROUP BY transaction_date
        ORDER BY transaction_date`,
-      [thirtyDaysAgoStr, today]
+      [thirtyDaysAgoStr, today, ...programParams]
     );
     
     // Calculate program stats

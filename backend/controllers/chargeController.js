@@ -3,13 +3,13 @@ import * as db from '../config/database.js';
 // Get all charges
 export const getCharges = async (req, res) => {
   try {
-    const { personId, personType, status, category, startDate, endDate } = req.query;
+    const { personId, personType, status, category, startDate, endDate, programId } = req.query;
     
     let query = `
       SELECT c.id, c.person_id as personId, CONCAT(p.first_name, ' ', p.last_name) as personName,
       p.person_type as personType, c.amount, c.reason, c.description, c.category, c.status,
       c.applied_by as appliedBy, CONCAT(ap.first_name, ' ', ap.last_name) as appliedByName,
-      c.charge_date as date, c.created_at as createdAt, c.updated_at as updatedAt
+      c.charge_date as date, c.program_id as programId, c.created_at as createdAt, c.updated_at as updatedAt
       FROM charges c
       JOIN people p ON c.person_id = p.id
       JOIN users u ON c.applied_by = u.id
@@ -50,6 +50,14 @@ export const getCharges = async (req, res) => {
       params.push(endDate);
     }
     
+    if (programId) {
+      conditions.push('c.program_id = ?');
+      params.push(programId);
+    } else if (req.user && req.user.currentProgramId) {
+      conditions.push('c.program_id = ?');
+      params.push(req.user.currentProgramId);
+    }
+    
     if (conditions.length > 0) {
       query += ' WHERE ' + conditions.join(' AND ');
     }
@@ -74,11 +82,11 @@ export const getChargeById = async (req, res) => {
       `SELECT c.id, c.person_id as personId, CONCAT(p.first_name, ' ', p.last_name) as personName,
        p.person_type as personType, c.amount, c.reason, c.description, c.category, c.status,
        c.applied_by as appliedBy, CONCAT(ap.first_name, ' ', ap.last_name) as appliedByName,
-       c.charge_date as date, c.created_at as createdAt, c.updated_at as updatedAt
+       c.charge_date as date, c.program_id as programId, c.created_at as createdAt, c.updated_at as updatedAt
        FROM charges c
        JOIN people p ON c.person_id = p.id
        JOIN users u ON c.applied_by = u.id
-       JOIN people ap ON u.person_id = p.id
+       JOIN people ap ON u.person_id = ap.id
        WHERE c.id = ?`,
       [id]
     );
@@ -103,10 +111,12 @@ export const createCharge = async (req, res) => {
       reason,
       description,
       category,
-      date
+      date,
+      programId
     } = req.body;
     
     const userId = req.user.id;
+    const currentProgramId = programId || req.user.currentProgramId;
     
     // Check if person exists
     const person = await db.getOne(
@@ -120,15 +130,16 @@ export const createCharge = async (req, res) => {
     
     // Insert charge
     const chargeId = await db.insert(
-      'INSERT INTO charges (person_id, amount, reason, description, category, status, applied_by, charge_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [personId, amount, reason, description || null, category, 'PENDING', userId, date]
+      'INSERT INTO charges (person_id, amount, reason, description, category, status, applied_by, charge_date, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [personId, amount, reason, description || null, category, 'PENDING', userId, date, currentProgramId]
     );
+    
     // Get the created charge
     const charge = await db.getOne(
       `SELECT c.id, c.person_id as personId, CONCAT(p.first_name, ' ', p.last_name) as personName,
        p.person_type as personType, c.amount, c.reason, c.description, c.category, c.status,
        c.applied_by as appliedBy, CONCAT(ap.first_name, ' ', ap.last_name) as appliedByName,
-       c.charge_date as date, c.created_at as createdAt, c.updated_at as updatedAt
+       c.charge_date as date, c.program_id as programId, c.created_at as createdAt, c.updated_at as updatedAt
        FROM charges c
        JOIN people p ON c.person_id = p.id
        JOIN users u ON c.applied_by = u.id
@@ -136,6 +147,7 @@ export const createCharge = async (req, res) => {
        WHERE c.id = ?`,
       [chargeId]
     );
+    
     res.status(201).json(charge);
   } catch (error) {
     console.error('Error creating charge:', error);
@@ -154,7 +166,8 @@ export const updateCharge = async (req, res) => {
       description,
       category,
       status,
-      date
+      date,
+      programId
     } = req.body;
     
     // Check if charge exists
@@ -181,7 +194,7 @@ export const updateCharge = async (req, res) => {
     
     // Update charge
     await db.update(
-      'UPDATE charges SET person_id = ?, amount = ?, reason = ?, description = ?, category = ?, status = ?, charge_date = ?, updated_at = NOW() WHERE id = ?',
+      'UPDATE charges SET person_id = ?, amount = ?, reason = ?, description = ?, category = ?, status = ?, charge_date = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
       [
         personId || existingCharge.person_id,
         amount !== undefined ? amount : existingCharge.amount,
@@ -190,6 +203,7 @@ export const updateCharge = async (req, res) => {
         category || existingCharge.category,
         status || existingCharge.status,
         date || existingCharge.charge_date,
+        programId || existingCharge.program_id,
         id
       ]
     );
@@ -199,11 +213,11 @@ export const updateCharge = async (req, res) => {
       `SELECT c.id, c.person_id as personId, CONCAT(p.first_name, ' ', p.last_name) as personName,
        p.person_type as personType, c.amount, c.reason, c.description, c.category, c.status,
        c.applied_by as appliedBy, CONCAT(ap.first_name, ' ', ap.last_name) as appliedByName,
-       c.charge_date as date, c.created_at as createdAt, c.updated_at as updatedAt
+       c.charge_date as date, c.program_id as programId, c.created_at as createdAt, c.updated_at as updatedAt
        FROM charges c
        JOIN people p ON c.person_id = p.id
        JOIN users u ON c.applied_by = u.id
-       JOIN people ap ON u.person_id = p.id
+       JOIN people ap ON u.person_id = ap.id
        WHERE c.id = ?`,
       [id]
     );
@@ -273,7 +287,7 @@ export const applyCharge = async (req, res) => {
       `SELECT c.id, c.person_id as personId, CONCAT(p.first_name, ' ', p.last_name) as personName,
        p.person_type as personType, c.amount, c.reason, c.description, c.category, c.status,
        c.applied_by as appliedBy, CONCAT(ap.first_name, ' ', ap.last_name) as appliedByName,
-       c.charge_date as date, c.created_at as createdAt, c.updated_at as updatedAt
+       c.charge_date as date, c.program_id as programId, c.created_at as createdAt, c.updated_at as updatedAt
        FROM charges c
        JOIN people p ON c.person_id = p.id
        JOIN users u ON c.applied_by = u.id
@@ -322,7 +336,7 @@ export const cancelCharge = async (req, res) => {
       `SELECT c.id, c.person_id as personId, CONCAT(p.first_name, ' ', p.last_name) as personName,
        p.person_type as personType, c.amount, c.reason, c.description, c.category, c.status,
        c.applied_by as appliedBy, CONCAT(ap.first_name, ' ', ap.last_name) as appliedByName,
-       c.charge_date as date, c.created_at as createdAt, c.updated_at as updatedAt
+       c.charge_date as date, c.program_id as programId, c.created_at as createdAt, c.updated_at as updatedAt
        FROM charges c
        JOIN people p ON c.person_id = p.id
        JOIN users u ON c.applied_by = u.id

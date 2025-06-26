@@ -1,3 +1,4 @@
+// src/pages/program/ProgramSelectionPage.tsx
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -19,13 +20,12 @@ const ProgramSelectionPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
+  const [switchingMessage, setSwitchingMessage] = useState('Switching program...');
 
   // Check if we're coming from the layout (not direct navigation)
-  // We consider it from layout if the path is explicitly /admin/programs or /program-select
-  // Coming from login would have state.from.pathname = '/login'
   const isFromLayout = location.pathname === '/admin/programs' || 
                        (location.pathname === '/program-select' && location.state?.from?.pathname !== '/login');
-  console.log(location);
+  
   const showBackButton = isFromLayout && program;
 
   useEffect(() => {
@@ -60,10 +60,18 @@ const ProgramSelectionPage: React.FC = () => {
 
   const handleProgramSwitch = async (programId: number) => {
     setSwitching(true);
+    setSwitchingMessage('Resetting local data...');
+    
+    setTimeout(() => {
+      setSwitchingMessage('Switching to new program...');
+    }, 1000);
+    
     try {
       await switchProgram(programId);
-      // Navigate after successful switch
-      navigate('/dashboard');
+      
+      // Navigation will happen automatically in the useEffect above
+      setSwitching(false);
+      isFromLayout && navigate('/dashboard');
     } catch (err) {
       setError('Failed to switch program');
       console.error('Error switching program:', err);
@@ -94,7 +102,7 @@ const ProgramSelectionPage: React.FC = () => {
   }
 
   if (switching) {
-    return <LoadingScreen message="Switching program..." />;
+    return <LoadingScreen message={switchingMessage} />;
   }
 
   const renderAddNewProgramCard = () => (

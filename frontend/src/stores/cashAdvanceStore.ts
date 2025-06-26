@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { CashAdvance, WeeklySales } from '../types';
 import { api } from '../api';
+import { useProgramStore } from './programStore';
 
 interface CashAdvanceState {
   advances: CashAdvance[];
@@ -8,10 +9,6 @@ interface CashAdvanceState {
   isLoading: boolean;
   error: string | null;
   wereAdvancesFetched: boolean;
-  fetchWeeklySales: (colporterId: string, weekStartDate?: string, weekEndDate?: string) => Promise<void>;
-  createCashAdvance: (advanceData: Omit<CashAdvance, 'id' | 'status' | 'requestDate' | 'approvedDate' | 'approvedBy' | 'approvedByName'>) => Promise<void>;
-  approveAdvance: (id: string) => Promise<void>;
-  rejectAdvance: (id: string) => Promise<void>;
 }
 
 interface CashAdvanceStore extends CashAdvanceState {
@@ -20,6 +17,7 @@ interface CashAdvanceStore extends CashAdvanceState {
   rejectAdvance: (id: string) => Promise<void>;
   fetchWeeklySales: (colporterId: string, weekStartDate?: string, weekEndDate?: string) => Promise<void>;
   createCashAdvance: (advanceData: Omit<CashAdvance, 'id' | 'status' | 'requestDate' | 'approvedDate' | 'approvedBy' | 'approvedByName'>) => Promise<void>;
+  resetStore: () => void;
 }
 
 export const useCashAdvanceStore = create<CashAdvanceStore>((set) => ({
@@ -31,9 +29,17 @@ export const useCashAdvanceStore = create<CashAdvanceStore>((set) => ({
   fetchAdvances: async (colporterId) => {
     set({ isLoading: true, error: null });
     try {
-      const params: Record<string, string> = {};
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Prepare params
+      const params: Record<string, string | number> = {};
       if (colporterId) {
         params.personId = colporterId;
+      }
+      if (programId) {
+        params.programId = programId;
       }
       
       const advances = await api.get<CashAdvance[]>('/cash-advance', { params });
@@ -49,7 +55,17 @@ export const useCashAdvanceStore = create<CashAdvanceStore>((set) => ({
   createCashAdvance: async (advanceData) => {
     set({ isLoading: true, error: null });
     try {
-      const newAdvance = await api.post<CashAdvance>('/cash-advance', advanceData);
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program ID to advance data
+      const dataWithProgram = {
+        ...advanceData,
+        programId: advanceData.programId || programId
+      };
+      
+      const newAdvance = await api.post<CashAdvance>('/cash-advance', dataWithProgram);
       set(state => ({
         advances: [...state.advances, newAdvance],
         isLoading: false,
@@ -102,11 +118,23 @@ export const useCashAdvanceStore = create<CashAdvanceStore>((set) => ({
       });
       throw error;
     }
-  },
+  },resetStore: () => {
+  set({
+    advances: [],
+    weeklySales: [],
+    isLoading: false,
+    error: null,
+    wereAdvancesFetched: false
+  });
+},
 
   fetchWeeklySales: async (colporterId, weekStartDate, weekEndDate) => {
     set({ isLoading: true, error: null });
     try {
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
       // If dates aren't provided, calculate current week dates (Sunday to Saturday)
       if (!weekStartDate || !weekEndDate) {
         const today = new Date();
@@ -124,10 +152,14 @@ export const useCashAdvanceStore = create<CashAdvanceStore>((set) => ({
         weekEndDate = weekEnd.toISOString().split('T')[0];
       }
       
-      const params = {
+      const params: Record<string, string | number> = {
         weekStartDate,
         weekEndDate
       };
+      
+      if (programId) {
+        params.programId = programId;
+      }
       
       const weeklySales = await api.get<WeeklySales>(`/cash-advance/weekly-sales/${colporterId}`, { params });
       

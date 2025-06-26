@@ -11,7 +11,7 @@ export const login = async (req, res) => {
     // Find user by email
     const user = await db.getOne(
       'SELECT u.id, u.email, u.password_hash, u.role, u.status, ' +
-      'p.id as person_id, p.first_name, p.last_name, p.profile_image_url ' +
+      'p.id as person_id, p.first_name, p.last_name, p.profile_image_url, p.program_id ' +
       'FROM users u ' +
       'LEFT JOIN people p ON u.person_id = p.id ' +
       'WHERE u.email = ?',
@@ -70,7 +70,8 @@ export const login = async (req, res) => {
         email: user.email,
         role: user.role,
         name: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : email,
-        profile_image_url: user.profile_image_url
+        profile_image_url: user.profile_image_url,
+        currentProgramId: user.program_id
       },
       accessToken
     });
@@ -96,7 +97,7 @@ export const refreshToken = async (req, res) => {
     // Get user
     const user = await db.getOne(
       'SELECT u.id, u.email, u.role, ' +
-      'p.first_name, p.last_name ' +
+      'p.first_name, p.last_name, p.profile_image_url, p.program_id ' +
       'FROM users u ' +
       'LEFT JOIN people p ON u.person_id = p.id ' +
       'WHERE u.id = ?',
@@ -118,7 +119,17 @@ export const refreshToken = async (req, res) => {
       { expiresIn: config.ACCESS_TOKEN_EXPIRATION }
     );
     
-    res.json({ accessToken });
+    res.json({ 
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email,
+        profile_image_url: user.profile_image_url,
+        currentProgramId: user.program_id
+      }
+    });
   } catch (error) {
     console.error('Refresh token error:', error);
     res.status(401).json({ message: 'Invalid or expired refresh token' });

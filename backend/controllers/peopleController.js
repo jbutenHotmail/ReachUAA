@@ -1,20 +1,29 @@
-import * as db from '../config/database.js';
 import bcrypt from 'bcryptjs';
+import * as db from '../config/database.js';
 
 // Get all people
 export const getPeople = async (req, res) => {
   try {
-    const people = await db.query(
-      `SELECT p.id, p.first_name as name, p.last_name as apellido, p.email, p.phone, 
+    const { programId } = req.query;
+    console.log('get people', programId);
+    let query = `SELECT p.id, p.first_name as name, p.last_name as apellido, p.email, p.phone, 
               p.address, p.profile_image_url as profileImage, p.status, p.person_type as personType,
-              p.school, p.age, p.institution, p.created_at as createdAt, 
+              p.school, p.age, p.institution, p.program_id as programId, p.created_at as createdAt, 
               p.updated_at as updatedAt, 
               CASE WHEN u.person_id IS NOT NULL THEN true ELSE false END as hasUser
        FROM people p
-       LEFT JOIN users u ON u.person_id = p.id
-       GROUP BY p.id
-       ORDER BY p.first_name, p.last_name`
-    );
+       LEFT JOIN users u ON u.person_id = p.id`;
+    
+    const params = [];
+    
+    if (programId) {
+      query += " WHERE p.program_id = ?";
+      params.push(programId);
+    }
+    
+    query += " GROUP BY p.id ORDER BY p.first_name, p.last_name";
+    
+    const people = await db.query(query, params);
     
     res.json(people);
   } catch (error) {
@@ -26,15 +35,25 @@ export const getPeople = async (req, res) => {
 // Get all colporters
 export const getColporters = async (req, res) => {
   try {
-    const colporters = await db.query(
-      `SELECT id, first_name as name, last_name as apellido, email, phone, 
-       address, profile_image_url as profileImage, status, school, age, 
+    const { programId } = req.query;
+    
+    let query = `SELECT id, first_name as name, last_name as apellido, email, phone, 
+       address, profile_image_url as profileImage, status, school, age, program_id as programId,
        created_at as createdAt, updated_at as updatedAt, 'COLPORTER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
        FROM people
-       WHERE person_type = 'COLPORTER'
-       ORDER BY first_name, last_name`
-    );
+       WHERE person_type = 'COLPORTER'`;
+    
+    const params = [];
+    
+    if (programId) {
+      query += " AND program_id = ?";
+      params.push(programId);
+    }
+    
+    query += " ORDER BY first_name, last_name";
+    
+    const colporters = await db.query(query, params);
     
     res.json(colporters);
   } catch (error) {
@@ -50,7 +69,7 @@ export const getColporterById = async (req, res) => {
     
     const colporter = await db.getOne(
       `SELECT id, first_name as name, last_name as apellido, email, phone, 
-       address, profile_image_url as profileImage, status, school, age, 
+       address, profile_image_url as profileImage, status, school, age, program_id as programId,
        created_at as createdAt, updated_at as updatedAt, 'COLPORTER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
        FROM people
@@ -81,25 +100,26 @@ export const createColporter = async (req, res) => {
       address,
       age,
       createUser,
-      profileImage
+      profileImage,
+      programId
     } = req.body;
     
-    // Check if email already exists
+    // Check if email already exists in the same program
     const existingPerson = await db.getOne(
-      'SELECT * FROM people WHERE email = ?',
-      [email]
+      'SELECT * FROM people WHERE email = ? AND program_id = ? AND person_type = ?',
+      [email, programId, 'COLPORTER']
     );
     
     if (existingPerson) {
-      return res.status(400).json({ message: 'Email already in use' });
+      return res.status(400).json({ message: 'Email already in use for a colporter in this program' });
     }
     
     // Start transaction
     const result = await db.transaction(async (connection) => {
       // Insert person
       const [personResult] = await connection.execute(
-        'INSERT INTO people (first_name, last_name, email, phone, address, profile_image_url, person_type, status, school, age) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [name, apellido, email, phone, address, profileImage || null, 'COLPORTER', 'ACTIVE', school, age]
+        'INSERT INTO people (first_name, last_name, email, phone, address, profile_image_url, person_type, status, school, age, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [name, apellido, email, phone, address, profileImage || null, 'COLPORTER', 'ACTIVE', school, age, programId || null]
       );
       
       const personId = personResult.insertId;
@@ -120,7 +140,7 @@ export const createColporter = async (req, res) => {
     // Get the created colporter
     const colporter = await db.getOne(
       `SELECT id, first_name as name, last_name as apellido, email, phone, 
-       address, profile_image_url as profileImage, status, school, age, 
+       address, profile_image_url as profileImage, status, school, age, program_id as programId,
        created_at as createdAt, updated_at as updatedAt, 'COLPORTER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
        FROM people
@@ -148,7 +168,8 @@ export const updateColporter = async (req, res) => {
       address,
       age,
       status,
-      profileImage
+      profileImage,
+      programId
     } = req.body;
     
     // Check if colporter exists
@@ -167,33 +188,33 @@ export const updateColporter = async (req, res) => {
     if (existingColporter.hasUser) {
       // Update person
       await db.update(
-        'UPDATE people SET phone = ?, address = ?, profile_image_url = ?, status = ?, school = ?, age = ?, updated_at = NOW() WHERE id = ?',
-        [phone, address, profileImage || null, status, school, age, id]
+        'UPDATE people SET phone = ?, address = ?, profile_image_url = ?, status = ?, school = ?, age = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
+        [phone, address, profileImage || null, status, school, age, programId || existingColporter.program_id, id]
       );
     } else {
       // Check if email already exists (if changing email)
       if (email !== existingColporter.email) {
         const existingEmail = await db.getOne(
-          'SELECT * FROM people WHERE email = ? AND id != ?',
-          [email, id]
+          'SELECT * FROM people WHERE email = ? AND program_id = ? AND person_type = ? AND id != ?',
+          [email, programId || existingColporter.program_id, 'COLPORTER', id]
         );
         
         if (existingEmail) {
-          return res.status(400).json({ message: 'Email already in use' });
+          return res.status(400).json({ message: 'Email already in use for a colporter in this program' });
         }
       }
       
       // Update person
       await db.update(
-        'UPDATE people SET first_name = ?, last_name = ?, email = ?, phone = ?, address = ?, profile_image_url = ?, status = ?, school = ?, age = ?, updated_at = NOW() WHERE id = ?',
-        [name, apellido, email, phone, address, profileImage || null, status, school, age, id]
+        'UPDATE people SET first_name = ?, last_name = ?, email = ?, phone = ?, address = ?, profile_image_url = ?, status = ?, school = ?, age = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
+        [name, apellido, email, phone, address, profileImage || null, status, school, age, programId || existingColporter.program_id, id]
       );
     }
     
     // Get the updated colporter
     const updatedColporter = await db.getOne(
       `SELECT id, first_name as name, last_name as apellido, email, phone, 
-       address, profile_image_url as profileImage, status, school, age, 
+       address, profile_image_url as profileImage, status, school, age, program_id as programId,
        created_at as createdAt, updated_at as updatedAt, 'COLPORTER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
        FROM people
@@ -264,15 +285,25 @@ export const deleteColporter = async (req, res) => {
 // Get all leaders
 export const getLeaders = async (req, res) => {
   try {
-    const leaders = await db.query(
-      `SELECT id, first_name as name, last_name as apellido, email, phone, 
-       address, profile_image_url as profileImage, status, institution, 
+    const { programId } = req.query;
+    
+    let query = `SELECT id, first_name as name, last_name as apellido, email, phone, 
+       address, profile_image_url as profileImage, status, institution, program_id as programId,
        created_at as createdAt, updated_at as updatedAt, 'LEADER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
        FROM people
-       WHERE person_type = 'LEADER'
-       ORDER BY first_name, last_name`
-    );
+       WHERE person_type = 'LEADER'`;
+    
+    const params = [];
+    
+    if (programId) {
+      query += " AND program_id = ?";
+      params.push(programId);
+    }
+    
+    query += " ORDER BY first_name, last_name";
+    
+    const leaders = await db.query(query, params);
     
     res.json(leaders);
   } catch (error) {
@@ -288,7 +319,7 @@ export const getLeaderById = async (req, res) => {
     
     const leader = await db.getOne(
       `SELECT id, first_name as name, last_name as apellido, email, phone, 
-       address, profile_image_url as profileImage, status, institution, 
+       address, profile_image_url as profileImage, status, institution, program_id as programId,
        created_at as createdAt, updated_at as updatedAt, 'LEADER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
        FROM people
@@ -318,25 +349,26 @@ export const createLeader = async (req, res) => {
       institution,
       address,
       createUser,
-      profileImage
+      profileImage,
+      programId
     } = req.body;
     
-    // Check if email already exists
+    // Check if email already exists in the same program
     const existingPerson = await db.getOne(
-      'SELECT * FROM people WHERE email = ?',
-      [email]
+      'SELECT * FROM people WHERE email = ? AND program_id = ? AND person_type = ?',
+      [email, programId, 'LEADER']
     );
     
     if (existingPerson) {
-      return res.status(400).json({ message: 'Email already in use' });
+      return res.status(400).json({ message: 'Email already in use for a leader in this program' });
     }
     
     // Start transaction
     const result = await db.transaction(async (connection) => {
       // Insert person
       const [personResult] = await connection.execute(
-        'INSERT INTO people (first_name, last_name, email, phone, address, profile_image_url, person_type, status, institution) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [name, apellido, email, phone, address, profileImage || null, 'LEADER', 'ACTIVE', institution]
+        'INSERT INTO people (first_name, last_name, email, phone, address, profile_image_url, person_type, status, institution, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [name, apellido, email, phone, address, profileImage || null, 'LEADER', 'ACTIVE', institution, programId || null]
       );
       
       const personId = personResult.insertId;
@@ -357,7 +389,7 @@ export const createLeader = async (req, res) => {
     // Get the created leader
     const leader = await db.getOne(
       `SELECT id, first_name as name, last_name as apellido, email, phone, 
-       address, profile_image_url as profileImage, status, institution, 
+       address, profile_image_url as profileImage, status, institution, program_id as programId,
        created_at as createdAt, updated_at as updatedAt, 'LEADER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
        FROM people
@@ -384,7 +416,8 @@ export const updateLeader = async (req, res) => {
       institution,
       address,
       status,
-      profileImage
+      profileImage,
+      programId
     } = req.body;
     
     // Check if leader exists
@@ -403,33 +436,33 @@ export const updateLeader = async (req, res) => {
     if (existingLeader.hasUser) {
       // Update person
       await db.update(
-        'UPDATE people SET phone = ?, address = ?, profile_image_url = ?, status = ?, institution = ?, updated_at = NOW() WHERE id = ?',
-        [phone, address, profileImage || null, status, institution, id]
+        'UPDATE people SET phone = ?, address = ?, profile_image_url = ?, status = ?, institution = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
+        [phone, address, profileImage || null, status, institution, programId || existingLeader.program_id, id]
       );
     } else {
       // Check if email already exists (if changing email)
       if (email !== existingLeader.email) {
         const existingEmail = await db.getOne(
-          'SELECT * FROM people WHERE email = ? AND id != ?',
-          [email, id]
+          'SELECT * FROM people WHERE email = ? AND program_id = ? AND person_type = ? AND id != ?',
+          [email, programId || existingLeader.program_id, 'LEADER', id]
         );
         
         if (existingEmail) {
-          return res.status(400).json({ message: 'Email already in use' });
+          return res.status(400).json({ message: 'Email already in use for a leader in this program' });
         }
       }
       
       // Update person
       await db.update(
-        'UPDATE people SET first_name = ?, last_name = ?, email = ?, phone = ?, address = ?, profile_image_url = ?, status = ?, institution = ?, updated_at = NOW() WHERE id = ?',
-        [name, apellido, email, phone, address, profileImage || null, status, institution, id]
+        'UPDATE people SET first_name = ?, last_name = ?, email = ?, phone = ?, address = ?, profile_image_url = ?, status = ?, institution = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
+        [name, apellido, email, phone, address, profileImage || null, status, institution, programId || existingLeader.program_id, id]
       );
     }
     
     // Get the updated leader
     const updatedLeader = await db.getOne(
       `SELECT id, first_name as name, last_name as apellido, email, phone, 
-       address, profile_image_url as profileImage, status, institution, 
+       address, profile_image_url as profileImage, status, institution, program_id as programId,
        created_at as createdAt, updated_at as updatedAt, 'LEADER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
        FROM people

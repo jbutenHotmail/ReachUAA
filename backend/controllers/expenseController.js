@@ -3,13 +3,13 @@ import * as db from '../config/database.js';
 // Get all expenses
 export const getExpenses = async (req, res) => {
   try {
-    const { leaderId, category, startDate, endDate, status } = req.query;
+    const { leaderId, category, startDate, endDate, status, programId } = req.query;
     
     let query = `
       SELECT e.id, e.leader_id as leaderId, 
       CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
       e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
-      e.status, 
+      e.status, e.program_id as programId,
       e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
       e.created_at as createdAt, e.updated_at as updatedAt
       FROM expenses e
@@ -51,6 +51,14 @@ export const getExpenses = async (req, res) => {
       params.push(status);
     }
     
+    if (programId) {
+      conditions.push('e.program_id = ?');
+      params.push(programId);
+    } else if (req.user && req.user.currentProgramId) {
+      conditions.push('e.program_id = ?');
+      params.push(req.user.currentProgramId);
+    }
+    
     if (conditions.length > 0) {
       query += ' WHERE ' + conditions.join(' AND ');
     }
@@ -75,7 +83,7 @@ export const getExpenseById = async (req, res) => {
       `SELECT e.id, e.leader_id as leaderId, 
        CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
-       e.status,
+       e.status, e.program_id as programId,
        e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
        e.created_at as createdAt, e.updated_at as updatedAt
        FROM expenses e
@@ -107,10 +115,12 @@ export const createExpense = async (req, res) => {
       category,
       notes,
       date,
-      status = 'PENDING' // Default to PENDING status
+      status = 'PENDING', // Default to PENDING status
+      programId
     } = req.body;
     
     const userId = req.user.id;
+    const currentProgramId = programId || req.user.currentProgramId;
     
     // If leaderId is provided, check if leader exists
     if (leaderId && leaderId !== 'program') {
@@ -126,8 +136,8 @@ export const createExpense = async (req, res) => {
     
     // Insert expense
     const expenseId = await db.insert(
-      'INSERT INTO expenses (leader_id, amount, motivo, category, notes, expense_date, created_by, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [leaderId === 'program' ? null : leaderId, amount, motivo, category, notes || null, date, userId, status]
+      'INSERT INTO expenses (leader_id, amount, motivo, category, notes, expense_date, created_by, status, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [leaderId === 'program' ? null : leaderId, amount, motivo, category, notes || null, date, userId, status, currentProgramId]
     );
     
     // Get the created expense
@@ -135,7 +145,7 @@ export const createExpense = async (req, res) => {
       `SELECT e.id, e.leader_id as leaderId, 
        CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
-       e.status,
+       e.status, e.program_id as programId,
        e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
        e.created_at as createdAt, e.updated_at as updatedAt
        FROM expenses e
@@ -164,7 +174,8 @@ export const updateExpense = async (req, res) => {
       category,
       notes,
       date,
-      status
+      status,
+      programId
     } = req.body;
     
     // Check if expense exists
@@ -191,7 +202,7 @@ export const updateExpense = async (req, res) => {
     
     // Update expense
     await db.update(
-      'UPDATE expenses SET leader_id = ?, amount = ?, motivo = ?, category = ?, notes = ?, expense_date = ?, status = ?, updated_at = NOW() WHERE id = ?',
+      'UPDATE expenses SET leader_id = ?, amount = ?, motivo = ?, category = ?, notes = ?, expense_date = ?, status = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
       [
         leaderId === 'program' ? null : (leaderId !== undefined ? leaderId : existingExpense.leader_id),
         amount !== undefined ? amount : existingExpense.amount,
@@ -200,6 +211,7 @@ export const updateExpense = async (req, res) => {
         notes !== undefined ? notes : existingExpense.notes,
         date || existingExpense.expense_date,
         status || existingExpense.status,
+        programId || existingExpense.program_id,
         id
       ]
     );
@@ -209,7 +221,7 @@ export const updateExpense = async (req, res) => {
       `SELECT e.id, e.leader_id as leaderId, 
        CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
-       e.status,
+       e.status, e.program_id as programId,
        e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
        e.created_at as createdAt, e.updated_at as updatedAt
        FROM expenses e
@@ -286,7 +298,7 @@ export const approveExpense = async (req, res) => {
       `SELECT e.id, e.leader_id as leaderId, 
        CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
-       e.status,
+       e.status, e.program_id as programId,
        e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
        e.created_at as createdAt, e.updated_at as updatedAt
        FROM expenses e
@@ -334,7 +346,7 @@ export const rejectExpense = async (req, res) => {
       `SELECT e.id, e.leader_id as leaderId, 
        CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
-       e.status,
+       e.status, e.program_id as programId,
        e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
        e.created_at as createdAt, e.updated_at as updatedAt
        FROM expenses e

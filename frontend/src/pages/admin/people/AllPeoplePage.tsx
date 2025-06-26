@@ -22,6 +22,7 @@ import AddPersonForm from './AddPersonForm';
 import { useUserStore } from '../../../stores/userStore';
 import { Person } from '../../../types';
 import LoadingScreen from '../../../components/ui/LoadingScreen';
+import { useProgramStore } from '../../../stores/programStore';
 
 const columnHelper = createColumnHelper<Person>();
 
@@ -34,6 +35,7 @@ const AllPeoplePage: React.FC = () => {
   const [editingPerson, setEditingPerson] = useState<Person | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const {program} = useProgramStore();
 
   const { 
     people, 
@@ -51,7 +53,8 @@ const AllPeoplePage: React.FC = () => {
       setIsLoading(true);
       setError(null);
       try {
-        !werePeopleFetched && await fetchPeople();
+        const programId = program?.id;
+        !werePeopleFetched && await fetchPeople(programId);
       } catch (err) {
         setError(err instanceof Error ? err.message : t('peoplePage.errorLoadingPeople'));
       } finally {

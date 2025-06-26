@@ -11,15 +11,18 @@ import { Book, Colporter, Leader } from '../../../types';
 import LoadingScreen from '../../../components/ui/LoadingScreen';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
-import { X, AlertTriangle } from 'lucide-react';
+import { X, AlertTriangle, Globe } from 'lucide-react';
+import { useSettingsStore } from '../../../stores/settingsStore';
 
 const ProgramSetup: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { createProgram } = useProgramStore();
+  const { settings, changeLanguage } = useSettingsStore();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Form data state
   const [formData, setFormData] = useState({
@@ -59,19 +62,26 @@ const ProgramSetup: React.FC = () => {
     navigate('/program-select');
   };
   
+  const toggleLanguage = () => {
+    const newLang = settings.language === 'en' ? 'es' : 'en';
+    changeLanguage(newLang);
+  };
+  
   const handleSubmit = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       await createProgram(formData);
       navigate('/dashboard');
     } catch (error) {
       console.error('Error creating program:', error);
+      setError(error instanceof Error ? error.message : 'An error occurred while creating the program');
       setIsLoading(false);
     }
   };
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-gray-50 to-primary-100 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {isLoading ? (
           <LoadingScreen message={t('common.loading')} />
@@ -81,6 +91,14 @@ const ProgramSetup: React.FC = () => {
               <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-gray-900">{t('programSetup.title')}</h1>
                 <div className="flex items-center gap-3">
+                     <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleLanguage}
+            leftIcon={<Globe size={16} />}
+          >
+            {settings.language === 'en' ? 'Español' : 'English'}
+          </Button>
                   <Button
                     variant="outline"
                     onClick={handleCancel}
@@ -119,6 +137,18 @@ const ProgramSetup: React.FC = () => {
                 </div>
               </div>
             </div>
+            
+            {error && (
+              <div className="mb-6 p-4 bg-danger-50 border border-danger-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="text-danger-500 flex-shrink-0 mt-0.5" size={20} />
+                  <div>
+                    <h3 className="text-sm font-medium text-danger-800">Error creating program</h3>
+                    <p className="mt-1 text-sm text-danger-700">{error}</p>
+                  </div>
+                </div>
+              </div>
+            )}
             
             {currentStep === 1 && (
               <ProgramInfoStep 

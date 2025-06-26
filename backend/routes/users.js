@@ -19,7 +19,7 @@ const router = express.Router();
 router.get('/', authenticateToken, authorizeRoles(['ADMIN']), getUsers);
 
 // Get user by ID (admin only)
-router.get('/:id', authenticateToken, authorizeRoles(['ADMIN']), getUserById);
+// router.get('/:id', authenticateToken, authorizeRoles(['ADMIN']), getUserById);
 
 // Update user profile (any authenticated user)
 router.put('/profile', authenticateToken, updateProfile);

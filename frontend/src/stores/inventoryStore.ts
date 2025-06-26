@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Book, InventoryMovement, ProgramBook, InventoryCount } from '../types';
 import { api } from '../api';
+import { useProgramStore } from './programStore';
 
 interface InventoryState {
   books: Book[];
@@ -24,6 +25,7 @@ interface InventoryStore extends InventoryState {
   fetchInventoryCounts: (date?: string) => Promise<void>;
   updateInventoryCount: (bookId: string, data: { manualCount: number; countDate: string; systemCount: number; confirmDiscrepancy?: boolean; setVerified?: boolean }) => Promise<void>;
   updateBooksAfterTransaction: (transaction: any, isApproval: boolean) => void;
+  resetStore: () => void;
 }
 
 export const useInventoryStore = create<InventoryStore>((set, get) => ({
@@ -38,7 +40,17 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   fetchBooks: async () => {
     set({ isLoading: true, error: null });
     try {
-      const books = await api.get<Book[]>('/books');
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program filter if available
+      const params: Record<string, string | number> = {};
+      if (programId) {
+        params.programId = programId;
+      }
+      
+      const books = await api.get<Book[]>('/books', { params });
       set({ books, isLoading: false, wereBooksLoaded: true });
     } catch (error) {
       set({
@@ -65,7 +77,17 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   createBook: async (book) => {
     set({ isLoading: true, error: null });
     try {
-      const newBook = await api.post<Book>('/books', book);
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program ID to book data
+      const bookWithProgram = {
+        ...book,
+        programId
+      };
+      
+      const newBook = await api.post<Book>('/books', bookWithProgram);
       set((state) => ({ books: [...state.books, newBook], isLoading: false }));
     } catch (error) {
       set({
@@ -79,7 +101,17 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   updateBook: async (id, bookData) => {
     set({ isLoading: true, error: null });
     try {
-      const updatedBook = await api.put<Book>(`/books/${id}`, bookData);
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program ID to book data if not already present
+      const bookWithProgram = {
+        ...bookData,
+        programId: bookData.programId || programId
+      };
+      
+      const updatedBook = await api.put<Book>(`/books/${id}`, bookWithProgram);
       set((state) => ({
         books: state.books.map(b => b.id === id ? updatedBook : b),
         isLoading: false,
@@ -137,7 +169,17 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
         return;
       }
       
-      const movements = await api.get<InventoryMovement[]>(`/books/${bookId}/movements`);
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program filter if available
+      const params: Record<string, string | number> = {};
+      if (programId) {
+        params.programId = programId;
+      }
+      
+      const movements = await api.get<InventoryMovement[]>(`/books/${bookId}/movements`, { params });
       set({ movements, isLoading: false });
     } catch (error) {
       set({
@@ -150,7 +192,17 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   createMovement: async (bookId, movement) => {
     set({ isLoading: true, error: null });
     try {
-      const { book } = await api.post<{ message: string; book: Book }>(`/books/${bookId}/movements`, movement);
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program ID to movement data
+      const movementWithProgram = {
+        ...movement,
+        programId
+      };
+      
+      const { book } = await api.post<{ message: string; book: Book }>(`/books/${bookId}/movements`, movementWithProgram);
       
       // Update the book in the store
       set((state) => ({
@@ -174,8 +226,17 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     try {
       const countDate = date || new Date().toISOString().split('T')[0];
       
-      // This would be the actual API call
-      const counts = await api.get<InventoryCount[]>(`/books/counts/${countDate}`);
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program filter if available
+      const params: Record<string, string | number> = {};
+      if (programId) {
+        params.programId = programId;
+      }
+      
+      const counts = await api.get<InventoryCount[]>(`/books/counts/${countDate}`, { params });
       
       set({ inventoryCounts: counts, isLoading: false });
     } catch (error) {
@@ -189,18 +250,21 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   updateInventoryCount: async (bookId, data) => {
     set({ isLoading: true, error: null });
     try {
-      // In a real implementation, this would call the API
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program ID to data
+      const dataWithProgram = {
+        ...data,
+        programId
+      };
+      
       const { count, book } = await api.post<{ 
         message: string; 
         count: InventoryCount;
         book?: Book;
-      }>(`/books/${bookId}/counts`, {
-        manualCount: data.manualCount,
-        countDate: data.countDate,
-        systemCount: data.systemCount, // Always pass the original system count
-        confirmDiscrepancy: data.confirmDiscrepancy || false,
-        setVerified: data.setVerified || false // New parameter to force verified status
-      });
+      }>(`/books/${bookId}/counts`, dataWithProgram);
       
       // Update the inventory counts in the store
       set((state) => {
@@ -240,7 +304,17 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
       });
       throw error;
     }
-  },
+  },resetStore: () => {
+  set({
+    books: [],
+    programBooks: [],
+    movements: [],
+    inventoryCounts: [],
+    isLoading: false,
+    error: null,
+    wereBooksLoaded: false
+  });
+},
 
   // Method to update books after a transaction is approved or rejected
   updateBooksAfterTransaction: (transaction, isApproval) => {

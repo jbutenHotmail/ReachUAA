@@ -7,6 +7,7 @@ import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
 import { UserRole } from '../../../types';
 import { useUserStore } from '../../../stores/userStore';
+import { useProgramStore } from '../../../stores/programStore';
 
 interface AddUserFormProps {
   onClose: () => void;
@@ -21,7 +22,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
 }) => {
   const { t } = useTranslation();
   const { people, fetchPeople, werePeopleFetched } = useUserStore();
-  
+  const { program } = useProgramStore();
   // Form state
   const [formData, setFormData] = useState({
     personId: initialData?.personId || '',
@@ -45,7 +46,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
   // Fetch people data if not already loaded
   useEffect(() => {
     if (!werePeopleFetched) {
-      fetchPeople();
+      fetchPeople(program?.id);
     }
   }, [fetchPeople, werePeopleFetched]);
 

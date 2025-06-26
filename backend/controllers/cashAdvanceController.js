@@ -3,14 +3,14 @@ import * as db from '../config/database.js';
 // Get all cash advances
 export const getCashAdvances = async (req, res) => {
   try {
-    const { personId, personType, status, startDate, endDate } = req.query;
+    const { personId, personType, status, startDate, endDate, programId } = req.query;
     
     let query = `
       SELECT ca.id, ca.person_id as personId, CONCAT(p.first_name, ' ', p.last_name) as personName,
       p.person_type as personType, ca.week_start_date as weekStartDate, ca.week_end_date as weekEndDate,
       ca.total_sales as totalSales, ca.transaction_count as transactionCount, ca.advance_amount as advanceAmount,
       ca.status, ca.request_date as requestDate, ca.approved_date as approvedDate,
-      ca.approved_by as approvedBy, 
+      ca.approved_by as approvedBy, ca.program_id as programId,
       CASE WHEN ca.approved_by IS NOT NULL THEN CONCAT(ap.first_name, ' ', ap.last_name) ELSE NULL END as approvedByName,
       ca.created_at as createdAt, ca.updated_at as updatedAt
       FROM cash_advances ca
@@ -48,6 +48,14 @@ export const getCashAdvances = async (req, res) => {
       params.push(endDate);
     }
     
+    if (programId) {
+      conditions.push('ca.program_id = ?');
+      params.push(programId);
+    } else if (req.user && req.user.currentProgramId) {
+      conditions.push('ca.program_id = ?');
+      params.push(req.user.currentProgramId);
+    }
+    
     if (conditions.length > 0) {
       query += ' WHERE ' + conditions.join(' AND ');
     }
@@ -73,7 +81,7 @@ export const getCashAdvanceById = async (req, res) => {
        p.person_type as personType, ca.week_start_date as weekStartDate, ca.week_end_date as weekEndDate,
        ca.total_sales as totalSales, ca.transaction_count as transactionCount, ca.advance_amount as advanceAmount,
        ca.status, ca.request_date as requestDate, ca.approved_date as approvedDate,
-       ca.approved_by as approvedBy, 
+       ca.approved_by as approvedBy, ca.program_id as programId,
        CASE WHEN ca.approved_by IS NOT NULL THEN CONCAT(ap.first_name, ' ', ap.last_name) ELSE NULL END as approvedByName,
        ca.created_at as createdAt, ca.updated_at as updatedAt
        FROM cash_advances ca
@@ -106,8 +114,11 @@ export const createCashAdvance = async (req, res) => {
       weekEndDate,
       totalSales,
       transactionCount,
-      advanceAmount
+      advanceAmount,
+      programId
     } = req.body;
+    
+    const currentProgramId = programId || req.user.currentProgramId;
     
     // Check if person exists
     const person = await db.getOne(
@@ -121,8 +132,8 @@ export const createCashAdvance = async (req, res) => {
     
     // Check if advance already exists for this week
     const existingAdvance = await db.getOne(
-      'SELECT * FROM cash_advances WHERE person_id = ? AND week_start_date = ? AND week_end_date = ?',
-      [personId, weekStartDate, weekEndDate]
+      'SELECT * FROM cash_advances WHERE person_id = ? AND week_start_date = ? AND week_end_date = ? AND program_id = ?',
+      [personId, weekStartDate, weekEndDate, currentProgramId]
     );
     
     if (existingAdvance) {
@@ -138,8 +149,8 @@ export const createCashAdvance = async (req, res) => {
     
     // Calculate maximum advance amount
     const maxPercentage = personType === 'COLPORTER' 
-      ? financialConfig?.colporter_cash_advance_percentage
-      : financialConfig?.leader_cash_advance_percentage;
+      ? financialConfig?.colporter_cash_advance_percentage || 20
+      : financialConfig?.leader_cash_advance_percentage || 25;
     
     const maxAdvanceAmount = totalSales * (maxPercentage / 100);
     
@@ -151,8 +162,8 @@ export const createCashAdvance = async (req, res) => {
     
     // Insert cash advance
     const advanceId = await db.insert(
-      'INSERT INTO cash_advances (person_id, week_start_date, week_end_date, total_sales, transaction_count, advance_amount, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [personId, weekStartDate, weekEndDate, totalSales, transactionCount, advanceAmount, 'PENDING']
+      'INSERT INTO cash_advances (person_id, week_start_date, week_end_date, total_sales, transaction_count, advance_amount, status, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [personId, weekStartDate, weekEndDate, totalSales, transactionCount, advanceAmount, 'PENDING', currentProgramId]
     );
     
     // Get the created advance
@@ -161,7 +172,7 @@ export const createCashAdvance = async (req, res) => {
        p.person_type as personType, ca.week_start_date as weekStartDate, ca.week_end_date as weekEndDate,
        ca.total_sales as totalSales, ca.transaction_count as transactionCount, ca.advance_amount as advanceAmount,
        ca.status, ca.request_date as requestDate, ca.approved_date as approvedDate,
-       ca.approved_by as approvedBy, 
+       ca.approved_by as approvedBy, ca.program_id as programId,
        CASE WHEN ca.approved_by IS NOT NULL THEN CONCAT(ap.first_name, ' ', ap.last_name) ELSE NULL END as approvedByName,
        ca.created_at as createdAt, ca.updated_at as updatedAt
        FROM cash_advances ca
@@ -213,7 +224,7 @@ export const approveCashAdvance = async (req, res) => {
        p.person_type as personType, ca.week_start_date as weekStartDate, ca.week_end_date as weekEndDate,
        ca.total_sales as totalSales, ca.transaction_count as transactionCount, ca.advance_amount as advanceAmount,
        ca.status, ca.request_date as requestDate, ca.approved_date as approvedDate,
-       ca.approved_by as approvedBy, 
+       ca.approved_by as approvedBy, ca.program_id as programId,
        CASE WHEN ca.approved_by IS NOT NULL THEN CONCAT(ap.first_name, ' ', ap.last_name) ELSE NULL END as approvedByName,
        ca.created_at as createdAt, ca.updated_at as updatedAt
        FROM cash_advances ca
@@ -267,7 +278,7 @@ export const rejectCashAdvance = async (req, res) => {
        p.person_type as personType, ca.week_start_date as weekStartDate, ca.week_end_date as weekEndDate,
        ca.total_sales as totalSales, ca.transaction_count as transactionCount, ca.advance_amount as advanceAmount,
        ca.status, ca.request_date as requestDate, ca.approved_date as approvedDate,
-       ca.approved_by as approvedBy, 
+       ca.approved_by as approvedBy, ca.program_id as programId,
        CASE WHEN ca.approved_by IS NOT NULL THEN CONCAT(ap.first_name, ' ', ap.last_name) ELSE NULL END as approvedByName,
        ca.created_at as createdAt, ca.updated_at as updatedAt
        FROM cash_advances ca
@@ -292,11 +303,13 @@ export const rejectCashAdvance = async (req, res) => {
 export const getWeeklySales = async (req, res) => {
   try {
     const { personId } = req.params;
-    const { weekStartDate, weekEndDate } = req.query;
+    const { weekStartDate, weekEndDate, programId } = req.query;
     
     if (!weekStartDate || !weekEndDate) {
       return res.status(400).json({ message: 'Week start date and end date are required' });
     }
+    
+    const currentProgramId = programId || req.user.currentProgramId;
     
     // Check if person exists
     const person = await db.getOne(
@@ -335,8 +348,9 @@ export const getWeeklySales = async (req, res) => {
         FROM transactions t
         WHERE t.student_id = ?
           AND t.transaction_date BETWEEN ? AND ?
-          AND t.status IN ('PENDING', 'APPROVED')`,
-        [personId, weekStartDate, weekEndDate]
+          AND t.status IN ('PENDING', 'APPROVED')
+          AND (t.program_id = ? OR t.program_id IS NULL)`,
+        [personId, weekStartDate, weekEndDate, currentProgramId]
       );
       
       // Get daily sales
@@ -348,9 +362,10 @@ export const getWeeklySales = async (req, res) => {
         WHERE t.student_id = ?
           AND t.transaction_date BETWEEN ? AND ?
           AND t.status IN ('PENDING', 'APPROVED')
+          AND (t.program_id = ? OR t.program_id IS NULL)
         GROUP BY t.transaction_date
         ORDER BY t.transaction_date`,
-        [personId, weekStartDate, weekEndDate]
+        [personId, weekStartDate, weekEndDate, currentProgramId]
       );
       
       weeklySales.totalSales = salesResult.total_sales;
@@ -369,8 +384,9 @@ export const getWeeklySales = async (req, res) => {
         FROM transactions t
         WHERE t.leader_id = ?
           AND t.transaction_date BETWEEN ? AND ?
-          AND t.status IN ('PENDING', 'APPROVED')`,
-        [personId, weekStartDate, weekEndDate]
+          AND t.status IN ('PENDING', 'APPROVED')
+          AND (t.program_id = ? OR t.program_id IS NULL)`,
+        [personId, weekStartDate, weekEndDate, currentProgramId]
       );
       
       // Get daily sales
@@ -382,9 +398,10 @@ export const getWeeklySales = async (req, res) => {
         WHERE t.leader_id = ?
           AND t.transaction_date BETWEEN ? AND ?
           AND t.status IN ('PENDING', 'APPROVED')
+          AND (t.program_id = ? OR t.program_id IS NULL)
         GROUP BY t.transaction_date
         ORDER BY t.transaction_date`,
-        [personId, weekStartDate, weekEndDate]
+        [personId, weekStartDate, weekEndDate, currentProgramId]
       );
       
       weeklySales.totalSales = salesResult.total_sales;

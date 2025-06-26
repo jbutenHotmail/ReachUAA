@@ -33,7 +33,7 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
   const [editingColporter, setEditingColporter] = useState<Colporter | null>(null);
   const [editingLeader, setEditingLeader] = useState<Leader | null>(null);
 
-  const handleAddColporter = (data: Omit<Colporter, 'id' | 'createdAt' | 'updatedAt' | 'status'>) => {
+  const handleAddColporter = (data: Omit<Colporter, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'hasUser'>) => {
     const newColporter: Colporter = {
       ...data,
       id: `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -56,6 +56,7 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
       )
     );
     setEditingColporter(null);
+    setShowAddForm(false);
   };
 
   const handleAddLeader = (data: any) => {
@@ -81,6 +82,7 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
       )
     );
     setEditingLeader(null);
+    setShowAddForm(false);
   };
 
   const handleDeleteColporter = (id: string) => {
@@ -161,7 +163,7 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
           <div className="flex items-center gap-2">
             <User size={18} />
             {t('common.colporters')} ({colporters.length})
-            {colporters.length === 0 && <span className="text-danger-500 text-xs">{t('confirmationStep.importantNotes')}</span>}
+            {colporters.length === 0 && <span className="text-danger-500 text-xs">*</span>}
           </div>
         </button>
         <button
@@ -175,7 +177,7 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
           <div className="flex items-center gap-2">
             <UserCog size={18} />
             {t('common.leaders')} ({leaders.length})
-            {leaders.length === 0 && <span className="text-danger-500 text-xs">{t('confirmationStep.importantNotes')}</span>}
+            {leaders.length === 0 && <span className="text-danger-500 text-xs">*</span>}
           </div>
         </button>
       </div>
@@ -251,7 +253,10 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setEditingColporter(colporter)}
+                            onClick={() => {
+                              setEditingColporter(colporter);
+                              setShowAddForm(true);
+                            }}
                           >
                             {t('common.edit')}
                           </Button>
@@ -334,7 +339,10 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setEditingLeader(leader)}
+                            onClick={() => {
+                              setEditingLeader(leader);
+                              setShowAddForm(true);
+                            }}
                           >
                             {t('common.edit')}
                           </Button>

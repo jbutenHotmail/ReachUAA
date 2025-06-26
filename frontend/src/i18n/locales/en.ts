@@ -37,6 +37,7 @@ export default {
     export: "Export",
     allTypes: "All Types",
     confirm: "Confirm",
+    actions: "Actions",
     add: "Add",
     create: "Create",
     logoAlt: "Reach UAA",
@@ -112,6 +113,12 @@ export default {
     people: "People",
     confirmation: "Confirmation",
     created: "Created By",
+    advanceExample: 'Advance Example: ',
+    advanceExampleDescription: 'If sales are $1000 per week, with an advance of 10%, a person can request up to $100 of advance.',
+    programPercentageDescription: 'Percentage of sales that goes to the program.',
+        revenueDistribution: 'Revenue Distribution',
+        cashAdvances: 'Cash Advances',
+
   },
   programSettings: {
     programInformation: "Program Information",
@@ -238,6 +245,8 @@ export default {
     programName: "Program Name",
     motto: "Motto",
     programPeople: "Program People",
+    programLogo: "Program Logo",
+    noLogo: "No logo was provided",
     notePeopleAddLater: "Additional colporters and leaders can be added later.",
     startDate: "Start Date",
     endDate: "End Date",
@@ -773,6 +782,7 @@ export default {
     description: "Description",
     bookCatalog: "Book Catalog",
     inventoryTracking: "Inventory Tracking",
+    bookTitle: "Book Title",
     books: "Books",
     categories: {
       devotional: "Devotional",

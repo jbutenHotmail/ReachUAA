@@ -76,10 +76,6 @@ const FinancialConfigStep: React.FC<FinancialConfigStepProps> = ({
         </div>
       </div>
 
-      <p className="text-gray-600">
-        {t('programSetup.financialConfigDescription')}
-      </p>
-
       <Card title={t('programSetup.revenueDistribution')} icon={<Calculator size={20} />}>
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

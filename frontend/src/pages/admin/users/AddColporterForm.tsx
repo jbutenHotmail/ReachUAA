@@ -6,6 +6,7 @@ import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import { Colporter } from '../../../types';
 import ImageUpload from '../../../components/ui/ImageUpload';
+import { useProgramStore } from '../../../stores/programStore';
 
 interface AddColporterFormProps {
   onClose: () => void;
@@ -19,6 +20,7 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
   initialData 
 }) => {
   const { t } = useTranslation();
+  const { program } = useProgramStore();
   const [formData, setFormData] = React.useState({
     name: initialData?.name || '',
     apellido: initialData?.apellido || '',
@@ -28,7 +30,8 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
     address: initialData?.address || '',
     age: initialData?.age || '',
     createUser: !initialData,
-    profileImage: initialData?.profile_image_url,
+    profileImage: initialData?.profile_image_url || initialData?.profile_image_url,
+    programId: initialData?.programId || program?.id || null
   });
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api } from '../api';
+import { useProgramStore } from './programStore';
 
 interface Expense {
   id: string;
@@ -11,6 +12,7 @@ interface Expense {
   notes?: string;
   date: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  programId?: number;
   createdBy: string;
   createdByName: string;
   createdAt: string;
@@ -31,6 +33,7 @@ interface ExpenseStore extends ExpenseState {
   deleteExpense: (id: string) => Promise<void>;
   approveExpense: (id: string) => Promise<Expense>;
   rejectExpense: (id: string) => Promise<Expense>;
+  resetStore: () => void;
 }
 
 export const useExpenseStore = create<ExpenseStore>((set) => ({
@@ -41,7 +44,17 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
   fetchExpenses: async (params) => {
     set({ isLoading: true, error: null });
     try {
-      const expenses = await api.get<Expense[]>('/expenses', { params });
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program ID to params
+      const queryParams: Record<string, string | number> = { ...params };
+      if (programId) {
+        queryParams.programId = programId;
+      }
+      
+      const expenses = await api.get<Expense[]>('/expenses', { params: queryParams });
       set({ expenses, isLoading: false, wereExpensesFetched: true });
     } catch (error) {
       set({ 
@@ -54,7 +67,17 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
   createExpense: async (expenseData) => {
     set({ isLoading: true, error: null });
     try {
-      const newExpense = await api.post<Expense>('/expenses', expenseData);
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program ID to expense data
+      const dataWithProgram = {
+        ...expenseData,
+        programId: expenseData.programId || programId
+      };
+      
+      const newExpense = await api.post<Expense>('/expenses', dataWithProgram);
       set(state => ({
         expenses: [...state.expenses, newExpense],
         isLoading: false,
@@ -72,7 +95,17 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
   updateExpense: async (id, expenseData) => {
     set({ isLoading: true, error: null });
     try {
-      const updatedExpense = await api.put<Expense>(`/expenses/${id}`, expenseData);
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program ID to expense data if not already present
+      const dataWithProgram = {
+        ...expenseData,
+        programId: expenseData.programId || programId
+      };
+      
+      const updatedExpense = await api.put<Expense>(`/expenses/${id}`, dataWithProgram);
       set(state => ({
         expenses: state.expenses.map(e => 
           e.id === id 
@@ -151,4 +184,12 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
       throw error;
     }
   },
+  resetStore: () => {
+  set({
+    expenses: [],
+    isLoading: false,
+    error: null,
+    wereExpensesFetched: false
+  });
+}
 }));

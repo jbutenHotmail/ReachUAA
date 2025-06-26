@@ -1,3 +1,4 @@
+// src/stores/transactionStore.ts
 import { create } from 'zustand';
 import { Transaction } from '../types';
 import { api } from '../api';
@@ -5,6 +6,7 @@ import { getCurrentDate } from '../utils/dateUtils';
 import { useDashboardStore } from './dashboardStore';
 import { useFinancialStore } from './financialStore';
 import { useInventoryStore } from './inventoryStore';
+import { useProgramStore } from './programStore';
 
 interface TransactionState {
   transactions: Transaction[];
@@ -21,6 +23,7 @@ interface TransactionStore extends TransactionState {
   deleteTransaction: (id: string) => Promise<void>;
   approveTransaction: (id: string) => Promise<void>;
   rejectTransaction: (id: string) => Promise<void>;
+  resetStore: () => void;
 }
 
 export const useTransactionStore = create<TransactionStore>((set, get) => ({
@@ -34,13 +37,18 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
     try {
       // If no date is provided, use today's date in a consistent format
       const queryDate = date || getCurrentDate();
-      console.log('Fetching transactions for date:', queryDate);
       
-      const params = queryDate ? { date: queryDate } : undefined;
-      const transactions = await api.get<Transaction[]>('/transactions', { 
-        params: params as Record<string, string>
-      });
-      set({ transactions, isLoading: false, wereTransactionsFetched: false });
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      const params: Record<string, string | number> = { date: queryDate };
+      if (programId) {
+        params.programId = programId;
+      }
+      
+      const transactions = await api.get<Transaction[]>('/transactions', { params });
+      set({ transactions, isLoading: false, wereTransactionsFetched: true });
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred', 
@@ -52,10 +60,17 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
   fetchAllTransactions: async (status?: string) => {
     set({ isLoading: true, error: null });
     try {
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
       // Fetch all transactions with optional status filtering
-      const params: Record<string, string> = {};
+      const params: Record<string, string | number> = {};
       if (status) {
         params.status = status;
+      }
+      if (programId) {
+        params.programId = programId;
       }
       
       const transactions = await api.get<Transaction[]>('/transactions', { params });
@@ -73,7 +88,17 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
   createTransaction: async (transactionData) => {
     set({ isLoading: true, error: null });
     try {
-      const newTransaction = await api.post<Transaction>('/transactions', transactionData);
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program ID to transaction data
+      const dataWithProgram = {
+        ...transactionData,
+        programId
+      };
+      
+      const newTransaction = await api.post<Transaction>('/transactions', dataWithProgram);
       
       set((state) => ({ 
         transactions: [...state.transactions, newTransaction], 
@@ -93,7 +118,17 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
   updateTransaction: async (id, transactionData) => {
     set({ isLoading: true, error: null });
     try {
-      const updatedTransaction = await api.put<Transaction>(`/transactions/${id}`, transactionData);
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program ID to transaction data if not already present
+      const dataWithProgram = {
+        ...transactionData,
+        programId: transactionData.programId || programId
+      };
+      
+      const updatedTransaction = await api.put<Transaction>(`/transactions/${id}`, dataWithProgram);
       
       set((state) => ({
         transactions: state.transactions.map(t => 
@@ -155,7 +190,7 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
       
       set((state) => ({
         transactions: state.transactions.map(t => 
-          Number(t.id) === Number(id) ? transaction : t
+          t.id === id ? transaction : t
         ),
         isLoading: false,
       }));
@@ -212,4 +247,14 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
       });
     }
   },
+
+  // Reset store method
+  resetStore: () => {
+    set({
+      transactions: [],
+      isLoading: false,
+      error: null,
+      wereTransactionsFetched: false
+    });
+  }
 }));

@@ -47,6 +47,7 @@ export interface Person {
   // Fields specific to colporters
   school?: string;
   age?: string;
+  programId?: string;
   // Fields specific to leaders
   institution?: string;
 }
@@ -240,6 +241,7 @@ export interface Colporter {
   hasUser: boolean;
   createdAt: string;
   updatedAt: string;
+  programId?: string;
   profile_image_url?: string;
 }
 
@@ -255,6 +257,9 @@ export interface Leader {
   hasUser: boolean;
   createdAt: string;
   updatedAt: string;
+  profile_image_url?: string;
+    programId?: string;
+
 }
 
 // Updated ProgramConfig interface with achieved property

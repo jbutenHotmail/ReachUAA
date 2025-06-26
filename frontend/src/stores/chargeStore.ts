@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Charge } from '../types';
 import { api } from '../api';
+import { useProgramStore } from './programStore';
 
 interface ChargeState {
   charges: Charge[];
@@ -23,10 +24,21 @@ export const useChargeStore = create<ChargeStore>((set) => ({
   isLoading: false,
   error: null,
   wereChargesFetched: false,
+
   fetchCharges: async () => {
     set({ isLoading: true, error: null });
     try {
-      const charges = await api.get<Charge[]>('/charges');
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program filter if available
+      const params: Record<string, string | number> = {};
+      if (programId) {
+        params.programId = programId;
+      }
+      
+      const charges = await api.get<Charge[]>('/charges', { params });
       set({ charges, isLoading: false, wereChargesFetched: true });
     } catch (error) {
       set({ 
@@ -39,10 +51,21 @@ export const useChargeStore = create<ChargeStore>((set) => ({
   createCharge: async (chargeData) => {
     set({ isLoading: true, error: null });
     try {
-      const newCharge = await api.post<Charge>('/charges', chargeData);
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program ID to charge data
+      const dataWithProgram = {
+        ...chargeData,
+        programId: chargeData.programId || programId
+      };
+      
+      const newCharge = await api.post<Charge>('/charges', dataWithProgram);
       set(state => ({
         charges: [...state.charges, newCharge],
         isLoading: false,
+        wereChargesFetched: true
       }));
     } catch (error) {
       set({ 
@@ -56,7 +79,17 @@ export const useChargeStore = create<ChargeStore>((set) => ({
   updateCharge: async (id, chargeData) => {
     set({ isLoading: true, error: null });
     try {
-      const updatedCharge = await api.put<Charge>(`/charges/${id}`, chargeData);
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program ID to charge data if not already present
+      const dataWithProgram = {
+        ...chargeData,
+        programId: chargeData.programId || programId
+      };
+      
+      const updatedCharge = await api.put<Charge>(`/charges/${id}`, dataWithProgram);
       set(state => ({
         charges: state.charges.map(c => 
           c.id === id 
@@ -95,10 +128,9 @@ export const useChargeStore = create<ChargeStore>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const { charge } = await api.patch<{ message: string; charge: Charge }>(`/charges/${id}/apply`);
-      console.log(charge);
       set(state => ({
         charges: state.charges.map(c => 
-          Number(c.id) === Number(id)
+          c.id === id 
             ? charge
             : c
         ),
@@ -109,6 +141,7 @@ export const useChargeStore = create<ChargeStore>((set) => ({
         error: error instanceof Error ? error.message : 'An unknown error occurred',
         isLoading: false 
       });
+      throw error;
     }
   },
 
@@ -129,6 +162,15 @@ export const useChargeStore = create<ChargeStore>((set) => ({
         error: error instanceof Error ? error.message : 'An unknown error occurred',
         isLoading: false 
       });
+      throw error;
     }
   },
+  resetStore: () => {
+  set({
+    charges: [],
+    isLoading: false,
+    error: null,
+    wereChargesFetched: false
+  });
+}
 }));

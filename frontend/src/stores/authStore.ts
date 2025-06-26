@@ -17,6 +17,7 @@ interface AuthStore extends AuthState {
   updateProfile: (user: Partial<User>) => Promise<User>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   refreshToken: () => Promise<void>;
+  setCurrentProgram: (programId: number) => void;
 }
 
 // Helper function to get current user from localStorage
@@ -84,14 +85,14 @@ export const useAuthStore = create<AuthStore>()(
       refreshToken: async () => {
         set({ isLoading: true });
         try {
-          const newToken = await refreshAccessToken();
+          const response = await refreshAccessToken();
           
           // Update user if needed (in case it was cleared)
           const currentUser = getCurrentUser();
           
           set({ 
-            token: newToken, 
-            user: currentUser,
+            token: response.accessToken, 
+            user: response.user || currentUser,
             isAuthenticated: true, 
             isLoading: false 
           });
@@ -193,6 +194,15 @@ export const useAuthStore = create<AuthStore>()(
           throw error;
         }
       },
+      
+      setCurrentProgram: (programId) => {
+        const currentUser = get().user;
+        if (currentUser) {
+          const updatedUser = { ...currentUser, currentProgramId: programId };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          set({ user: updatedUser });
+        }
+      }
     }),
     {
       name: 'auth-storage',

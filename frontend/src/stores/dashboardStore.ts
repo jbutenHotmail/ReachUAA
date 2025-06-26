@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { api } from '../api';
 import { getCurrentDate, addDays } from '../utils/dateUtils';
+import { useProgramStore } from './programStore';
 
 interface DashboardStats {
   today: {
@@ -44,30 +45,57 @@ interface DashboardState {
   isLoading: boolean;
   error: string | null;
   wereStatsFetched: boolean;
+  lastFetchTime: number | null;
 }
 
 interface DashboardStore extends DashboardState {
-  fetchDashboardStats: () => Promise<void>;
+  fetchDashboardStats: (forceRefresh?: boolean) => Promise<void>;
   updateStatsAfterTransaction: (transaction: any) => void;
+  resetStore: () => void;
 }
+
+// Cache timeout in milliseconds (5 minutes)
+const CACHE_TIMEOUT = 5 * 60 * 1000;
 
 export const useDashboardStore = create<DashboardStore>((set, get) => ({
   stats: null,
   isLoading: false,
   error: null,
   wereStatsFetched: false,
+  lastFetchTime: null,
 
-  fetchDashboardStats: async () => {
+  fetchDashboardStats: async (forceRefresh = false) => {
+    // Check if we already have stats and they're not too old
+    const currentState = get();
+    const now = Date.now();
+    
+    if (
+      !forceRefresh && 
+      currentState.stats && 
+      currentState.lastFetchTime && 
+      now - currentState.lastFetchTime < CACHE_TIMEOUT
+    ) {
+      console.log('Using cached dashboard stats');
+      return;
+    }
+    
     set({ isLoading: true, error: null });
     try {
       // Get today's date in a consistent format
       const today = getCurrentDate();
-      console.log('Fetching dashboard stats for date:', today);
+      
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Prepare params
+      const params: Record<string, string | number> = { date: today };
+      if (programId) {
+        params.programId = programId;
+      }
       
       // Make the actual API call to get dashboard stats with the date parameter
-      const stats = await api.get<DashboardStats>('/dashboard/stats', {
-        params: { date: today }
-      });
+      const stats = await api.get<DashboardStats>('/dashboard/stats', { params });
       
       // Ensure all required properties exist
       if (stats) {
@@ -106,7 +134,12 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
           salesChart: stats.salesChart || []
         };
         
-        set({ stats: validatedStats, isLoading: false, wereStatsFetched: true });
+        set({ 
+          stats: validatedStats, 
+          isLoading: false, 
+          wereStatsFetched: true,
+          lastFetchTime: now
+        });
       } else {
         // If API fails or returns invalid data, generate mock data for development
         const salesChart = Array.from({ length: 30 }, (_, i) => {
@@ -160,7 +193,12 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         mockStats.program.remaining = mockStats.program.goal - mockStats.program.achieved;
         mockStats.program.percentageAchieved = (mockStats.program.achieved / mockStats.program.goal) * 100;
         
-        set({ stats: mockStats, isLoading: false, wereStatsFetched: true });
+        set({ 
+          stats: mockStats, 
+          isLoading: false, 
+          wereStatsFetched: true,
+          lastFetchTime: now
+        });
       }
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -269,5 +307,15 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
 
     // Update the state with the new stats
     set({ stats: updatedStats });
-  }
+  },
+
+  resetStore: () => {
+  set({
+    stats: null,
+    isLoading: false,
+    error: null,
+    wereStatsFetched: false,
+    lastFetchTime: null
+  });
+}
 }));

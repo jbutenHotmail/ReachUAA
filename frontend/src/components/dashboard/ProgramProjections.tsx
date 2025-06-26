@@ -9,7 +9,7 @@ const ProgramProjections: React.FC = () => {
   const { t } = useTranslation();
   const { program } = useProgramStore();
   const { transactions, isLoading: transactionsLoading } = useTransactionStore();
-  const [isCalculating, setIsCalculating] = useState(true);
+  const [isCalculating, setIsCalculating] = useState(transactions.length > 0);
   const [projectionData, setProjectionData] = useState({
     totalMayJuneJuly: 0,
     dailyAverage: 0,

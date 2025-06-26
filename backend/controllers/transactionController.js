@@ -3,13 +3,13 @@ import * as db from '../config/database.js';
 // Get all transactions
 export const getTransactions = async (req, res) => {
   try {
-    const { date, studentId, leaderId, status } = req.query;
+    const { date, studentId, leaderId, status, programId } = req.query;
     
     let query = `
       SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
       t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
       t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-      t.transaction_date as date, t.status, t.created_at as createdAt, t.updated_at as updatedAt
+      t.transaction_date as date, t.status, t.program_id as programId, t.created_at as createdAt, t.updated_at as updatedAt
       FROM transactions t
       JOIN people sp ON t.student_id = sp.id
       JOIN people lp ON t.leader_id = lp.id
@@ -36,6 +36,14 @@ export const getTransactions = async (req, res) => {
     if (status) {
       conditions.push('t.status = ?');
       params.push(status);
+    }
+    
+    if (programId) {
+      conditions.push('t.program_id = ?');
+      params.push(programId);
+    } else if (req.user && req.user.currentProgramId) {
+      conditions.push('t.program_id = ?');
+      params.push(req.user.currentProgramId);
     }
     
     if (conditions.length > 0) {
@@ -75,7 +83,7 @@ export const getTransactionById = async (req, res) => {
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
        t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
        t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-       t.transaction_date as date, t.status, t.created_at as createdAt, t.updated_at as updatedAt
+       t.transaction_date as date, t.status, t.program_id as programId, t.created_at as createdAt, t.updated_at as updatedAt
        FROM transactions t
        JOIN people sp ON t.student_id = sp.id
        JOIN people lp ON t.leader_id = lp.id
@@ -116,10 +124,12 @@ export const createTransaction = async (req, res) => {
       atmMobile,
       paypal,
       date,
-      books
+      books,
+      programId
     } = req.body;
     
     const userId = req.user.id;
+    const currentProgramId = programId || req.user.currentProgramId;
     
     // Validate required fields
     if (!studentId || !leaderId || !date) {
@@ -143,8 +153,8 @@ export const createTransaction = async (req, res) => {
     const result = await db.transaction(async (connection) => {
       // Insert transaction
       const [transactionResult] = await connection.execute(
-        'INSERT INTO transactions (student_id, leader_id, cash, checks, atm_mobile, paypal, total, transaction_date, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [studentId, leaderId, cash || 0, checks || 0, atmMobile || 0, paypal || 0, total, date, 'PENDING', userId]
+        'INSERT INTO transactions (student_id, leader_id, cash, checks, atm_mobile, paypal, total, transaction_date, status, created_by, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [studentId, leaderId, cash || 0, checks || 0, atmMobile || 0, paypal || 0, total, date, 'PENDING', userId, currentProgramId]
       );
       
       const transactionId = transactionResult.insertId;
@@ -167,7 +177,7 @@ export const createTransaction = async (req, res) => {
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
        t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
        t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-       t.transaction_date as date, t.status, t.created_at as createdAt, t.updated_at as updatedAt
+       t.transaction_date as date, t.status, t.program_id as programId, t.created_at as createdAt, t.updated_at as updatedAt
        FROM transactions t
        JOIN people sp ON t.student_id = sp.id
        JOIN people lp ON t.leader_id = lp.id
@@ -206,7 +216,8 @@ export const updateTransaction = async (req, res) => {
       paypal,
       date,
       status,
-      books
+      books,
+      programId
     } = req.body;
     
     // Check if transaction exists
@@ -248,11 +259,12 @@ export const updateTransaction = async (req, res) => {
     const newPaypal =
       paypal !== undefined ? paypal : existingTransaction.paypal;
     const total = newCash + newChecks + newAtmMobile + newPaypal;
+    
     // Start transaction
     await db.transaction(async (connection) => {
       // Update transaction
       await connection.execute(
-        "UPDATE transactions SET student_id = ?, leader_id = ?, cash = ?, checks = ?, atm_mobile = ?, paypal = ?, total = ?, transaction_date = ?, status = ?, updated_at = NOW() WHERE id = ?",
+        "UPDATE transactions SET student_id = ?, leader_id = ?, cash = ?, checks = ?, atm_mobile = ?, paypal = ?, total = ?, transaction_date = ?, status = ?, program_id = ?, updated_at = NOW() WHERE id = ?",
         [
           studentId || existingTransaction.student_id,
           leaderId || existingTransaction.leader_id,
@@ -263,6 +275,7 @@ export const updateTransaction = async (req, res) => {
           total,
           date || existingTransaction.transaction_date,
           status || existingTransaction.status,
+          programId || existingTransaction.program_id,
           id,
         ]
       );
@@ -290,7 +303,7 @@ export const updateTransaction = async (req, res) => {
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
        t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
        t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-       t.transaction_date as date, t.status, t.created_at as createdAt, t.updated_at as updatedAt
+       t.transaction_date as date, t.status, t.program_id as programId, t.created_at as createdAt, t.updated_at as updatedAt
        FROM transactions t
        JOIN people sp ON t.student_id = sp.id
        JOIN people lp ON t.leader_id = lp.id
@@ -399,7 +412,7 @@ export const approveTransaction = async (req, res) => {
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
        t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
        t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-       t.transaction_date as date, t.status, t.created_at as createdAt, t.updated_at as updatedAt
+       t.transaction_date as date, t.status, t.program_id as programId, t.created_at as createdAt, t.updated_at as updatedAt
        FROM transactions t
        JOIN people sp ON t.student_id = sp.id
        JOIN people lp ON t.leader_id = lp.id
@@ -485,7 +498,7 @@ export const rejectTransaction = async (req, res) => {
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
        t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
        t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-       t.transaction_date as date, t.status, t.created_at as createdAt, t.updated_at as updatedAt
+       t.transaction_date as date, t.status, t.program_id as programId, t.created_at as createdAt, t.updated_at as updatedAt
        FROM transactions t
        JOIN people sp ON t.student_id = sp.id
        JOIN people lp ON t.leader_id = lp.id

@@ -2,6 +2,14 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { ProgramBook, WorkingDay, CustomDay } from '../types';
 import { api } from '../api';
+import { useAuthStore } from './authStore';
+import { useTransactionStore } from './transactionStore';
+import { useInventoryStore } from './inventoryStore';
+import { useCashAdvanceStore } from './cashAdvanceStore';
+import { useExpenseStore } from './expenseStore';
+import { useChargeStore } from './chargeStore';
+import { useUserStore } from './userStore';
+import { useDashboardStore } from './dashboardStore';
 
 interface ProgramConfig {
   id: number;
@@ -46,6 +54,7 @@ interface ProgramStore extends ProgramState {
   updateFinancialConfig: (id: number, configData: any) => Promise<void>;
   updateWorkingDay: (id: number, day: string, isWorkingDay: boolean) => Promise<void>;
   addCustomDay: (id: number, date: string, isWorkingDay: boolean) => Promise<void>;
+  resetStores: () => void;
 }
 
 export const useProgramStore = create<ProgramStore>()(
@@ -60,11 +69,11 @@ export const useProgramStore = create<ProgramStore>()(
       createProgram: async (programData) => {
         set({ isLoading: true, error: null });
         try {
+          console.log('programData', programData);
           const response = await api.post('/program', programData);
-          console.log('Program created:', response);
           
-          // Fetch the newly created program to get complete data
-          await get().fetchProgram();
+          // Switch to the new program
+          await get().switchProgram(response.programId);
           
           set({ isLoading: false });
         } catch (error) {
@@ -95,14 +104,17 @@ export const useProgramStore = create<ProgramStore>()(
         set({ isLoading: true, error: null });
         try {
           const response = await api.get('/program');
-          console.log('Fetched program data:', response.financialConfig);
           
-          if (response && response.financialConfig) {
+          if (response) {
             set({ 
               program: response, 
               isLoading: false,
               wasProgramFetched: true
             });
+            
+            // Update the current program ID in the auth store
+            const authStore = useAuthStore.getState();
+            authStore.setCurrentProgram(response.id);
           } else {
             // If no program exists or it's incomplete, set program to null
             set({ program: null, isLoading: false, wasProgramFetched: true });
@@ -143,15 +155,21 @@ export const useProgramStore = create<ProgramStore>()(
       switchProgram: async (programId) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.post(`/program/switch/${programId}`);
-          console.log('Switched to program:', response, response.program);
+          // Reset all stores before switching programs
+          get().resetStores();
           
-          if (response && response.program) {
+          const response = await api.post(`/program/switch/${programId}`);
+          
+          if (response) {
             set({ 
               program: response, 
               isLoading: false,
               wasProgramFetched: true
             });
+            
+            // Update the current program ID in the auth store
+            const authStore = useAuthStore.getState();
+            authStore.setCurrentProgram(programId);
           }
         } catch (error) {
           console.error('Error switching program:', error);
@@ -161,6 +179,37 @@ export const useProgramStore = create<ProgramStore>()(
           });
           throw error;
         }
+      },
+
+      // Reset all stores to clear local data
+      resetStores: () => {
+        // Reset transaction store
+        const transactionStore = useTransactionStore.getState();
+        transactionStore.resetStore && transactionStore.resetStore();
+        
+        // Reset inventory store
+        const inventoryStore = useInventoryStore.getState();
+        inventoryStore.resetStore && inventoryStore.resetStore();
+        
+        // Reset cash advance store
+        const cashAdvanceStore = useCashAdvanceStore.getState();
+        cashAdvanceStore.resetStore && cashAdvanceStore.resetStore();
+        
+        // Reset expense store
+        const expenseStore = useExpenseStore.getState();
+        expenseStore.resetStore && expenseStore.resetStore();
+        
+        // Reset charge store
+        const chargeStore = useChargeStore.getState();
+        chargeStore.resetStore && chargeStore.resetStore();
+        
+        // Reset user store (people data)
+        const userStore = useUserStore.getState();
+        userStore.resetStore && userStore.resetStore();
+        
+        // Reset dashboard store
+        const dashboardStore = useDashboardStore.getState();
+        dashboardStore.resetStore && dashboardStore.resetStore();
       },
 
       // New method to update financial config

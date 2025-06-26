@@ -20,6 +20,7 @@ import AddPersonForm from './AddPersonForm';
 import { useUserStore } from '../../../stores/userStore';
 import { Person } from '../../../types';
 import LoadingScreen from '../../../components/ui/LoadingScreen';
+import { useProgramStore } from '../../../stores/programStore';
 
 const columnHelper = createColumnHelper<Person>();
 
@@ -29,7 +30,7 @@ const LeadersPage: React.FC = () => {
   const [globalFilter, setGlobalFilter] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingLeader, setEditingLeader] = useState<Person | null>(null);
-
+  const { program } = useProgramStore();
   const { 
     people, 
     isLoading, 
@@ -42,7 +43,10 @@ const LeadersPage: React.FC = () => {
   } = useUserStore();
 
   useEffect(() => {
-    !werePeopleFetched && fetchPeople();
+    if(!werePeopleFetched) {
+      const programId = program?.id;
+      fetchPeople(programId);
+    }
   }, [fetchPeople, werePeopleFetched]);
 
   const leaders = people.filter(person => person.personType === 'LEADER');

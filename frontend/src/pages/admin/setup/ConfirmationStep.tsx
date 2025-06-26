@@ -90,6 +90,27 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card title={t('confirmationStep.programInformation')} icon={<Calendar size={20} />}>
           <div className="space-y-4">
+            {/* Logo Section */}
+            <div>
+              <p className="text-sm font-medium text-gray-500">{t('confirmationStep.programLogo')}</p>
+              <div className="mt-2">
+                {formData.logo ? (
+                  <img
+                    src={formData.logo}
+                    alt={t('confirmationStep.programLogo')}
+                    className="h-24 w-24 object-contain rounded-md shadow-sm"
+                    onError={(e) => {
+                      e.currentTarget.src = 'https://via.placeholder.com/96?text=Logo';
+                    }}
+                  />
+                ) : (
+                  <div className="h-24 w-24 flex items-center justify-center bg-gray-100 rounded-md">
+                    <span className="text-sm text-gray-500">{t('confirmationStep.noLogo')}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div>
               <p className="text-sm font-medium text-gray-500">{t('confirmationStep.programName')}</p>
               <p className="text-lg font-semibold text-gray-900">{formData.name}</p>
@@ -269,31 +290,31 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
             </div>
             
             <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">{t('confirmationStep.leaders', { count: formData.leaders.length })}</h3>
-              {formData.leaders.length > 0 ? (
-                <ul className="divide-y divide-gray-200 border border-gray-200 rounded-md overflow-hidden">
-                  {formData.leaders.map((leader) => (
-                    <li key={leader.id} className="px-4 py-3 bg-white hover:bg-gray-50">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <div className="h-8 w-8 rounded-full bg-success-100 flex items-center justify-center text-success-700 mr-3">
-                            <UserCog size={16} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{leader.name} {leader.apellido}</p>
-                            <p className="text-xs text-gray-500">{leader.institution}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="text-center py-4 bg-gray-50 rounded-md">
-                  <p className="text-sm text-gray-500">{t('confirmationStep.noLeaders')}</p>
-                </div>
-              )}
+  <h3 className="text-sm font-medium text-gray-700 mb-2">{t('confirmationStep.leaders', { count: formData.leaders.length })}</h3>
+  {formData.leaders.length > 0 ? (
+    <ul className="divide-y divide-gray-200 border border-gray-200 rounded-md overflow-hidden">
+      {formData.leaders.map((leader) => (
+        <li key={leader.id} className="px-4 py-3 bg-white hover:bg-gray-50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="h-8 w-8 rounded-full bg-success-100 flex items-center justify-center text-success-700 mr-3">
+                <UserCog size={16} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900">{leader.name} {leader.apellido}</p>
+                <p className="text-xs text-gray-500">{leader.institution}</p>
+              </div>
             </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <div className="text-center py-4 bg-gray-50 rounded-md">
+      <p className="text-sm text-gray-500">{t('confirmationStep.noLeaders')}</p>
+    </div>
+  )}
+</div>
           </div>
         </div>
       </Card>

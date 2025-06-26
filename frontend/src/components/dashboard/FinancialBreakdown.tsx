@@ -40,7 +40,7 @@ const FinancialBreakdown: React.FC = () => {
     },
     netProfit: 0
   });
-  const [isCalculating, setIsCalculating] = useState(true);
+  const [isCalculating, setIsCalculating] = useState(advancesLoading || expensesLoading || transactionsLoading);
 
   useEffect(() => {
     !wereExpensesFetched && fetchExpenses();

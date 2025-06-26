@@ -3,23 +3,32 @@ import * as db from '../config/database.js';
 // Get all books
 export const getBooks = async (req, res) => {
   try {
-    const { active, category } = req.query;
+    const { active, category, programId } = req.query;
     
     let query = 'SELECT * FROM books';
     const params = [];
     
     // Add filters
+    const conditions = [];
+    
     if (active !== undefined) {
-      query += ' WHERE is_active = ?';
+      conditions.push('is_active = ?');
       params.push(active === 'true' ? 1 : 0);
-      
-      if (category) {
-        query += ' AND category = ?';
-        params.push(category);
-      }
-    } else if (category) {
-      query += ' WHERE category = ?';
+    }
+    
+    if (category) {
+      conditions.push('category = ?');
       params.push(category);
+    }
+    
+    // Add program filter through program_books table if programId is provided
+    if (programId) {
+      conditions.push('id IN (SELECT book_id FROM program_books WHERE program_id = ?)');
+      params.push(programId);
+    }
+    
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
     }
     
     query += ' ORDER BY title ASC';
@@ -67,7 +76,8 @@ export const createBook = async (req, res) => {
       description,
       imageUrl,
       stock,
-      is_active
+      is_active,
+      programId
     } = req.body;
     
     // Validate required fields
@@ -78,8 +88,16 @@ export const createBook = async (req, res) => {
     // Insert book
     const bookId = await db.insert(
       'INSERT INTO books (isbn, title, author, publisher, price, size, category, description, image_url, stock, sold, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [isbn || null, title, author || null, publisher || null, price, size || null, category, description, imageUrl || null, stock || 0, 0, is_active !== false]
+      [isbn || null, title, author || null, publisher || null, price, size || (price >= 20 ? 'LARGE' : 'SMALL'), category, description, imageUrl || null, stock || 0, 0, is_active !== false]
     );
+    
+    // If programId is provided, add to program_books
+    if (programId) {
+      await db.insert(
+        'INSERT INTO program_books (program_id, book_id, price, initial_stock) VALUES (?, ?, ?, ?)',
+        [programId, bookId, price, stock || 0]
+      );
+    }
     
     // Get the created book
     const book = await db.getOne(
@@ -109,7 +127,8 @@ export const updateBook = async (req, res) => {
       description,
       imageUrl,
       stock,
-      is_active
+      is_active,
+      programId
     } = req.body;
     
     // Check if book exists
@@ -125,8 +144,31 @@ export const updateBook = async (req, res) => {
     // Update book
     await db.update(
       'UPDATE books SET isbn = ?, title = ?, author = ?, publisher = ?, price = ?, size = ?, category = ?, description = ?, image_url = ?, stock = ?, is_active = ? WHERE id = ?',
-      [isbn || null, title, author || null, publisher || null, price, size || null, category, description, imageUrl || null, stock, is_active !== false, id]
+      [isbn || null, title, author || null, publisher || null, price, size || (price >= 20 ? 'LARGE' : 'SMALL'), category, description, imageUrl || null, stock, is_active !== false, id]
     );
+    
+    // If programId is provided, update program_books
+    if (programId) {
+      // Check if book is already in program
+      const programBook = await db.getOne(
+        'SELECT * FROM program_books WHERE program_id = ? AND book_id = ?',
+        [programId, id]
+      );
+      
+      if (programBook) {
+        // Update existing program book
+        await db.update(
+          'UPDATE program_books SET price = ? WHERE program_id = ? AND book_id = ?',
+          [price, programId, id]
+        );
+      } else {
+        // Add book to program
+        await db.insert(
+          'INSERT INTO program_books (program_id, book_id, price, initial_stock) VALUES (?, ?, ?, ?)',
+          [programId, id, price, stock || 0]
+        );
+      }
+    }
     
     // Get the updated book
     const updatedBook = await db.getOne(
@@ -218,17 +260,28 @@ export const toggleBookStatus = async (req, res) => {
 export const getInventoryMovements = async (req, res) => {
   try {
     const { id } = req.params;
+    const { programId } = req.query;
     
-    const movements = await db.query(
-      `SELECT m.*, u.email as user_email, 
+    let query = `SELECT m.*, u.email as user_email, 
        CONCAT(p.first_name, ' ', p.last_name) as user_name
        FROM inventory_movements m
        JOIN users u ON m.user_id = u.id
        LEFT JOIN people p ON u.person_id = p.id
-       WHERE m.book_id = ?
-       ORDER BY m.movement_date DESC`,
-      [id]
-    );
+       WHERE m.book_id = ?`;
+    
+    const params = [id];
+    
+    if (programId) {
+      query += ' AND m.program_id = ?';
+      params.push(programId);
+    } else if (req.user && req.user.currentProgramId) {
+      query += ' AND m.program_id = ?';
+      params.push(req.user.currentProgramId);
+    }
+    
+    query += ' ORDER BY m.movement_date DESC';
+    
+    const movements = await db.query(query, params);
     
     res.json(movements);
   } catch (error) {
@@ -241,8 +294,9 @@ export const getInventoryMovements = async (req, res) => {
 export const createInventoryMovement = async (req, res) => {
   try {
     const { id } = req.params;
-    const { quantity, movementType, notes } = req.body;
+    const { quantity, movementType, notes, programId } = req.body;
     const userId = req.user.id;
+    const currentProgramId = programId || req.user.currentProgramId;
     
     // Check if book exists
     const existingBook = await db.getOne(
@@ -263,8 +317,8 @@ export const createInventoryMovement = async (req, res) => {
     await db.transaction(async (connection) => {
       // Insert movement
       const [result] = await connection.execute(
-        'INSERT INTO inventory_movements (book_id, user_id, quantity, movement_type, notes) VALUES (?, ?, ?, ?, ?)',
-        [id, userId, quantity, movementType, notes || null]
+        'INSERT INTO inventory_movements (book_id, user_id, quantity, movement_type, notes, program_id) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, userId, quantity, movementType, notes || null, currentProgramId]
       );
       
       // Update book stock based on movement type
@@ -315,6 +369,8 @@ export const createInventoryMovement = async (req, res) => {
 export const getInventoryCounts = async (req, res) => {
   try {
     const { date } = req.params;
+    const { programId } = req.query;
+    
     let query = `
       SELECT ic.*, 
       CONCAT(p.first_name, ' ', p.last_name) as user_name,
@@ -332,10 +388,23 @@ export const getInventoryCounts = async (req, res) => {
     `;
     
     const params = [];
+    const conditions = [];
     
     if (date) {
-      query += ' WHERE ic.count_date = ?';
+      conditions.push('ic.count_date = ?');
       params.push(date);
+    }
+    
+    if (programId) {
+      conditions.push('ic.program_id = ?');
+      params.push(programId);
+    } else if (req.user && req.user.currentProgramId) {
+      conditions.push('ic.program_id = ?');
+      params.push(req.user.currentProgramId);
+    }
+    
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
     }
     
     query += ' ORDER BY ic.count_date DESC, b.title ASC';
@@ -352,8 +421,10 @@ export const getInventoryCounts = async (req, res) => {
 export const updateInventoryCount = async (req, res) => {
   try {
     const { id } = req.params;
-    const { manualCount, countDate, confirmDiscrepancy, setVerified } = req.body;
+    const { manualCount, countDate, confirmDiscrepancy, setVerified, programId } = req.body;
     const userId = req.user.id;
+    const currentProgramId = programId || req.user.currentProgramId;
+    
     // Check if book exists
     const existingBook = await db.getOne(
       'SELECT * FROM books WHERE id = ?',
@@ -363,6 +434,7 @@ export const updateInventoryCount = async (req, res) => {
     if (!existingBook) {
       return res.status(404).json({ message: 'Book not found' });
     }
+    
     // Calculate system count (current stock)
     const systemCount = existingBook.stock;
     
@@ -373,8 +445,8 @@ export const updateInventoryCount = async (req, res) => {
     await db.transaction(async (connection) => {
       // Check if count already exists for this date
       const [existingCounts] = await connection.execute(
-        'SELECT * FROM inventory_counts WHERE book_id = ? AND count_date = ?',
-        [id, countDate]
+        'SELECT * FROM inventory_counts WHERE book_id = ? AND count_date = ? AND program_id = ?',
+        [id, countDate, currentProgramId]
       );
       
       // Determine the status to save
@@ -398,8 +470,8 @@ export const updateInventoryCount = async (req, res) => {
       } else {
         // Insert new count
         await connection.execute(
-          'INSERT INTO inventory_counts (book_id, user_id, system_count, manual_count, discrepancy, count_date, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [id, userId, systemCount, manualCount, discrepancy, countDate, status]
+          'INSERT INTO inventory_counts (book_id, user_id, system_count, manual_count, discrepancy, count_date, status, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [id, userId, systemCount, manualCount, discrepancy, countDate, status, currentProgramId]
         );
       }
       
@@ -415,8 +487,8 @@ export const updateInventoryCount = async (req, res) => {
         
         if (movementQuantity > 0) {
           await connection.execute(
-            'INSERT INTO inventory_movements (book_id, user_id, quantity, movement_type, notes) VALUES (?, ?, ?, ?, ?)',
-            [id, userId, movementQuantity, movementType, `Inventory adjustment from count on ${countDate}`]
+            'INSERT INTO inventory_movements (book_id, user_id, quantity, movement_type, notes, program_id) VALUES (?, ?, ?, ?, ?, ?)',
+            [id, userId, movementQuantity, movementType, `Inventory adjustment from count on ${countDate}`, currentProgramId]
           );
         }
       }
@@ -432,8 +504,8 @@ export const updateInventoryCount = async (req, res) => {
        JOIN users u ON ic.user_id = u.id
        LEFT JOIN people p ON u.person_id = p.id
        JOIN books b ON ic.book_id = b.id
-       WHERE ic.book_id = ? AND ic.count_date = ?`,
-      [id, countDate]
+       WHERE ic.book_id = ? AND ic.count_date = ? AND ic.program_id = ?`,
+      [id, countDate, currentProgramId]
     );
     
     // Get updated book if discrepancy was confirmed

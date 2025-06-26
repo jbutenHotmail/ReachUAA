@@ -4,13 +4,14 @@ import { X, AlertCircle } from 'lucide-react';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
-import { Person } from '../../../types';
+import { Leader } from '../../../types';
 import ImageUpload from '../../../components/ui/ImageUpload';
+import { useProgramStore } from '../../../stores/programStore';
 
 interface AddLeaderFormProps {
   onClose: () => void;
   onSubmit: (data: any) => void;
-  initialData?: Person;
+  initialData?: Leader;
 }
 
 const AddLeaderForm: React.FC<AddLeaderFormProps> = ({ 
@@ -19,6 +20,7 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
   initialData 
 }) => {
   const { t } = useTranslation();
+  const { program } = useProgramStore();
   const [formData, setFormData] = React.useState({
     name: initialData?.name || '',
     apellido: initialData?.apellido || '',
@@ -28,7 +30,7 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
     address: initialData?.address || '',
     createUser: !initialData,
     profileImage: initialData?.profile_image_url,
-    personType: 'LEADER'
+    programId: initialData?.programId || program?.id || null
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -36,11 +38,11 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
     onSubmit(formData);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type, checked } = e.target;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
     }));
   };
 
@@ -73,7 +75,7 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">
-                {initialData ? t('leaderForm.editLeader') : t('leaderForm.addNewLeader')}
+                {initialData ? t('personForm.editPerson') : t('personForm.addNewPerson')}
               </h2>
               <button
                 type="button"
@@ -159,7 +161,10 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
                     id="createUser"
                     name="createUser"
                     checked={formData.createUser}
-                    onChange={handleChange}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      createUser: e.target.checked
+                    }))}
                     className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                   />
                   <label htmlFor="createUser" className="text-sm font-medium text-gray-700">
@@ -181,9 +186,9 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
               {!initialData && formData.createUser && formData.name && formData.apellido && formData.email && (
                 <div className="md:col-span-2 p-4 bg-primary-50 rounded-lg">
                   <p className="text-sm text-primary-700">
-                    <strong>{t('leaderForm.accountCreationNote')}</strong>
+                    <strong>{t('programSettings.importantNotes')}:</strong> {t('leaderForm.accountCreationNote')}
                     <br />
-                    <strong>{t('auth.username')}/{t('leaderForm.email')}:</strong> {formData.email}
+                    <strong>{t('auth.email')}:</strong> {formData.email}
                     <br />
                     <strong>{t('auth.password')}:</strong> {defaultPassword}
                   </p>
@@ -203,7 +208,7 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
                 type="submit"
                 variant="primary"
               >
-                {initialData ? t('leaderForm.saveChanges') : t('leaderForm.addNewLeader')}
+                {initialData ? t('leaderForm.saveChanges') : t('personForm.addNewPerson')}
               </Button>
             </div>
           </form>
