@@ -4,18 +4,13 @@ import * as db from '../config/database.js';
 // Get all users
 export const getUsers = async (req, res) => {
   try {
-    const { programId } = req.query; // Assuming programId is passed as a query parameter
-    console.log(programId);
     const users = await db.query(
       `SELECT u.id, u.person_id as personId, u.email, u.role, u.status, u.last_login as lastLogin,
        u.created_at as createdAt, u.updated_at as updatedAt,
        CONCAT(p.first_name, ' ', p.last_name) as personName, p.person_type as personType
        FROM users u
        LEFT JOIN people p ON u.person_id = p.id
-       LEFT JOIN programs pr ON p.program_id = pr.id
-       WHERE pr.id = ?
-       ORDER BY u.created_at DESC`,
-      [programId]
+       ORDER BY u.created_at DESC`
     );
     
     res.json(users);
@@ -28,16 +23,21 @@ export const getUsers = async (req, res) => {
 // Get user by ID
 export const getUserById = async (req, res) => {
   try {
-    const { id, programId } = req.params; // Assuming programId is passed as a parameter
+    const { id } = req.params;
+    
+    // Check if user is requesting their own data or is an admin
+    if (req.user.id !== parseInt(id) && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ message: 'Forbidden: You can only access your own user data' });
+    }
+    
     const user = await db.getOne(
       `SELECT u.id, u.person_id as personId, u.email, u.role, u.status, u.last_login as lastLogin,
        u.created_at as createdAt, u.updated_at as updatedAt,
        CONCAT(p.first_name, ' ', p.last_name) as personName, p.person_type as personType
        FROM users u
        LEFT JOIN people p ON u.person_id = p.id
-       LEFT JOIN programs pr ON p.program_id = pr.id
-       WHERE u.id = ? AND pr.id = ?`,
-      [id, programId]
+       WHERE u.id = ?`,
+      [id]
     );
     
     if (!user) {

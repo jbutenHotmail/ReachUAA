@@ -48,7 +48,7 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
       }
       
       const transactions = await api.get<Transaction[]>('/transactions', { params });
-      set({ transactions, isLoading: false, wereTransactionsFetched: true });
+      set({ transactions, isLoading: false,wereTransactionsFetched: false });
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred', 

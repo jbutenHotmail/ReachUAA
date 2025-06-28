@@ -17,6 +17,7 @@ interface ChargeStore extends ChargeState {
   deleteCharge: (id: string) => Promise<void>;
   applyCharge: (id: string) => Promise<void>;
   cancelCharge: (id: string) => Promise<void>;
+  resetStore: () => void;
 }
 
 export const useChargeStore = create<ChargeStore>((set) => ({

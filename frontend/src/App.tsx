@@ -44,6 +44,7 @@ import ProfilePage from './pages/profile/ProfilePage';
 import AccessDeniedPage from './pages/reports/AccessDeniedPage';
 import ViewerDashboard from './pages/dashboard/ViewerDashboard';
 import SettingsPage from './pages/settings/SettingsPage';
+import ChangePasswordPage from './pages/profile/ChangePasswordPage';
 
 function App() {
   const { isAuthenticated, user, refreshToken } = useAuthStore();
@@ -52,12 +53,12 @@ function App() {
   // Check if admin user needs to set up program
   const needsProgramSetup = isAuthenticated && user?.role === UserRole.ADMIN && !program;
   
-  // Fetch program data on app load if authenticated
+  // Fetch program data on app load if authenticated and admin
   useEffect(() => {
-    if (isAuthenticated && !wasProgramFetched) {
+    if (isAuthenticated && !wasProgramFetched && user?.role === UserRole.ADMIN) {
       fetchProgram();
     }
-  }, [isAuthenticated, fetchProgram, wasProgramFetched]);
+  }, [isAuthenticated, fetchProgram, wasProgramFetched, user]);
 
   // Try to refresh token on app load
   useEffect(() => {
@@ -98,10 +99,10 @@ function App() {
       <Route 
         path="/" 
         element={
-          <ProtectedRoute>
-            {needsProgramSetup ? (
+          <ProtectedRoute requireProgram={user?.role === UserRole.ADMIN}>
+            {needsProgramSetup && user?.role === UserRole.ADMIN ? (
               <Navigate to="/setup" replace />
-            ) : !program ? (
+            ) : !program && user?.role === UserRole.ADMIN ? (
               <Navigate to="/program-select" replace />
             ) : (
               <Layout />
@@ -140,7 +141,11 @@ function App() {
               <AccessDeniedPage message="You don't have permission to view delivered books. You can only create new transactions." /> : 
               <Transactions />
           } />
-          <Route path="new" element={<NewTransaction />} />
+          <Route path="new" element={
+            user?.role === UserRole.VIEWER ? 
+              <AccessDeniedPage message="This feature is currently not available for your role." /> : 
+              <NewTransaction />
+          } />
           <Route path=":id" element={
             user?.role === UserRole.VIEWER ? 
               <AccessDeniedPage message="You don't have permission to view transaction details." /> : 
@@ -319,6 +324,7 @@ function App() {
         </Route>
         
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="change-password" element={<ChangePasswordPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>

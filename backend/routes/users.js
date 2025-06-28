@@ -18,11 +18,8 @@ const router = express.Router();
 // Get all users (admin only)
 router.get('/', authenticateToken, authorizeRoles(['ADMIN']), getUsers);
 
-// Get user by ID (admin only)
-// router.get('/:id', authenticateToken, authorizeRoles(['ADMIN']), getUserById);
-
-// Update user profile (any authenticated user)
-router.put('/profile', authenticateToken, updateProfile);
+// Get user by ID - Allow users to get their own data
+router.get('/:id', authenticateToken, getUserById);
 
 // Create new user (admin only)
 router.post('/', authenticateToken, authorizeRoles(['ADMIN']), createUser);
@@ -35,6 +32,9 @@ router.delete('/:id', authenticateToken, authorizeRoles(['ADMIN']), deleteUser);
 
 // Get user profile (any authenticated user)
 router.get('/profile/me', authenticateToken, getUserProfile);
+
+// Update user profile (any authenticated user)
+router.put('/profile', authenticateToken, updateProfile);
 
 // Change password (any authenticated user for their own password)
 router.post('/change-password', authenticateToken, changePassword);

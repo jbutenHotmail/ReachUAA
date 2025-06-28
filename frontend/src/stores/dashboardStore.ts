@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { api } from '../api';
-import { getCurrentDate, addDays } from '../utils/dateUtils';
+import { getCurrentDate } from '../utils/dateUtils';
 import { useProgramStore } from './programStore';
 
 interface DashboardStats {
@@ -40,16 +40,54 @@ interface DashboardStats {
   }>;
 }
 
+interface PersonalStats {
+  person: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    personType: string;
+    organization: string;
+  };
+  startDate: string;
+  endDate: string;
+  transactions: any[];
+  totals: {
+    cash: number;
+    checks: number;
+    atmMobile: number;
+    paypal: number;
+    total: number;
+  };
+  earnings: {
+    gross: number;
+    percentage: number;
+    net: number;
+    charges: number;
+    advances: number;
+    final: number;
+  };
+  charges: any[];
+  advances: any[];
+  dailyEarnings: Record<string, number>;
+}
+
 interface DashboardState {
   stats: DashboardStats | null;
+  personalStats: PersonalStats | null;
   isLoading: boolean;
+  isLoadingPersonalStats: boolean;
   error: string | null;
+  personalStatsError: string | null;
   wereStatsFetched: boolean;
+  werePersonalStatsFetched: boolean;
   lastFetchTime: number | null;
+  lastPersonalStatsFetchTime: number | null;
 }
 
 interface DashboardStore extends DashboardState {
   fetchDashboardStats: (forceRefresh?: boolean) => Promise<void>;
+  fetchPersonalStats: (userId: string, forceRefresh?: boolean) => Promise<void>;
   updateStatsAfterTransaction: (transaction: any) => void;
   resetStore: () => void;
 }
@@ -59,10 +97,15 @@ const CACHE_TIMEOUT = 5 * 60 * 1000;
 
 export const useDashboardStore = create<DashboardStore>((set, get) => ({
   stats: null,
+  personalStats: null,
   isLoading: false,
+  isLoadingPersonalStats: false,
   error: null,
+  personalStatsError: null,
   wereStatsFetched: false,
+  werePersonalStatsFetched: false,
   lastFetchTime: null,
+  lastPersonalStatsFetchTime: null,
 
   fetchDashboardStats: async (forceRefresh = false) => {
     // Check if we already have stats and they're not too old
@@ -140,65 +183,6 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
           wereStatsFetched: true,
           lastFetchTime: now
         });
-      } else {
-        // If API fails or returns invalid data, generate mock data for development
-        const salesChart = Array.from({ length: 30 }, (_, i) => {
-          const date = addDays(today, -29 + i);
-          return {
-            date,
-            amount: Math.floor(Math.random() * 500) + 200,
-          };
-        });
-        
-        const totalSales = salesChart.reduce((sum, day) => sum + day.amount, 0);
-        
-        const mockStats: DashboardStats = {
-          today: {
-            sales: salesChart[salesChart.length - 1].amount,
-            books: {
-              large: Math.floor(Math.random() * 10) + 5,
-              small: Math.floor(Math.random() * 15) + 10,
-              total: 0, // Will be calculated
-            }
-          },
-          week: {
-            sales: salesChart.slice(-7).reduce((sum, day) => sum + day.amount, 0),
-            books: {
-              large: Math.floor(Math.random() * 50) + 20,
-              small: Math.floor(Math.random() * 70) + 30,
-              total: 0, // Will be calculated
-            }
-          },
-          month: {
-            sales: totalSales,
-            books: {
-              large: Math.floor(Math.random() * 200) + 100,
-              small: Math.floor(Math.random() * 300) + 150,
-              total: 0, // Will be calculated
-            }
-          },
-          program: {
-            goal: 100000,
-            achieved: totalSales,
-            remaining: 0, // Will be calculated
-            percentageAchieved: 0, // Will be calculated
-          },
-          salesChart,
-        };
-        
-        // Calculate totals and remaining values
-        mockStats.today.books.total = mockStats.today.books.large + mockStats.today.books.small;
-        mockStats.week.books.total = mockStats.week.books.large + mockStats.week.books.small;
-        mockStats.month.books.total = mockStats.month.books.large + mockStats.month.books.small;
-        mockStats.program.remaining = mockStats.program.goal - mockStats.program.achieved;
-        mockStats.program.percentageAchieved = (mockStats.program.achieved / mockStats.program.goal) * 100;
-        
-        set({ 
-          stats: mockStats, 
-          isLoading: false, 
-          wereStatsFetched: true,
-          lastFetchTime: now
-        });
       }
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -209,11 +193,63 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     }
   },
 
+  fetchPersonalStats: async (userId: string, forceRefresh = false) => {
+    // Check if we already have personal stats and they're not too old
+    const currentState = get();
+    const now = Date.now();
+    
+    if (
+      !forceRefresh && 
+      currentState.personalStats && 
+      currentState.lastPersonalStatsFetchTime && 
+      now - currentState.lastPersonalStatsFetchTime < CACHE_TIMEOUT
+    ) {
+      console.log('Using cached personal stats');
+      return;
+    }
+    
+    set({ isLoadingPersonalStats: true, personalStatsError: null });
+    try {
+      // Get current date
+      const today = new Date();
+      
+      // Calculate start of month
+      const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      const startDateStr = startDate.toISOString().split('T')[0];
+      
+      // Calculate end of month
+      const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const endDateStr = endDate.toISOString().split('T')[0];
+      
+      // Fetch personal earnings report - ONLY APPROVED TRANSACTIONS
+      const personalStats = await api.get<PersonalStats>(`/reports/earnings/${userId}`, {
+        params: {
+          startDate: startDateStr,
+          endDate: endDateStr,
+          status: 'APPROVED'
+        }
+      });
+      console.log(personalStats);
+      set({ 
+        personalStats, 
+        isLoadingPersonalStats: false, 
+        werePersonalStatsFetched: true,
+        lastPersonalStatsFetchTime: now
+      });
+      
+      return personalStats;
+    } catch (error) {
+      console.error('Error fetching personal stats:', error);
+      set({ 
+        personalStatsError: error instanceof Error ? error.message : 'An unknown error occurred',
+        isLoadingPersonalStats: false 
+      });
+      throw error;
+    }
+  },
+
   // New method to update stats after a transaction is approved
   updateStatsAfterTransaction: (transaction) => {
-    const currentStats = get().stats;
-    if (!currentStats) return;
-
     // Only update if the transaction is APPROVED
     if (transaction.status !== 'APPROVED') return;
 
@@ -223,6 +259,9 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     const today = getCurrentDate();
 
     // Create a copy of the current stats
+    const currentStats = get().stats;
+    if (!currentStats) return;
+    
     const updatedStats = { ...currentStats };
 
     // Update today's sales if the transaction is from today
@@ -310,12 +349,17 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
   },
 
   resetStore: () => {
-  set({
-    stats: null,
-    isLoading: false,
-    error: null,
-    wereStatsFetched: false,
-    lastFetchTime: null
-  });
-}
+    set({
+      stats: null,
+      personalStats: null,
+      isLoading: false,
+      isLoadingPersonalStats: false,
+      error: null,
+      personalStatsError: null,
+      wereStatsFetched: false,
+      werePersonalStatsFetched: false,
+      lastFetchTime: null,
+      lastPersonalStatsFetchTime: null
+    });
+  }
 }));

@@ -1,4 +1,3 @@
-// src/pages/program/ProgramSelectionPage.tsx
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -9,6 +8,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import LoadingScreen from '../../components/ui/LoadingScreen';
+import Badge from '../../components/ui/Badge';
 
 const ProgramSelectionPage: React.FC = () => {
   const { t } = useTranslation();
@@ -23,33 +23,41 @@ const ProgramSelectionPage: React.FC = () => {
   const [switchingMessage, setSwitchingMessage] = useState('Switching program...');
 
   // Check if we're coming from the layout (not direct navigation)
+  // We consider it from layout if the path is explicitly /admin/programs or /program-select
+  // Coming from login would have state.from.pathname = '/login'
   const isFromLayout = location.pathname === '/admin/programs' || 
                        (location.pathname === '/program-select' && location.state?.from?.pathname !== '/login');
   
   const showBackButton = isFromLayout && program;
 
   useEffect(() => {
-    const loadPrograms = async () => {
-      setIsLoading(true);
-      try {
-        await fetchAvailablePrograms();
-      } catch (err) {
-        setError('Failed to load available programs');
-        console.error('Error loading programs:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    // Only fetch available programs if user is admin
+    if (user?.role === 'ADMIN') {
+      const loadPrograms = async () => {
+        setIsLoading(true);
+        try {
+          await fetchAvailablePrograms();
+        } catch (err) {
+          setError('Failed to load available programs');
+          console.error('Error loading programs:', err);
+        } finally {
+          setIsLoading(false);
+        }
+      };
 
-    loadPrograms();
-  }, [fetchAvailablePrograms]);
+      loadPrograms();
+    } else {
+      // For non-admin users, just set loading to false
+      setIsLoading(false);
+    }
+  }, [fetchAvailablePrograms, user]);
 
   // If there's only one program, automatically select it
   useEffect(() => {
-    if (availablePrograms && availablePrograms.length === 1 && !program && !isFromLayout) {
+    if (user?.role === 'ADMIN' && availablePrograms && availablePrograms.length === 1 && !program && !isFromLayout) {
       handleProgramSwitch(availablePrograms[0].id);
     }
-  }, [availablePrograms, program, isFromLayout]);
+  }, [availablePrograms, program, isFromLayout, user]);
 
   // If a program is already selected and we're not coming from the layout, redirect to dashboard
   useEffect(() => {
@@ -69,9 +77,8 @@ const ProgramSelectionPage: React.FC = () => {
     try {
       await switchProgram(programId);
       
-      // Navigation will happen automatically in the useEffect above
-      setSwitching(false);
-      isFromLayout && navigate('/dashboard');
+      // Navigate after successful switch
+      navigate('/dashboard');
     } catch (err) {
       setError('Failed to switch program');
       console.error('Error switching program:', err);
@@ -103,6 +110,12 @@ const ProgramSelectionPage: React.FC = () => {
 
   if (switching) {
     return <LoadingScreen message={switchingMessage} />;
+  }
+
+  // For non-admin users, redirect to dashboard
+  if (user && user.role !== 'ADMIN') {
+    navigate('/dashboard');
+    return <LoadingScreen message={t('common.loading')} />;
   }
 
   const renderAddNewProgramCard = () => (

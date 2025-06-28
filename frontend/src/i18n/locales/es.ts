@@ -45,7 +45,8 @@ export default {
     colporter: "Colportor",
     category: "Categoría",
     note: "Nota",
-    success: 'Éxito'
+    success: 'Éxito',
+    refresh: 'Actualizar'
   },
   bookSetup: {
     title: "Configuración de Libros",

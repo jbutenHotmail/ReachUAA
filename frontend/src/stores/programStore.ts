@@ -138,6 +138,16 @@ export const useProgramStore = create<ProgramStore>()(
       fetchAvailablePrograms: async () => {
         set({ isLoading: true, error: null });
         try {
+          // Check if user is admin before fetching
+          const { user } = useAuthStore.getState();
+          if (user?.role !== 'ADMIN') {
+            set({ 
+              availablePrograms: [], 
+              isLoading: false
+            });
+            return;
+          }
+          
           const programs = await api.get('/program/available');
           set({ 
             availablePrograms: programs || [], 

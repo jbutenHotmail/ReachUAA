@@ -398,12 +398,37 @@ export const approveTransaction = async (req, res) => {
         [id]
       );
 
-      // Update book stock and sold counts
+      // Get program ID from transaction
+      const programId = existingTransaction.program_id;
+
+      // Update book sold counts in program_books table
       for (const book of books) {
-        await connection.execute(
-          "UPDATE books SET sold = sold + ? WHERE id = ?",
-          [book.quantity, book.book_id]
+        // First check if the book exists in program_books
+        const [programBooks] = await connection.execute(
+          "SELECT * FROM program_books WHERE program_id = ? AND book_id = ?",
+          [programId, book.book_id]
         );
+
+        if (programBooks.length > 0) {
+          // Update the program-specific book record
+          await connection.execute(
+            "UPDATE program_books SET sold = COALESCE(sold, 0) + ? WHERE program_id = ? AND book_id = ?",
+            [book.quantity, programId, book.book_id]
+          );
+        } else {
+          // If no program-specific record exists, create one
+          const [bookInfo] = await connection.execute(
+            "SELECT price FROM books WHERE id = ?",
+            [book.book_id]
+          );
+          
+          if (bookInfo.length > 0) {
+            await connection.execute(
+              "INSERT INTO program_books (program_id, book_id, price, initial_stock, sold) VALUES (?, ?, ?, 0, ?)",
+              [programId, book.book_id, bookInfo[0].price, book.quantity]
+            );
+          }
+        }
       }
     });
 
@@ -477,11 +502,14 @@ export const rejectTransaction = async (req, res) => {
           [id]
         );
 
-        // Revert book sold counts
+        // Get program ID from transaction
+        const programId = existingTransaction.program_id;
+
+        // Revert book sold counts in program_books table
         for (const book of books) {
           await connection.execute(
-            "UPDATE books SET sold = sold - ? WHERE id = ?",
-            [book.quantity, book.book_id]
+            "UPDATE program_books SET sold = GREATEST(0, COALESCE(sold, 0) - ?) WHERE program_id = ? AND book_id = ?",
+            [book.quantity, programId, book.book_id]
           );
         }
       });

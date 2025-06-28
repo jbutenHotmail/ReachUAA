@@ -34,6 +34,33 @@ export const getBooks = async (req, res) => {
     query += ' ORDER BY title ASC';
     
     const books = await db.query(query, params);
+    
+    // If programId is provided, get program-specific book data
+    if (programId) {
+      const programBooks = await db.query(
+        `SELECT pb.book_id, pb.price, pb.initial_stock, COALESCE(pb.sold, 0) as sold 
+         FROM program_books pb 
+         WHERE pb.program_id = ?`,
+        [programId]
+      );
+      
+      // Create a map of program book data
+      const programBookMap = new Map();
+      programBooks.forEach(pb => {
+        programBookMap.set(pb.book_id, pb);
+      });
+      
+      // Merge program-specific data with book data
+      books.forEach(book => {
+        const programBook = programBookMap.get(book.id);
+        if (programBook) {
+          book.price = programBook.price;
+          book.stock = programBook.initial_stock;
+          book.sold = programBook.sold;
+        }
+      });
+    }
+    
     res.json(books);
   } catch (error) {
     console.error('Error getting books:', error);
@@ -45,6 +72,7 @@ export const getBooks = async (req, res) => {
 export const getBookById = async (req, res) => {
   try {
     const { id } = req.params;
+    const { programId } = req.query;
     
     const book = await db.getOne(
       'SELECT * FROM books WHERE id = ?',
@@ -53,6 +81,22 @@ export const getBookById = async (req, res) => {
     
     if (!book) {
       return res.status(404).json({ message: 'Book not found' });
+    }
+    
+    // If programId is provided, get program-specific book data
+    if (programId) {
+      const programBook = await db.getOne(
+        `SELECT pb.price, pb.initial_stock, COALESCE(pb.sold, 0) as sold 
+         FROM program_books pb 
+         WHERE pb.program_id = ? AND pb.book_id = ?`,
+        [programId, id]
+      );
+      
+      if (programBook) {
+        book.price = programBook.price;
+        book.stock = programBook.initial_stock;
+        book.sold = programBook.sold;
+      }
     }
     
     res.json(book);
@@ -85,25 +129,48 @@ export const createBook = async (req, res) => {
       return res.status(400).json({ message: 'Title, price, and category are required' });
     }
     
-    // Insert book
-    const bookId = await db.insert(
-      'INSERT INTO books (isbn, title, author, publisher, price, size, category, description, image_url, stock, sold, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [isbn || null, title, author || null, publisher || null, price, size || (price >= 20 ? 'LARGE' : 'SMALL'), category, description, imageUrl || null, stock || 0, 0, is_active !== false]
-    );
-    
-    // If programId is provided, add to program_books
-    if (programId) {
-      await db.insert(
-        'INSERT INTO program_books (program_id, book_id, price, initial_stock) VALUES (?, ?, ?, ?)',
-        [programId, bookId, price, stock || 0]
+    // Start transaction
+    const result = await db.transaction(async (connection) => {
+      // Insert book
+      const [bookResult] = await connection.execute(
+        'INSERT INTO books (isbn, title, author, publisher, price, size, category, description, image_url, stock, sold, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [isbn || null, title, author || null, publisher || null, price, size || (price >= 20 ? 'LARGE' : 'SMALL'), category, description, imageUrl || null, 0, 0, is_active !== false]
       );
-    }
+      
+      const bookId = bookResult.insertId;
+      
+      // If programId is provided, add to program_books
+      if (programId) {
+        await connection.execute(
+          'INSERT INTO program_books (program_id, book_id, price, initial_stock, sold) VALUES (?, ?, ?, ?, ?)',
+          [programId, bookId, price, stock || 0, 0]
+        );
+      }
+      
+      return { bookId };
+    });
     
     // Get the created book
     const book = await db.getOne(
       'SELECT * FROM books WHERE id = ?',
-      [bookId]
+      [result.bookId]
     );
+    
+    // If programId was provided, update the book with program-specific data
+    if (programId) {
+      const programBook = await db.getOne(
+        `SELECT pb.price, pb.initial_stock, COALESCE(pb.sold, 0) as sold 
+         FROM program_books pb 
+         WHERE pb.program_id = ? AND pb.book_id = ?`,
+        [programId, result.bookId]
+      );
+      
+      if (programBook) {
+        book.price = programBook.price;
+        book.stock = programBook.initial_stock;
+        book.sold = programBook.sold;
+      }
+    }
     
     res.status(201).json(book);
   } catch (error) {
@@ -141,40 +208,59 @@ export const updateBook = async (req, res) => {
       return res.status(404).json({ message: 'Book not found' });
     }
     
-    // Update book
-    await db.update(
-      'UPDATE books SET isbn = ?, title = ?, author = ?, publisher = ?, price = ?, size = ?, category = ?, description = ?, image_url = ?, stock = ?, is_active = ? WHERE id = ?',
-      [isbn || null, title, author || null, publisher || null, price, size || (price >= 20 ? 'LARGE' : 'SMALL'), category, description, imageUrl || null, stock, is_active !== false, id]
-    );
-    
-    // If programId is provided, update program_books
-    if (programId) {
-      // Check if book is already in program
-      const programBook = await db.getOne(
-        'SELECT * FROM program_books WHERE program_id = ? AND book_id = ?',
-        [programId, id]
+    // Start transaction
+    await db.transaction(async (connection) => {
+      // Update book
+      await connection.execute(
+        'UPDATE books SET isbn = ?, title = ?, author = ?, publisher = ?, price = ?, size = ?, category = ?, description = ?, image_url = ?, is_active = ? WHERE id = ?',
+        [isbn || null, title, author || null, publisher || null, price, size || (price >= 20 ? 'LARGE' : 'SMALL'), category, description, imageUrl || null, is_active !== false, id]
       );
       
-      if (programBook) {
-        // Update existing program book
-        await db.update(
-          'UPDATE program_books SET price = ? WHERE program_id = ? AND book_id = ?',
-          [price, programId, id]
+      // If programId is provided, update program_books
+      if (programId) {
+        // Check if book is already in program
+        const [programBooks] = await connection.execute(
+          'SELECT * FROM program_books WHERE program_id = ? AND book_id = ?',
+          [programId, id]
         );
-      } else {
-        // Add book to program
-        await db.insert(
-          'INSERT INTO program_books (program_id, book_id, price, initial_stock) VALUES (?, ?, ?, ?)',
-          [programId, id, price, stock || 0]
-        );
+        
+        if (programBooks.length > 0) {
+          // Update existing program book
+          await connection.execute(
+            'UPDATE program_books SET price = ?, initial_stock = ? WHERE program_id = ? AND book_id = ?',
+            [price, stock !== undefined ? stock : programBooks[0].initial_stock, programId, id]
+          );
+        } else {
+          // Add book to program
+          await connection.execute(
+            'INSERT INTO program_books (program_id, book_id, price, initial_stock, sold) VALUES (?, ?, ?, ?, 0)',
+            [programId, id, price, stock || 0]
+          );
+        }
       }
-    }
+    });
     
     // Get the updated book
     const updatedBook = await db.getOne(
       'SELECT * FROM books WHERE id = ?',
       [id]
     );
+    
+    // If programId was provided, update the book with program-specific data
+    if (programId) {
+      const programBook = await db.getOne(
+        `SELECT pb.price, pb.initial_stock, COALESCE(pb.sold, 0) as sold 
+         FROM program_books pb 
+         WHERE pb.program_id = ? AND pb.book_id = ?`,
+        [programId, id]
+      );
+      
+      if (programBook) {
+        updatedBook.price = programBook.price;
+        updatedBook.stock = programBook.initial_stock;
+        updatedBook.sold = programBook.sold;
+      }
+    }
     
     res.json(updatedBook);
   } catch (error) {
@@ -321,38 +407,64 @@ export const createInventoryMovement = async (req, res) => {
         [id, userId, quantity, movementType, notes || null, currentProgramId]
       );
       
-      // Update book stock based on movement type
-      let stockChange = 0;
-      let soldChange = 0;
-      
-      switch (movementType) {
-        case 'IN':
-          stockChange = quantity;
-          break;
-        case 'OUT':
-          stockChange = -quantity;
-          break;
-        case 'SALE':
-          stockChange = -quantity;
-          soldChange = quantity;
-          break;
-        case 'RETURN':
-          stockChange = quantity;
-          soldChange = -quantity;
-          break;
-      }
-      
-      // Update book stock and sold
-      await connection.execute(
-        'UPDATE books SET stock = stock + ?, sold = sold + ? WHERE id = ?',
-        [stockChange, soldChange, id]
+      // Check if book exists in program_books
+      const [programBooks] = await connection.execute(
+        'SELECT * FROM program_books WHERE program_id = ? AND book_id = ?',
+        [currentProgramId, id]
       );
+      
+      if (programBooks.length > 0) {
+        // Update stock in program_books based on movement type
+        let stockChange = 0;
+        
+        switch (movementType) {
+          case 'IN':
+            stockChange = quantity;
+            break;
+          case 'OUT':
+            stockChange = -quantity;
+            break;
+          case 'SALE':
+            stockChange = -quantity;
+            break;
+          case 'RETURN':
+            stockChange = quantity;
+            break;
+        }
+        
+        // Update program_books stock
+        await connection.execute(
+          'UPDATE program_books SET initial_stock = GREATEST(0, initial_stock + ?) WHERE program_id = ? AND book_id = ?',
+          [stockChange, currentProgramId, id]
+        );
+      } else {
+        // Create new program_books entry
+        let initialStock = 0;
+        
+        switch (movementType) {
+          case 'IN':
+          case 'RETURN':
+            initialStock = quantity;
+            break;
+        }
+        
+        await connection.execute(
+          'INSERT INTO program_books (program_id, book_id, price, initial_stock, sold) VALUES (?, ?, ?, ?, 0)',
+          [currentProgramId, id, existingBook.price, initialStock]
+        );
+      }
     });
     
-    // Get updated book
+    // Get updated book with program-specific data
     const updatedBook = await db.getOne(
-      'SELECT * FROM books WHERE id = ?',
-      [id]
+      `SELECT b.*, 
+       COALESCE(pb.price, b.price) as price,
+       COALESCE(pb.initial_stock, 0) as stock,
+       COALESCE(pb.sold, 0) as sold
+       FROM books b
+       LEFT JOIN program_books pb ON b.id = pb.book_id AND pb.program_id = ?
+       WHERE b.id = ?`,
+      [currentProgramId, id]
     );
     
     res.status(201).json({
@@ -435,8 +547,16 @@ export const updateInventoryCount = async (req, res) => {
       return res.status(404).json({ message: 'Book not found' });
     }
     
+    // Get program-specific book data
+    const programBook = await db.getOne(
+      `SELECT pb.initial_stock, COALESCE(pb.sold, 0) as sold 
+       FROM program_books pb 
+       WHERE pb.program_id = ? AND pb.book_id = ?`,
+      [currentProgramId, id]
+    );
+    
     // Calculate system count (current stock)
-    const systemCount = existingBook.stock;
+    const systemCount = programBook ? programBook.initial_stock : 0;
     
     // Calculate discrepancy
     const discrepancy = manualCount - systemCount;
@@ -477,10 +597,20 @@ export const updateInventoryCount = async (req, res) => {
       
       // If confirming discrepancy, update book stock to match manual count
       if (confirmDiscrepancy) {
-        await connection.execute(
-          'UPDATE books SET stock = ? WHERE id = ?',
-          [manualCount, id]
-        );
+        // Check if book exists in program_books
+        if (programBook) {
+          // Update existing program book
+          await connection.execute(
+            'UPDATE program_books SET initial_stock = ? WHERE program_id = ? AND book_id = ?',
+            [manualCount, currentProgramId, id]
+          );
+        } else {
+          // Create new program book entry
+          await connection.execute(
+            'INSERT INTO program_books (program_id, book_id, price, initial_stock, sold) VALUES (?, ?, ?, ?, 0)',
+            [currentProgramId, id, existingBook.price, manualCount]
+          );
+        }
         
         const movementType = discrepancy > 0 ? 'IN' : 'OUT';
         const movementQuantity = Math.abs(discrepancy);
@@ -512,8 +642,14 @@ export const updateInventoryCount = async (req, res) => {
     let updatedBook = null;
     if (confirmDiscrepancy) {
       updatedBook = await db.getOne(
-        'SELECT * FROM books WHERE id = ?',
-        [id]
+        `SELECT b.*, 
+         COALESCE(pb.price, b.price) as price,
+         COALESCE(pb.initial_stock, 0) as stock,
+         COALESCE(pb.sold, 0) as sold
+         FROM books b
+         LEFT JOIN program_books pb ON b.id = pb.book_id AND pb.program_id = ?
+         WHERE b.id = ?`,
+        [currentProgramId, id]
       );
     }
     
@@ -526,4 +662,17 @@ export const updateInventoryCount = async (req, res) => {
     console.error('Error updating inventory count:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
+};
+
+export default {
+  getBooks,
+  getBookById,
+  createBook,
+  updateBook,
+  deleteBook,
+  toggleBookStatus,
+  getInventoryMovements,
+  createInventoryMovement,
+  getInventoryCounts,
+  updateInventoryCount
 };

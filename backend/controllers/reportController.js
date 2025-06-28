@@ -980,7 +980,7 @@ export const getProgramReport = async (req, res) => {
 // Get individual earnings report
 export const getIndividualEarningsReport = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params; // This is now userId
     const { startDate, endDate } = req.query;
     
     // Calculate default dates if not provided
@@ -997,16 +997,17 @@ export const getIndividualEarningsReport = async (req, res) => {
       reportEndDate = lastDay.toISOString().split('T')[0];
     }
     
-    // Get person details
+    // Get person details using userId to find the associated person
     const person = await db.getOne(
-      `SELECT id, CONCAT(first_name, ' ', last_name) as name, email, phone, person_type, 
+      `SELECT p.id, CONCAT(p.first_name, ' ', p.last_name) as name, p.email, p.phone, p.person_type, 
        CASE 
-         WHEN person_type = 'COLPORTER' THEN school
-         WHEN person_type = 'LEADER' THEN institution
+         WHEN p.person_type = 'COLPORTER' THEN p.school
+         WHEN p.person_type = 'LEADER' THEN p.institution
          ELSE NULL
        END as organization
-       FROM people
-       WHERE id = ?`,
+       FROM people p
+       JOIN users u ON p.id = u.person_id
+       WHERE u.id = ?`,
       [id]
     );
     
@@ -1031,7 +1032,7 @@ export const getIndividualEarningsReport = async (req, res) => {
          AND t.transaction_date BETWEEN ? AND ?
          AND t.status = 'APPROVED'
          ORDER BY t.transaction_date, t.created_at DESC`,
-        [id, reportStartDate, reportEndDate]
+        [person.id, reportStartDate, reportEndDate]
       );
     } else {
       transactions = await db.query(
@@ -1043,7 +1044,7 @@ export const getIndividualEarningsReport = async (req, res) => {
          AND t.transaction_date BETWEEN ? AND ?
          AND t.status = 'APPROVED'
          ORDER BY t.transaction_date, t.created_at DESC`,
-        [id, reportStartDate, reportEndDate]
+        [person.id, reportStartDate, reportEndDate]
       );
     }
     
@@ -1077,7 +1078,7 @@ export const getIndividualEarningsReport = async (req, res) => {
        AND c.charge_date BETWEEN ? AND ?
        AND c.status = 'APPLIED'
        ORDER BY c.charge_date DESC`,
-      [id, reportStartDate, reportEndDate]
+      [person.id, reportStartDate, reportEndDate]
     );
     
     const totalCharges = charges.reduce((sum, c) => sum + c.amount, 0);
@@ -1090,7 +1091,7 @@ export const getIndividualEarningsReport = async (req, res) => {
        AND ca.week_start_date BETWEEN ? AND ?
        AND ca.status = 'APPROVED'
        ORDER BY ca.week_start_date DESC`,
-      [id, reportStartDate, reportEndDate]
+      [person.id, reportStartDate, reportEndDate]
     );
     
     const totalAdvances = advances.reduce((sum, a) => sum + a.amount, 0);

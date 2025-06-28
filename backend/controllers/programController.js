@@ -1,6 +1,7 @@
 import * as db from "../config/database.js";
 import bcrypt from "bcryptjs";
 
+// Create a new program
 export const createProgram = async (req, res) => {
   try {
     const {
@@ -20,249 +21,207 @@ export const createProgram = async (req, res) => {
       leaders,
     } = req.body;
 
-    // Validaciones básicas
-    if (!name || !startDate || !endDate || !goal) {
-      return res.status(400).json({ 
-        message: "Missing required fields: name, startDate, endDate, goal" 
-      });
-    }
-
+    // Start a transaction
     const result = await db.transaction(async (connection) => {
-      try {
-        // 1. Verificar si el programa ya existe
-        const [existingProgram] = await connection.execute(
-          "SELECT id FROM programs WHERE name = ?",
-          [name]
-        );
+      // Insert program
+      const [programResult] = await connection.execute(
+        "INSERT INTO programs (name, motto, start_date, end_date, financial_goal, logo_url, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [name, motto, startDate, endDate, goal, logo, true]
+      );
 
-        if (existingProgram.length > 0) {
-          throw new Error(`Program with name '${name}' already exists`);
-        }
+      const programId = programResult.insertId;
 
-        // Insert program
-        const [programResult] = await connection.execute(
-          "INSERT INTO programs (name, motto, start_date, end_date, financial_goal, logo_url, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
-          [name, motto, startDate, endDate, goal, logo, true]
-        );
-
-        const programId = programResult.insertId;
-
-        // Insert working days
-        for (const day of workingDays) {
-          await connection.execute(
-            "INSERT INTO program_working_days (program_id, day_of_week, is_working_day) VALUES (?, ?, ?)",
-            [programId, day, true]
-          );
-        }
-
-        // Insert non-working days
-        const allDays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-        const nonWorkingDays = allDays.filter(day => !workingDays.includes(day));
-
-        for (const day of nonWorkingDays) {
-          await connection.execute(
-            "INSERT INTO program_working_days (program_id, day_of_week, is_working_day) VALUES (?, ?, ?)",
-            [programId, day, false]
-          );
-        }
-
-        // Insert financial configuration
+      // Insert working days
+      for (const day of workingDays) {
         await connection.execute(
-          "INSERT INTO program_financial_config (program_id, colporter_percentage, leader_percentage, colporter_cash_advance_percentage, leader_cash_advance_percentage) VALUES (?, ?, ?, ?, ?)",
-          [programId, colporterPercentage, leaderPercentage, colporterCashAdvancePercentage, leaderCashAdvancePercentage]
+          "INSERT INTO program_working_days (program_id, day_of_week, is_working_day) VALUES (?, ?, ?)",
+          [programId, day, true]
         );
+      }
 
-        // Insert books
-        if (books && books.length > 0) {
-          for (const book of books) {
-            const [existingBooks] = await connection.execute(
-              "SELECT id FROM books WHERE title = ?",
-              [book.title]
+      // Insert non-working days
+      const allDays = [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+      ];
+      const nonWorkingDays = allDays.filter(
+        (day) => !workingDays.includes(day)
+      );
+
+      for (const day of nonWorkingDays) {
+        await connection.execute(
+          "INSERT INTO program_working_days (program_id, day_of_week, is_working_day) VALUES (?, ?, ?)",
+          [programId, day, false]
+        );
+      }
+
+      // Insert financial configuration
+      await connection.execute(
+        "INSERT INTO program_financial_config (program_id, colporter_percentage, leader_percentage, colporter_cash_advance_percentage, leader_cash_advance_percentage) VALUES (?, ?, ?, ?, ?)",
+        [
+          programId,
+          colporterPercentage,
+          leaderPercentage,
+          colporterCashAdvancePercentage,
+          leaderCashAdvancePercentage,
+        ]
+      );
+
+      // Insert books
+      if (books && books.length > 0) {
+        for (const book of books) {
+          // Check if book already exists
+          const [existingBooks] = await connection.execute(
+            "SELECT id FROM books WHERE title = ?",
+            [book.title]
+          );
+
+          let bookId;
+
+          if (existingBooks.length > 0) {
+            // Use existing book
+            bookId = existingBooks[0].id;
+          } else {
+            // Insert new book
+            const [bookResult] = await connection.execute(
+              "INSERT INTO books (isbn, title, author, publisher, price, size, category, description, image_url, stock, sold, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              [
+                book.isbn || null,
+                book.title,
+                book.author || null,
+                book.publisher || null,
+                book.price,
+                book.size,
+                book.category,
+                book.description,
+                book.image_url || null,
+                0,
+                0,
+                book.is_active,
+              ]
             );
 
-            let bookId;
-            if (existingBooks.length > 0) {
-              bookId = existingBooks[0].id;
-              await connection.execute(
-                "UPDATE books SET price = ?, category = ?, description = ?, image_url = ?, is_active = ? WHERE id = ?",
-                [book.price, book.category, book.description, book.image_url, book.is_active, bookId]
-              );
-            } else {
-              const [bookResult] = await connection.execute(
-                "INSERT INTO books (isbn, title, author, publisher, price, size, category, description, image_url, stock, sold, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [book.isbn || null, book.title, book.author || null, book.publisher || null, book.price, book.size, book.category, book.description, book.image_url || null, book.stock, 0, book.is_active]
-              );
-              bookId = bookResult.insertId;
-            }
+            bookId = bookResult.insertId;
+          }
+
+          // Insert program book
+          await connection.execute(
+            "INSERT INTO program_books (program_id, book_id, price, initial_stock, sold) VALUES (?, ?, ?, ?, ?)",
+            [programId, bookId, book.price, book.stock, 0]
+          );
+        }
+      }
+
+      // Insert colporters
+      if (colporters && colporters.length > 0) {
+        for (const colporter of colporters) {
+          // Check if colporter already exists in this program
+          const [existingColporters] = await connection.execute(
+            "SELECT id FROM people WHERE email = ? AND program_id = ? AND person_type = 'COLPORTER'",
+            [colporter.email, programId]
+          );
+
+          if (existingColporters.length > 0) {
+            continue; // Skip this colporter if already exists in this program
+          }
+
+          // Insert person
+          const [personResult] = await connection.execute(
+            "INSERT INTO people (first_name, last_name, email, phone, address, profile_image_url, person_type, status, school, age, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+              colporter.name,
+              colporter.apellido,
+              colporter.email,
+              colporter.phone,
+              colporter.address,
+              colporter.profileImage || null,
+              "COLPORTER",
+              "ACTIVE",
+              colporter.school,
+              colporter.age,
+              programId
+            ]
+          );
+
+          const personId = personResult.insertId;
+
+          // Create user if needed
+          if (colporter.createUser) {
+            const passwordHash = await bcrypt.hash(
+              `${colporter.name.toLowerCase()}.${colporter.apellido.toLowerCase()}`,
+              10
+            );
 
             await connection.execute(
-              "INSERT INTO program_books (program_id, book_id, price, initial_stock) VALUES (?, ?, ?, ?)",
-              [programId, bookId, book.price, book.stock]
+              "INSERT INTO users (person_id, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)",
+              [personId, colporter.email, passwordHash, "VIEWER", "ACTIVE"]
             );
           }
         }
-
-        // Insert colporters - CON ROLLBACK COMPLETO EN DUPLICADOS
-        if (colporters && colporters.length > 0) {
-          for (const colporter of colporters) {
-            // Verificar duplicados por email en este programa
-            const [existingColporters] = await connection.execute(
-              "SELECT id FROM people WHERE email = ? AND program_id = ? AND person_type = 'COLPORTER'",
-              [colporter.email, programId]
-            );
-
-            if (existingColporters.length > 0) {
-              // LANZAR ERROR PARA CAUSAR ROLLBACK COMPLETO
-              throw new Error(`Colporter with email '${colporter.email}' already exists in this program`);
-            }
-
-            // Verificar duplicados por email globalmente (opcional - más estricto)
-            const [globalExistingColporters] = await connection.execute(
-              "SELECT id FROM people WHERE email = ? AND person_type = 'COLPORTER'",
-              [colporter.email]
-            );
-
-            if (globalExistingColporters.length > 0) {
-              throw new Error(`Colporter with email '${colporter.email}' already exists in the system`);
-            }
-
-            // Insert person
-            const [personResult] = await connection.execute(
-              "INSERT INTO people (first_name, last_name, email, phone, address, profile_image_url, person_type, status, school, age, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-              [colporter.name, colporter.apellido, colporter.email, colporter.phone, colporter.address, colporter.profileImage || null, "COLPORTER", "ACTIVE", colporter.school, colporter.age, programId]
-            );
-
-            const personId = personResult.insertId;
-
-            // Create user if needed
-            if (colporter.createUser) {
-              // Verificar si el usuario ya existe
-              const [existingUser] = await connection.execute(
-                "SELECT id FROM users WHERE email = ?",
-                [colporter.email]
-              );
-
-              if (existingUser.length > 0) {
-                throw new Error(`User with email '${colporter.email}' already exists`);
-              }
-
-              const passwordHash = await bcrypt.hash(
-                `${colporter.name.toLowerCase()}.${colporter.apellido.toLowerCase()}`,
-                10
-              );
-
-              await connection.execute(
-                "INSERT INTO users (person_id, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)",
-                [personId, colporter.email, passwordHash, "VIEWER", "ACTIVE"]
-              );
-            }
-          }
-        }
-
-        // Insert leaders - CON ROLLBACK COMPLETO EN DUPLICADOS
-        if (leaders && leaders.length > 0) {
-          for (const leader of leaders) {
-            // Verificar duplicados por email en este programa
-            const [existingLeaders] = await connection.execute(
-              "SELECT id FROM people WHERE email = ? AND program_id = ? AND person_type = 'LEADER'",
-              [leader.email, programId]
-            );
-
-            if (existingLeaders.length > 0) {
-              // LANZAR ERROR PARA CAUSAR ROLLBACK COMPLETO
-              throw new Error(`Leader with email '${leader.email}' already exists in this program`);
-            }
-
-            // Verificar duplicados por email globalmente (opcional - más estricto)
-            const [globalExistingLeaders] = await connection.execute(
-              "SELECT id FROM people WHERE email = ? AND person_type = 'LEADER'",
-              [leader.email]
-            );
-
-            if (globalExistingLeaders.length > 0) {
-              throw new Error(`Leader with email '${leader.email}' already exists in the system`);
-            }
-
-            // Insert person
-            const [personResult] = await connection.execute(
-              "INSERT INTO people (first_name, last_name, email, phone, address, profile_image_url, person_type, status, institution, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-              [leader.name, leader.apellido, leader.email, leader.phone, leader.address, leader.profileImage || null, "LEADER", "ACTIVE", leader.institution, programId]
-            );
-
-            const personId = personResult.insertId;
-
-            // Create user if needed
-            if (leader.createUser) {
-              // Verificar si el usuario ya existe
-              const [existingUser] = await connection.execute(
-                "SELECT id FROM users WHERE email = ?",
-                [leader.email]
-              );
-
-              if (existingUser.length > 0) {
-                throw new Error(`User with email '${leader.email}' already exists`);
-              }
-
-              const passwordHash = await bcrypt.hash(
-                `${leader.name.toLowerCase()}.${leader.apellido.toLowerCase()}`,
-                10
-              );
-
-              await connection.execute(
-                "INSERT INTO users (person_id, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)",
-                [personId, leader.email, passwordHash, "SUPERVISOR", "ACTIVE"]
-              );
-            }
-          }
-        }
-
-        return { programId };
-
-      } catch (transactionError) {
-        console.error("Error within transaction:", transactionError);
-        // Re-lanzar el error para que la transacción haga rollback automáticamente
-        throw transactionError;
       }
+
+      // Insert leaders
+      if (leaders && leaders.length > 0) {
+        for (const leader of leaders) {
+          // Check if leader already exists in this program
+          const [existingLeaders] = await connection.execute(
+            "SELECT id FROM people WHERE email = ? AND program_id = ? AND person_type = 'LEADER'",
+            [leader.email, programId]
+          );
+
+          if (existingLeaders.length > 0) {
+            continue; // Skip this leader if already exists in this program
+          }
+
+          // Insert person
+          const [personResult] = await connection.execute(
+            "INSERT INTO people (first_name, last_name, email, phone, address, profile_image_url, person_type, status, institution, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+              leader.name,
+              leader.apellido,
+              leader.email,
+              leader.phone,
+              leader.address,
+              leader.profileImage || null,
+              "LEADER",
+              "ACTIVE",
+              leader.institution,
+              programId
+            ]
+          );
+
+          const personId = personResult.insertId;
+
+          // Create user if needed
+          if (leader.createUser) {
+            const passwordHash = await bcrypt.hash(
+              `${leader.name.toLowerCase()}.${leader.apellido.toLowerCase()}`,
+              10
+            );
+
+            await connection.execute(
+              "INSERT INTO users (person_id, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)",
+              [personId, leader.email, passwordHash, "SUPERVISOR", "ACTIVE"]
+            );
+          }
+        }
+      }
+
+      return { programId };
     });
 
     res.status(201).json({
       message: "Program created successfully",
       programId: result.programId,
     });
-
   } catch (error) {
     console.error("Error creating program:", error);
-    
-    // Manejo específico de errores de duplicados
-    if (error.message.includes('already exists')) {
-      return res.status(409).json({ 
-        message: "Duplicate entry detected - Check if you are trying to create a person with the same email as an existing person in other program.", 
-        error: error.message,
-        details: "All changes have been reverted due to duplicate data"
-      });
-    }
-    
-    if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ 
-        message: "Duplicate entry detected - Check if you are trying to create a person with the same email as an existing person in other program",
-        error: error.message,
-        details: "All changes have been reverted due to database constraint violation"
-      });
-    }
-    
-    if (error.code === 'ER_NO_REFERENCED_ROW_2') {
-      return res.status(400).json({ 
-        message: "Referenced record does not exist - transaction rolled back", 
-        error: error.message,
-        details: "All changes have been reverted due to foreign key constraint"
-      });
-    }
-
-    res.status(500).json({ 
-      message: "Internal server error - transaction rolled back", 
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong',
-      details: "All changes have been reverted"
-    });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -576,4 +535,17 @@ export const updateFinancialConfig = async (req, res) => {
     console.error("Error updating financial config:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
+};
+
+export default {
+  createProgram,
+  getProgram,
+  updateProgram,
+  getProgramWorkingDays,
+  updateProgramWorkingDay,
+  addCustomProgramDay,
+  getFinancialConfig,
+  updateFinancialConfig,
+  getAvailablePrograms,
+  switchProgram
 };

@@ -48,7 +48,8 @@ export default {
     person: "Person",
     type: "Type",
     note: "Note",
-    success: 'Success'
+    success: 'Success',
+    refresh: 'Refresh'
   },
   bookSetup: {
     title: "Book Setup",

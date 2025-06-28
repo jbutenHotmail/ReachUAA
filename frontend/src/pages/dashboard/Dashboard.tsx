@@ -5,7 +5,6 @@ import { useFinancialStore } from '../../stores/financialStore';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useDashboardStore } from '../../stores/dashboardStore';
 import { useCashAdvanceStore } from '../../stores/cashAdvanceStore';
-import { getCurrentDate } from '../../utils/dateUtils';
 
 import StatsGrid from '../../components/dashboard/StatsGrid';
 import SalesChart from '../../components/dashboard/SalesChart';
@@ -28,7 +27,6 @@ const Dashboard: React.FC = () => {
   
   const {
     isLoading: isTransactionsLoading,
-    fetchTransactions,
     fetchAllTransactions,
     wereTransactionsFetched
   } = useTransactionStore();

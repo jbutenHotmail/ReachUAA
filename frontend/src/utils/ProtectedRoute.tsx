@@ -38,13 +38,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
   }, [isAuthenticated, isLoading, refreshToken]);
   
-  // Fetch program if authenticated and not already fetched
+  // Fetch program if authenticated and not already fetched - ONLY FOR ADMIN USERS
   useEffect(() => {
-    if (isAuthenticated && !wasProgramFetched) {
-      console.log('Fetching program from ProtectedRoute');
+    if (isAuthenticated && !wasProgramFetched && user?.role === UserRole.ADMIN) {
+      console.log('Fetching program from ProtectedRoute for ADMIN');
       fetchProgram();
     }
-  }, [isAuthenticated, fetchProgram, wasProgramFetched]);
+  }, [isAuthenticated, fetchProgram, wasProgramFetched, user]);
   
   if (isLoading) {
     return (
@@ -65,7 +65,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   
   // If program is required but not selected, redirect to program selection
   // Skip this check for the program selection page itself to avoid infinite loop
-  if (requireProgram && !program && !location.pathname.includes('/program-select') && !location.pathname.includes('/setup')) {
+  // Also skip for non-admin users and setup page
+  if (
+    requireProgram && 
+    !program && 
+    !location.pathname.includes('/program-select') && 
+    !location.pathname.includes('/setup') && 
+    user?.role === UserRole.ADMIN
+  ) {
     console.log('No program found, redirecting to program selection');
     return <Navigate to="/program-select" replace />;
   }

@@ -63,7 +63,17 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   fetchBookById: async (id) => {
     set({ isLoading: true, error: null });
     try {
-      const book = await api.get<Book>(`/books/${id}`);
+      // Get current program ID
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
+      // Add program filter if available
+      const params: Record<string, string | number> = {};
+      if (programId) {
+        params.programId = programId;
+      }
+      
+      const book = await api.get<Book>(`/books/${id}`, { params });
       set({ isLoading: false });
       return book;
     } catch (error) {
@@ -304,17 +314,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
       });
       throw error;
     }
-  },resetStore: () => {
-  set({
-    books: [],
-    programBooks: [],
-    movements: [],
-    inventoryCounts: [],
-    isLoading: false,
-    error: null,
-    wereBooksLoaded: false
-  });
-},
+  },
 
   // Method to update books after a transaction is approved or rejected
   updateBooksAfterTransaction: (transaction, isApproval) => {
@@ -356,5 +356,18 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     // After updating books, refresh inventory counts for today
     const today = new Date().toISOString().split('T')[0];
     get().fetchInventoryCounts(today);
+  },
+
+  // Reset store method
+  resetStore: () => {
+    set({
+      books: [],
+      programBooks: [],
+      movements: [],
+      inventoryCounts: [],
+      isLoading: false,
+      error: null,
+      wereBooksLoaded: false
+    });
   }
 }));

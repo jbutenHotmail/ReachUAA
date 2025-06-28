@@ -7,7 +7,6 @@ import {
   PiggyBank, 
   BarChart3, 
   User,
-  Plus,
   Globe
 } from 'lucide-react';
 import { UserRole } from '../../types';
@@ -25,11 +24,6 @@ const MobileNav: React.FC = () => {
         path: '/dashboard', 
         label: t('navigation.dashboard'), 
         icon: <LayoutDashboard size={18} />, 
-      },
-      { 
-        path: '/transactions/new', 
-        label: 'New Transaction', 
-        icon: <Plus size={18} />, 
       },
       { 
         path: '/settings', 
