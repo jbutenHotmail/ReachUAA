@@ -28,14 +28,16 @@ const Layout: React.FC = () => {
       <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'} min-w-0`}>
         <Header onMenuToggle={toggleSidebar} />
         
-        <main className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 lg:p-6 pb-[90px] md:pb-6">
+        <main className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 lg:p-6 pb-[110px] md:pb-6">
           <div className="max-w-7xl mx-auto w-full">
             <Outlet />
           </div>
         </main>
         
         <Footer />
-        <MobileNav />
+        <div className="block md:hidden">
+          <MobileNav />
+        </div>
       </div>
     </div>
   );
