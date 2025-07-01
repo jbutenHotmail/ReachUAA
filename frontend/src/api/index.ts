@@ -44,8 +44,7 @@ export const refreshAccessToken = async (): Promise<string> => {
 // Main API request function with token handling
 export const apiRequest = async <T>(
   endpoint: string,
-  options: RequestInit = {},
-  retrying = false
+  options: RequestInit = {}
 ): Promise<T> => {
   // Get access token from storage
   const accessToken = localStorage.getItem('accessToken');
@@ -89,7 +88,7 @@ export const apiRequest = async <T>(
           ...options,
           headers,
           credentials: 'include',
-        }, true);
+        });
       } catch (refreshError) {
         // If refresh fails, throw error (will be handled by caller)
         throw refreshError;
