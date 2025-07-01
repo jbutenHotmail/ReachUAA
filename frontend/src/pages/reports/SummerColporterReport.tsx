@@ -1,715 +1,392 @@
-import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Calendar, TrendingUp, BookOpen, DollarSign, Users } from 'lucide-react';
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
-import Badge from '../../components/ui/Badge';
-import { useProgramStore } from '../../stores/programStore';
-import { api } from '../../api';
-import LoadingScreen from '../../components/ui/LoadingScreen';
+"use client"
 
-interface ColporterSummerStats {
-  bruto: {
-    total: number;
-    promedio: number;
-  };
-  neto: {
-    total: number;
-    promedio: number;
-  };
-  libros: {
-    grandes: number;
-    pequenos: number;
-  };
-  workingDays: number;
-  bestDay: {
-    date: string;
-    amount: number;
-  };
-  worstDay: {
-    date: string;
-    amount: number;
-  };
+import type React from "react"
+import { useState, useEffect } from "react"
+import { BookText, Heart, Calendar, UserCog, Users, ChevronLeft, ChevronRight } from "lucide-react"
+import { useNavigate, useLocation } from "react-router-dom"
+import { useTranslation } from "react-i18next"
+import SummerReport from "../../components/reports/SummerReport"
+import SummerBooksReport from "../../components/reports/SummerBooksReport"
+import Card from "../../components/ui/Card"
+import Button from "../../components/ui/Button"
+import { clsx } from "clsx"
+import { useTransactionStore } from "../../stores/transactionStore"
+import LoadingScreen from "../../components/ui/LoadingScreen"
+
+type TimePeriod = "day" | "week" | "month" | "all"
+
+// Utility functions for consistent date handling
+const getDateFromUTC = (dateString: string): Date => {
+  const utcDate = new Date(dateString)
+  // Extraer año, mes, día de la fecha UTC y crear una fecha local
+  const year = utcDate.getUTCFullYear()
+  const month = utcDate.getUTCMonth()
+  const day = utcDate.getUTCDate()
+
+  // Crear nueva fecha en zona horaria local con los mismos año, mes, día
+  return new Date(year, month, day)
 }
 
-const SummerColporterReport: React.FC = () => {
-  const { t } = useTranslation();
-  const { name } = useParams<{ name: string }>();
-  const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { program } = useProgramStore();
-  
-  // State for colporter/leader data
-  const [personId, setPersonId] = useState<string | null>(null);
-  const [personType, setPersonType] = useState<'COLPORTER' | 'LEADER'>('COLPORTER');
-  const [stats, setStats] = useState<ColporterSummerStats | null>(null);
-  const [monthlyData, setMonthlyData] = useState<Record<string, { sales: number; days: number; books: { large: number; small: number } }>>({});
-  const [dailySales, setDailySales] = useState<Record<string, number>>({});
-  const [dailyBooks, setDailyBooks] = useState<Record<string, { large: number; small: number }>>({});
-  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+const isSameDay = (date1: Date, date2: Date): boolean => {
+  return (
+    date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate()
+  )
+}
 
-  // Fetch person ID by name
-  useEffect(() => {
-    const getPersonId = async () => {
-      try {
-        // First try to find as a colporter
-        const colporters = await api.get('/people/colporters');
-        const colporter = colporters.find((p: any) => 
-          `${p.name} ${p.apellido}` === name || 
-          p.name === name
-        );
-        
-        if (colporter) {
-          setPersonId(colporter.id);
-          setPersonType('COLPORTER');
-          return;
-        }
-        
-        // If not found as colporter, try as a leader
-        const leaders = await api.get('/people/leaders');
-        const leader = leaders.find((p: any) => 
-          `${p.name} ${p.apellido}` === name || 
-          p.name === name
-        );
-        
-        if (leader) {
-          setPersonId(leader.id);
-          setPersonType('LEADER');
-          return;
-        }
-        
-        setError(t('summerColporterReport.noDataAvailable'));
-      } catch (err) {
-        console.error('Error fetching person:', err);
-        setError(t('common.error'));
-      }
-    };
-    
-    if (name) {
-      getPersonId();
-    }
-  }, [name, t]);
+const isDateInWeek = (date: Date, weekStartDate: Date): boolean => {
+  const startOfWeek = new Date(weekStartDate)
+  const day = startOfWeek.getDay()
+  startOfWeek.setDate(startOfWeek.getDate() - day)
+  startOfWeek.setHours(0, 0, 0, 0)
 
-  // Fetch transactions for this person
+  const endOfWeek = new Date(startOfWeek)
+  endOfWeek.setDate(startOfWeek.getDate() + 6)
+  endOfWeek.setHours(23, 59, 59, 999)
+
+  return date >= startOfWeek && date <= endOfWeek
+}
+
+const isDateInMonth = (date: Date, monthDate: Date): boolean => {
+  return date.getMonth() === monthDate.getMonth() && date.getFullYear() === monthDate.getFullYear()
+}
+
+const formatDateKey = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+const DonationsReport: React.FC = () => {
+  const { t } = useTranslation()
+  const [showColporters, setShowColporters] = useState(true)
+  const [showLeaders, setShowLeaders] = useState(false)
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>("all")
+  const [selectedDate, setSelectedDate] = useState(new Date())
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { transactions, isLoading, error, fetchAllTransactions, wereTransactionsFetched } = useTransactionStore()
+
+  const isFinancesRoute = location.pathname.includes("/finances")
+
   useEffect(() => {
     const loadTransactionData = async () => {
-      if (!personId) return;
-      
-      setIsLoading(true);
       try {
-        // Get all transactions for this person based on their type - ONLY APPROVED TRANSACTIONS
-        const params = personType === 'COLPORTER' 
-          ? { studentId: personId, status: 'APPROVED' } 
-          : { leaderId: personId, status: 'APPROVED' };
-        
-        const personTransactions = await api.get('/transactions', { params });
-        
-        // Process the transactions to get statistics
-        processTransactionData(personTransactions, personType);
-        
-        // If this is a leader, also fetch their team members
-        if (personType === 'LEADER') {
-          await fetchTeamMembers(personId, personTransactions);
+        if (!wereTransactionsFetched) {
+          await fetchAllTransactions("APPROVED")
         }
       } catch (err) {
-        console.error('Error fetching transaction data:', err);
-        setError(t('common.error'));
-      } finally {
-        setIsLoading(false);
+        console.error("Error fetching transaction data:", err)
       }
-    };
-    
-    if (personId) {
-      loadTransactionData();
     }
-  }, [personId, personType, t]);
 
-  // Fetch team members for a leader
-  const fetchTeamMembers = async (leaderId: string, leaderTransactions: any[]) => {
-    try {
-      // Get unique colporter IDs from transactions
-      const colporterIds = new Set<string>();
-      leaderTransactions.forEach(t => colporterIds.add(t.studentId));
-      
-      // Get colporter details
-      const colporters = await api.get('/people/colporters');
-      
-      // Filter to only include colporters in this leader's team
-      const teamColporters = colporters.filter((c: any) => 
-        colporterIds.has(c.id)
-      );
-      
-      // Calculate stats for each team member
-      const teamStats = teamColporters.map((colporter: any) => {
-        // Get transactions for this colporter - ONLY APPROVED TRANSACTIONS
-        const colporterTransactions = leaderTransactions.filter(t => 
-          t.studentId === colporter.id && t.status === 'APPROVED'
-        );
-        
-        // Calculate total sales
-        const totalSales = colporterTransactions.reduce((sum, t) => sum + t.total, 0);
-        
-        // Calculate book counts
-        const books = {
-          large: 0,
-          small: 0
-        };
-        
-        colporterTransactions.forEach(transaction => {
-          if (transaction.books && transaction.books.length > 0) {
-            transaction.books.forEach((book: any) => {
-              if (book.size === 'LARGE') {
-                books.large += book.quantity;
-              } else {
-                books.small += book.quantity;
-              }
-            });
-          }
-        });
-        
-        return {
-          id: colporter.id,
-          name: `${colporter.name} ${colporter.apellido}`,
-          totalSales,
-          books,
-          transactionCount: colporterTransactions.length
-        };
-      });
-      
-      setTeamMembers(teamStats);
-    } catch (err) {
-      console.error('Error fetching team members:', err);
-    }
-  };
+    loadTransactionData()
+  }, [fetchAllTransactions, wereTransactionsFetched])
 
-  // Process transaction data to get statistics
-  const processTransactionData = (personTransactions: any[], type: 'COLPORTER' | 'LEADER') => {
-    if (!personTransactions.length) {
-      setStats(null);
-      setMonthlyData({});
-      setDailySales({});
-      setDailyBooks({});
-      return;
+  const handleToggleView = () => {
+    setShowColporters(!showColporters)
+  }
+
+  const handleToggleGrouping = () => {
+    setShowLeaders(!showLeaders)
+  }
+
+  const navigateDate = (direction: "prev" | "next") => {
+    setSelectedDate((prev) => {
+      const newDate = new Date(prev)
+
+      if (timePeriod === "day") {
+        newDate.setDate(prev.getDate() + (direction === "next" ? 1 : -1))
+      } else if (timePeriod === "week") {
+        newDate.setDate(prev.getDate() + (direction === "next" ? 7 : -7))
+      } else if (timePeriod === "month") {
+        newDate.setMonth(prev.getMonth() + (direction === "next" ? 1 : -1))
+      }
+
+      return newDate
+    })
+  }
+
+  const tabs = [
+    {
+      id: "finances",
+      label: t("donationsReport.donations"),
+      icon: <Heart size={18} />,
+      path: "/reports/donations/finances",
+    },
+    {
+      id: "delivered-books",
+      label: t("reports.deliveredBooks"),
+      icon: <BookText size={18} />,
+      path: "/reports/donations/delivered-books",
+    },
+  ]
+
+  const getFilteredTransactions = () => {
+    if (!transactions || transactions.length === 0) {
+      return []
     }
-    
-    // Filter out rejected transactions - only include APPROVED transactions
-    const validTransactions = personTransactions.filter(t => t.status === 'APPROVED');
-    
-    // Get the appropriate percentage from program config
-    const percentage = type === 'COLPORTER'
-      ? (program?.financialConfig?.colporter_percentage 
-          ? parseFloat(program.financialConfig.colporter_percentage) 
-          : 50)
-      : (program?.financialConfig?.leader_percentage 
-          ? parseFloat(program.financialConfig.leader_percentage) 
-          : 15);
-    
-    // Calculate total sales
-    const totalSales = validTransactions.reduce((sum, t) => sum + t.total, 0);
-    const workingDays = validTransactions.length;
-    const averagePerDay = totalSales / workingDays;
-    
-    // Process books
-    const totalBooks = {
-      grandes: 0,
-      pequenos: 0
-    };
-    
-    // Process daily sales and books
-    const dailySalesData: Record<string, number> = {};
-    const dailyBooksData: Record<string, { large: number; small: number }> = {};
-    
-    validTransactions.forEach(transaction => {
-      // Add sales for this day
-      dailySalesData[transaction.date] = (dailySalesData[transaction.date] || 0) + transaction.total;
-      
-      // Initialize books for this day
-      if (!dailyBooksData[transaction.date]) {
-        dailyBooksData[transaction.date] = { large: 0, small: 0 };
+
+    const approvedTransactions = transactions.filter((t) => t.status === "APPROVED")
+
+    if (timePeriod === "all") {
+      return approvedTransactions
+    }
+
+    return approvedTransactions.filter((transaction) => {
+      const transactionDate = getDateFromUTC(transaction.date)
+
+      if (timePeriod === "day") {
+        return isSameDay(transactionDate, selectedDate)
+      } else if (timePeriod === "week") {
+        return isDateInWeek(transactionDate, selectedDate)
+      } else if (timePeriod === "month") {
+        return isDateInMonth(transactionDate, selectedDate)
       }
-      
-      // Process books for this transaction
+
+      return true
+    })
+  }
+
+  const transformTransactionsToSalesData = () => {
+    const filteredTransactions = getFilteredTransactions()
+
+    const colporterMap = new Map()
+
+    filteredTransactions.forEach((transaction) => {
+      if (!colporterMap.has(transaction.studentId)) {
+        colporterMap.set(transaction.studentId, {
+          colporterName: transaction.studentName,
+          leaderName: transaction.leaderName,
+          dailySales: {},
+          totalSales: 0,
+        })
+      }
+
+      const colporterData = colporterMap.get(transaction.studentId)
+
+      // Usar fecha consistente como clave
+      const transactionDate = getDateFromUTC(transaction.date)
+      const dateKey = formatDateKey(transactionDate)
+
+      if (!colporterData.dailySales[dateKey]) {
+        colporterData.dailySales[dateKey] = 0
+      }
+
+      colporterData.dailySales[dateKey] += transaction.total
+      colporterData.totalSales += transaction.total
+    })
+
+    return Array.from(colporterMap.values())
+  }
+
+  const transformTransactionsToBookData = () => {
+    const filteredTransactions = getFilteredTransactions()
+
+    const colporterMap = new Map()
+
+    filteredTransactions.forEach((transaction) => {
+      if (!colporterMap.has(transaction.studentId)) {
+        colporterMap.set(transaction.studentId, {
+          colporterName: transaction.studentName,
+          leaderName: transaction.leaderName,
+          dailyBooks: {},
+          totalBooks: { large: 0, small: 0 },
+        })
+      }
+
+      const colporterData = colporterMap.get(transaction.studentId)
+
       if (transaction.books && transaction.books.length > 0) {
-        transaction.books.forEach((book: any) => {
-          if (book.size === 'LARGE') {
-            totalBooks.grandes += book.quantity;
-            dailyBooksData[transaction.date].large += book.quantity;
+        // Usar fecha consistente como clave
+        const transactionDate = getDateFromUTC(transaction.date)
+        const dateKey = formatDateKey(transactionDate)
+
+        if (!colporterData.dailyBooks[dateKey]) {
+          colporterData.dailyBooks[dateKey] = { large: 0, small: 0 }
+        }
+
+        transaction.books.forEach((book) => {
+          if (book.size === "LARGE") {
+            colporterData.dailyBooks[dateKey].large += book.quantity
+            colporterData.totalBooks.large += book.quantity
           } else {
-            totalBooks.pequenos += book.quantity;
-            dailyBooksData[transaction.date].small += book.quantity;
+            colporterData.dailyBooks[dateKey].small += book.quantity
+            colporterData.totalBooks.small += book.quantity
           }
-        });
+        })
       }
-    });
-    
-    // Find best and worst days
-    const salesEntries = Object.entries(dailySalesData);
-    const bestDay = salesEntries.reduce((best, [date, amount]) => 
-      amount > best.amount ? { date, amount } : best, 
-      { date: '', amount: 0 }
-    );
-    const worstDay = salesEntries.reduce((worst, [date, amount]) => 
-      amount < worst.amount ? { date, amount } : worst, 
-      { date: '', amount: Infinity }
-    );
-    
-    // Group data by months
-    const monthlyDataObj: Record<string, { sales: number; days: number; books: { large: number; small: number } }> = {};
-    
-    validTransactions.forEach(transaction => {
-      const date = new Date(transaction.date);
-      const month = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-      
-      if (!monthlyDataObj[month]) {
-        monthlyDataObj[month] = { 
-          sales: 0, 
-          days: 0, 
-          books: { large: 0, small: 0 } 
-        };
-      }
-      
-      // Check if this is a new day for this month
-      const dateStr = transaction.date;
-      const isNewDay = !validTransactions.some(t => 
-        t.date === dateStr && 
-        t.id !== transaction.id && 
-        new Date(t.date).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }) === month
-      );
-      
-      if (isNewDay) {
-        monthlyDataObj[month].days += 1;
-      }
-      
-      monthlyDataObj[month].sales += transaction.total;
-      
-      // Process books for this transaction
-      if (transaction.books && transaction.books.length > 0) {
-        transaction.books.forEach((book: any) => {
-          if (book.size === 'LARGE') {
-            monthlyDataObj[month].books.large += book.quantity;
-          } else {
-            monthlyDataObj[month].books.small += book.quantity;
-          }
-        });
-      }
-    });
-    
-    // Set state with processed data
-    setStats({
-      bruto: {
-        total: totalSales,
-        promedio: averagePerDay,
-      },
-      neto: {
-        total: totalSales * (percentage / 100),
-        promedio: averagePerDay * (percentage / 100),
-      },
-      libros: totalBooks,
-      workingDays,
-      bestDay,
-      worstDay: worstDay.amount === Infinity ? { date: '', amount: 0 } : worstDay,
-    });
-    
-    setMonthlyData(monthlyDataObj);
-    setDailySales(dailySalesData);
-    setDailyBooks(dailyBooksData);
-  };
+    })
+
+    return Array.from(colporterMap.values())
+  }
+
+  const formatDateRange = () => {
+    if (timePeriod === "all") {
+      return t("donationsReport.completeProgram")
+    }
+
+    const startDate = selectedDate
+
+    if (timePeriod === "day") {
+      return startDate.toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    } else if (timePeriod === "week") {
+      const day = startDate.getDay()
+      const sunday = new Date(startDate)
+      sunday.setDate(startDate.getDate() - day)
+
+      const saturday = new Date(sunday)
+      saturday.setDate(sunday.getDate() + 6)
+
+      return `${sunday.toLocaleDateString("en-US", { month: "long", day: "numeric" })} - ${saturday.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`
+    } else if (timePeriod === "month") {
+      return startDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    }
+
+    return ""
+  }
+
+  const salesData = transformTransactionsToSalesData()
+  const booksData = transformTransactionsToBookData()
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingScreen message={t('common.loading')} />
-      </div>
-    );
+    return <LoadingScreen message={t("donationsReport.loading")} />
   }
 
   if (error) {
     return (
-      <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
-        <p className="font-medium">{t('common.error')}</p>
-        <p>{error}</p>
-      </div>
-    );
+      <Card>
+        <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
+          <p className="font-medium">{t("common.error")}</p>
+          <p>{error}</p>
+        </div>
+      </Card>
+    )
   }
-
-  if (!stats || Object.keys(monthlyData).length === 0) {
-    return (
-      <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg text-warning-700">
-        <p className="font-medium">{t('summerColporterReport.noDataAvailable')}</p>
-        <p>{t('summerColporterReport.noTransactionData', { type: personType.toLowerCase() })}</p>
-        <Button
-          variant="outline"
-          className="mt-4"
-          onClick={() => navigate('/reports/donations/finances')}
-        >
-          {t('common.back')}
-        </Button>
-      </div>
-    );
-  }
-
-  const totalBooks = stats.libros.grandes + stats.libros.pequenos;
-  const largeBooksPercentage = totalBooks > 0 ? ((stats.libros.grandes / totalBooks) * 100).toFixed(0) : 0;
-  const smallBooksPercentage = totalBooks > 0 ? ((stats.libros.pequenos / totalBooks) * 100).toFixed(0) : 0;
-  const percentage = personType === 'COLPORTER'
-    ? program?.financialConfig?.colporter_percentage || 50
-    : program?.financialConfig?.leader_percentage || 15;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          onClick={() => navigate('/reports/donations/finances')}
-        >
-          <ChevronLeft size={20} />
-        </Button>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <TrendingUp className="text-primary-600" size={28} />
-            {name} - {t(`common.${personType.toLowerCase()}`)}
+            <Heart className="text-red-500" size={28} />
+            {t("donationsReport.title")}
           </h1>
-          <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
-            <Calendar size={16} />
-            {t('summerColporterReport.completeProgram')} • {stats.workingDays} días laborales
-          </p>
+          <div className="flex items-center gap-2 mt-2">
+            <Calendar size={16} className="text-gray-500" />
+            <span className="text-sm font-medium text-gray-600">{formatDateRange()}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Card className="p-0 shadow-sm">
+            <div className="flex items-center divide-x">
+              {(["day", "week", "month", "all"] as TimePeriod[]).map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setTimePeriod(period)}
+                  className={clsx(
+                    "px-3 py-2 text-sm font-medium transition-colors",
+                    timePeriod === period
+                      ? "bg-primary-50 text-primary-700"
+                      : "bg-white text-gray-600 hover:bg-gray-50",
+                  )}
+                >
+                  {t(`donationsReport.${period}`)}
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          {timePeriod !== "all" && (
+            <div className="flex items-center bg-white rounded-lg shadow-sm border border-gray-200">
+              <Button variant="ghost" size="sm" onClick={() => navigateDate("prev")} className="px-2">
+                <ChevronLeft size={20} />
+              </Button>
+
+              <div className="px-4 py-2 flex items-center gap-2 border-l border-r border-gray-200">
+                <Calendar size={16} className="text-gray-500" />
+                <span className="text-sm font-medium">
+                  {timePeriod === "day" && selectedDate.toLocaleDateString("en-US", { day: "numeric", month: "short" })}
+                  {timePeriod === "week" &&
+                    t("donationsReport.weekOf", {
+                      date: selectedDate.toLocaleDateString("en-US", {
+                        day: "numeric",
+                        month: "short",
+                      }),
+                    })}
+                  {timePeriod === "month" &&
+                    selectedDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                </span>
+              </div>
+
+              <Button variant="ghost" size="sm" onClick={() => navigateDate("next")} className="px-2">
+                <ChevronRight size={20} />
+              </Button>
+            </div>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleToggleGrouping}
+            leftIcon={showLeaders ? <Users size={16} /> : <UserCog size={16} />}
+          >
+            {showLeaders ? t("donationsReport.byColporters") : t("donationsReport.byLeaders")}
+          </Button>
         </div>
       </div>
 
-      {/* Summary Statistics */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <Card>
-          <div className="text-center">
-            <div className="flex items-center justify-center mb-2">
-              <DollarSign className="text-primary-600" size={24} />
-            </div>
-            <p className="text-sm font-medium text-gray-500">{t('summerColporterReport.totalSalesBruto')}</p>
-            <p className="mt-1 text-2xl font-bold text-primary-600">${stats.bruto.total.toFixed(2)}</p>
-            <p className="text-xs text-gray-500">100% de las ventas</p>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="text-center">
-            <div className="flex items-center justify-center mb-2">
-              <DollarSign className="text-success-600" size={24} />
-            </div>
-            <p className="text-sm font-medium text-gray-500">{t('summerColporterReport.netEarningsNeto')}</p>
-            <p className="mt-1 text-2xl font-bold text-success-600">${stats.neto.total.toFixed(2)}</p>
-            <p className="text-xs text-gray-500">{percentage}% de las ventas</p>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="text-center">
-            <div className="flex items-center justify-center mb-2">
-              <BookOpen className="text-warning-600" size={24} />
-            </div>
-            <p className="text-sm font-medium text-gray-500">{t('summerColporterReport.totalBooks')}</p>
-            <p className="mt-1 text-2xl font-bold text-warning-600">{totalBooks}</p>
-            <p className="text-xs text-gray-500">
-              {stats.libros.grandes} grandes ({largeBooksPercentage}%), {stats.libros.pequenos} pequeños ({smallBooksPercentage}%)
-            </p>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="text-center">
-            <div className="flex items-center justify-center mb-2">
-              <Calendar className="text-info-600" size={24} />
-            </div>
-            <p className="text-sm font-medium text-gray-500">{t('summerColporterReport.dailyAverage')}</p>
-            <p className="mt-1 text-2xl font-bold text-info-600">${stats.bruto.promedio.toFixed(2)}</p>
-            <p className="text-xs text-gray-500">{t('summerColporterReport.perWorkingDay')}</p>
-          </div>
-        </Card>
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => navigate(tab.path)}
+              className={clsx(
+                "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center gap-2",
+                location.pathname.includes(tab.id)
+                  ? "border-primary-500 text-primary-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
+              )}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </nav>
       </div>
 
-      {/* Performance Highlights - More Compact */}
-      <Card title={t('summerColporterReport.performanceHighlights')} icon={<TrendingUp size={20} />}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-3 bg-success-50 rounded-lg">
-            <h4 className="font-semibold text-success-700 text-sm">{t('summerColporterReport.bestDay')}</h4>
-            <p className="text-xs text-success-600 mt-1">
-              {stats.bestDay.date ? new Date(stats.bestDay.date).toLocaleDateString('es-ES', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric'
-              }) : 'N/A'}
-            </p>
-            <p className="text-base font-bold text-success-700">${stats.bestDay.amount.toFixed(2)}</p>
-          </div>
-
-          <div className="p-3 bg-warning-50 rounded-lg">
-            <h4 className="font-semibold text-warning-700 text-sm">{t('summerColporterReport.lowestDay')}</h4>
-            <p className="text-xs text-warning-600 mt-1">
-              {stats.worstDay.date ? new Date(stats.worstDay.date).toLocaleDateString('es-ES', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric'
-              }) : 'N/A'}
-            </p>
-            <p className="text-base font-bold text-warning-700">
-              ${stats.worstDay.amount > 0 ? stats.worstDay.amount.toFixed(2) : '0.00'}
-            </p>
-          </div>
-
-          <div className="p-3 bg-primary-50 rounded-lg">
-            <h4 className="font-semibold text-primary-700 text-sm">{t('summerColporterReport.bookDistribution')}</h4>
-            <div className="flex justify-between text-xs mt-1">
-              <span className="text-primary-600">{t('summerColporterReport.largeBooks')}:</span>
-              <span className="font-medium text-primary-700">
-                {stats.libros.grandes} ({largeBooksPercentage}%)
-              </span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-success-600">{t('summerColporterReport.smallBooks')}:</span>
-              <span className="font-medium text-success-700">
-                {stats.libros.pequenos} ({smallBooksPercentage}%)
-              </span>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Team Members (only for leaders) */}
-      {personType === 'LEADER' && teamMembers.length > 0 && (
-        <Card title={t('summerColporterReport.teamPerformance')} icon={<Users size={20} />}>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('summerColporterReport.colporter')}
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('summerColporterReport.totalSales')}
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('summerColporterReport.largeBooks')}
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('summerColporterReport.smallBooks')}
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('summerColporterReport.transactions')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {teamMembers.map((member, index) => (
-                  <tr key={member.id} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {member.name}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                      ${member.totalSales.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                      <Badge variant="primary">{member.books.large}</Badge>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                      <Badge variant="success">{member.books.small}</Badge>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                      <Badge variant="secondary">{member.transactionCount}</Badge>
-                    </td>
-                  </tr>
-                ))}
-                <tr className="bg-gray-100 font-semibold">
-                  <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
-                    {t('common.totals')}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
-                    ${teamMembers.reduce((sum, m) => sum + m.totalSales, 0).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center font-bold">
-                    <Badge variant="primary">{teamMembers.reduce((sum, m) => sum + m.books.large, 0)}</Badge>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center font-bold">
-                    <Badge variant="success">{teamMembers.reduce((sum, m) => sum + m.books.small, 0)}</Badge>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center font-bold">
-                    <Badge variant="secondary">{teamMembers.reduce((sum, m) => sum + m.transactionCount, 0)}</Badge>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </Card>
+      {isFinancesRoute ? (
+        <SummerReport
+          sales={salesData}
+          showColporters={showColporters}
+          showLeaders={showLeaders}
+          onToggleView={handleToggleView}
+          onToggleGrouping={handleToggleGrouping}
+          timePeriod={timePeriod}
+          selectedDate={selectedDate}
+        />
+      ) : (
+        <SummerBooksReport
+          booksData={booksData}
+          showColporters={showColporters}
+          showLeaders={showLeaders}
+          onToggleView={handleToggleView}
+          onToggleGrouping={handleToggleGrouping}
+          timePeriod={timePeriod}
+          selectedDate={selectedDate}
+        />
       )}
-
-      <div className="mt-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('summerColporterReport.salesDetail')}</h2>
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0 z-10 border-b">
-                    {t(`summerColporterReport.${personType.toLowerCase()}`)}
-                  </th>
-                  {Object.keys(dailySales).sort().map((date) => (
-                    <th key={date} className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                      {new Date(date).toLocaleDateString('es-ES', { 
-                        weekday: 'short',
-                        month: '2-digit',
-                        day: '2-digit'
-                      })}
-                    </th>
-                  ))}
-                  <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                    {t('common.total')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                <tr className="bg-yellow-50">
-                  <td className="px-4 py-3 text-sm font-medium text-white bg-[#0052B4] sticky left-0 z-10">
-                    {name}
-                  </td>
-                  {Object.keys(dailySales).sort().map((date) => (
-                    <td key={date} className="px-4 py-3 text-sm text-right whitespace-nowrap">
-                      ${dailySales[date].toFixed(2)}
-                    </td>
-                  ))}
-                  <td className="px-4 py-3 text-sm text-right font-medium whitespace-nowrap">
-                    ${stats.bruto.total.toFixed(2)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
-      
-      {/* Books Table */}
-      <div className="mt-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('summerColporterReport.booksByMonthDetail')}</h2>
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0 z-10 border-b">
-                    {t('summerColporterReport.month')}
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-primary-700 border-b">
-                    {t('summerColporterReport.largeBooks')}
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-success-600 border-b">
-                    {t('summerColporterReport.smallBooks')}
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                    {t('summerColporterReport.totalBooksLabel')}
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                    {t('summerColporterReport.sales')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {Object.entries(monthlyData).map(([month, data]) => (
-                  <tr key={month} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 z-10 bg-white">
-                      {month}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center">
-                      <Badge variant="primary">{data.books.large}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center">
-                      <Badge variant="success">{data.books.small}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center font-medium">
-                      <Badge variant="secondary">{data.books.large + data.books.small}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right font-medium">
-                      ${data.sales.toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
-                <tr className="bg-gray-100">
-                  <td className="px-4 py-3 text-sm font-bold text-gray-900 sticky left-0 z-10 bg-gray-100">
-                    {t('common.totals')}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-center font-bold">
-                    <Badge variant="primary">{stats.libros.grandes}</Badge>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-center font-bold">
-                    <Badge variant="success">{stats.libros.pequenos}</Badge>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-center font-bold">
-                    <Badge variant="secondary">{totalBooks}</Badge>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-right font-bold">
-                    ${stats.bruto.total.toFixed(2)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
-      
-      {/* Daily Books Breakdown */}
-      <div className="mt-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('summerColporterReport.booksByDayDetail')}</h2>
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0 z-10 border-b">
-                    {t('summerColporterReport.date')}
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-primary-700 border-b">
-                    {t('summerColporterReport.largeBooks')}
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-success-600 border-b">
-                    {t('summerColporterReport.smallBooks')}
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                    {t('summerColporterReport.totalBooksLabel')}
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                    {t('summerColporterReport.sales')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {Object.keys(dailySales).sort().map((date) => (
-                  <tr key={date} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 z-10 bg-white">
-                      {new Date(date).toLocaleDateString('es-ES', {
-                        weekday: 'short',
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center">
-                      <Badge variant="primary">{dailyBooks[date]?.large || 0}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center">
-                      <Badge variant="success">{dailyBooks[date]?.small || 0}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center font-medium">
-                      <Badge variant="secondary">{(dailyBooks[date]?.large || 0) + (dailyBooks[date]?.small || 0)}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right font-medium">
-                      ${dailySales[date].toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
     </div>
-  );
-};
+  )
+}
 
-export default SummerColporterReport;
+export default DonationsReport
