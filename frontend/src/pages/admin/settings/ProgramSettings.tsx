@@ -346,6 +346,7 @@ const ProgramSettings: React.FC = () => {
                       year: "numeric",
                       month: "long",
                       day: "numeric",
+                      timeZone: 'UTC'
                     })}
                   </div>
                 </div>
