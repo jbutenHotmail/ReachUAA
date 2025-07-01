@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, X, DollarSign, BookText, Calendar, AlertTriangle, Settings, ChevronRight, CheckCircle } from 'lucide-react';
@@ -47,9 +47,10 @@ const NewTransaction: React.FC = () => {
   const colporterDropdownRef = useRef<HTMLDivElement>(null);
 
   // Check if today is a colportable day
-  const today = new Date();
-  const isToday = isColportableDay(today);
-  const nextColportableDay = getNextColportableDay(today);
+  const today = useMemo(() => new Date(), []);
+const isToday = useMemo(() => isColportableDay(today), [today]);
+const nextColportableDay = useMemo(() => getNextColportableDay(today), [today]);
+
   const isAdmin = user?.role === UserRole.ADMIN;
 
   useEffect(() => {

@@ -8,6 +8,7 @@ import Badge from '../../components/ui/Badge';
 import { useProgramStore } from '../../stores/programStore';
 import { api } from '../../api';
 import LoadingScreen from '../../components/ui/LoadingScreen';
+import { Colporter } from '../../types';
 
 const ColporterReport: React.FC = () => {
   const { t } = useTranslation();
@@ -21,11 +22,10 @@ const ColporterReport: React.FC = () => {
   const [colporterData, setColporterData] = useState<any>(null);
   const [weeklyData, setWeeklyData] = useState<any>(null);
 
-  console.log('zsdfvxdfdfdsfgdf')
   useEffect(() => {
     const getColporterId = async () => {
       try {
-        const people = await api.get('/people/colporters');
+        const people: Colporter[] = await api.get('/people/colporters');
         const colporter = people.find((p: any) => 
           `${p.name} ${p.apellido}` === name || 
           p.name === name

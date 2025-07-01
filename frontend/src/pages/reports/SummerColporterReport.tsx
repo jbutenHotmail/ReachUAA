@@ -8,6 +8,7 @@ import Badge from '../../components/ui/Badge';
 import { useProgramStore } from '../../stores/programStore';
 import { api } from '../../api';
 import LoadingScreen from '../../components/ui/LoadingScreen';
+import { Colporter } from '../../types';
 
 interface ColporterSummerStats {
   bruto: {
@@ -58,8 +59,7 @@ const SummerColporterReport: React.FC = () => {
         const params = {
           programId: program?.id
         }
-        const colporters = await api.get('/people/colporters', {params});
-        // console.log(name, colporters)
+        const colporters: Colporter[] = await api.get('/people/colporters', {params});
         const colporter = colporters.find((p: any) => 
           `${p.name} ${p.apellido}` === name || 
           p.name === name
@@ -108,7 +108,6 @@ const SummerColporterReport: React.FC = () => {
           : { leaderId: personId, status: 'APPROVED', programId: program?.id };
         
         const personTransactions = await api.get('/transactions', { params });
-        console.log(personTransactions)
         // Process the transactions to get statistics
         processTransactionData(personTransactions, personType);
         
@@ -130,14 +129,14 @@ const SummerColporterReport: React.FC = () => {
   }, [personId, personType, t]);
 
   // Fetch team members for a leader
-  const fetchTeamMembers = async (leaderId: string, leaderTransactions: any[]) => {
+  const fetchTeamMembers = async (leaderTransactions: any[]) => {
     try {
       // Get unique colporter IDs from transactions
       const colporterIds = new Set<string>();
       leaderTransactions.forEach(t => colporterIds.add(t.studentId));
       
       // Get colporter details
-      const colporters = await api.get('/people/colporters');
+      const colporters: Colporter[] = await api.get('/people/colporters');
       
       // Filter to only include colporters in this leader's team
       const teamColporters = colporters.filter((c: any) => 
