@@ -48,9 +48,9 @@ export default {
     person: "Person",
     type: "Type",
     note: "Note",
-    success: 'Success',
-    refresh: 'Refresh',
-    switchProgram: 'Switch Program'
+    success: "Success",
+    refresh: "Refresh",
+    switchProgram: "Switch Program",
   },
   bookSetup: {
     title: "Book Setup",
@@ -443,14 +443,12 @@ export default {
     searchPlaceholder: "Search users...",
     loadingUsers: "Loading users...",
     errorLoadingUsers: "Error loading users",
-    deleteConfirmation:
-      "Are you sure you want to delete this user? This action cannot be undone.",
+    deleteConfirmation: "Are you sure you want to delete this user? This action cannot be undone.",
     addUser: "Add User",
     roleManagementGuidelines: "Role Management Guidelines",
     statusChanges: "Status Changes",
     roleChanges: "Role Changes",
-    roleChangeEffect:
-      "Take effect immediately and may require users to log in again.",
+    roleChangeEffect: "Take effect immediately and may require users to log in again.",
     searchPersonPlaceholder: "Search {{type}}...",
     noMatchingPeople: "No matching people found",
     noPeopleWithoutAccounts: "No {{type}}s found without user accounts",
@@ -473,15 +471,20 @@ export default {
       inactive: "User cannot log in but their data is preserved",
     },
     defaultPassword: "Default Password",
-    accountCreationNote:
-      "A user account will be created with the following credentials:",
-    passwordChangePrompt:
-      "The user will be prompted to change their password on first login.",
+    accountCreationNote: "A user account will be created with the following credentials:",
+    passwordChangePrompt: "The user will be prompted to change their password on first login.",
     resetPassword: "Reset Password",
-    resetPasswordNote:
-      "You can reset this user's password to the default: {{password}}",
+    resetPasswordNote: "You can reset this user's password to the default: {{password}}",
     resetPasswordButton: "Reset Password",
     passwordResetConfirmation: "Password reset to:",
+    // Added translations
+    roleChangeSuccess: "User role updated successfully",
+    errorUpdatingRole: "Failed to update user role",
+    statusChangeSuccess: "User status updated successfully",
+    errorUpdatingStatus: "Failed to update user status",
+    createSuccess: "User created successfully",
+    errorCreating: "Failed to create user",
+    errorUpdating: "Failed to update user",
   },
   addChargeForm: {
     addTitle: "Add Charge",

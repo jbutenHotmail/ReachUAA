@@ -45,9 +45,9 @@ export default {
     colporter: "Colportor",
     category: "Categoría",
     note: "Nota",
-    success: 'Éxito',
-    refresh: 'Actualizar',
-    switchProgram: 'Seleccionar Programa'
+    success: "Éxito",
+    refresh: "Actualizar",
+    switchProgram: "Seleccionar Programa",
   },
   bookSetup: {
     title: "Configuración de Libros",
@@ -68,8 +68,7 @@ export default {
   },
   addBookForm: {
     addBook: "Agregar Libro",
-    isActive:
-      "Libro está activo (disponible para transacciones y estadísticas)",
+    isActive: "Libro está activo (disponible para transacciones y estadísticas)",
     editBook: "Editar Libro",
     title: "Título",
     author: "Autor",
@@ -112,11 +111,11 @@ export default {
     people: "Personas",
     confirmation: "Confirmación",
     created: "Creado por",
-    advanceExample: 'Ejemplo de adelanto: ',
-    advanceExampleDescription: 'Si las ventas semanales son de $1000, con un adelanto del 10%, la persona podrá solicitar hasta $100 de adelanto. ',
-    programPercentageDescription: 'Porcentaje de las ventas que va al programa.',
-    revenueDistribution: 'Distribución de Ingresos',
-    cashAdvances: 'Adelantos en Efectivo',
+    advanceExample: "Ejemplo de adelanto: ",
+    advanceExampleDescription: "Si las ventas semanales son de $1000, con un adelanto del 10%, la persona podrá solicitar hasta $100 de adelanto. ",
+    programPercentageDescription: "Porcentaje de las ventas que va al programa.",
+    revenueDistribution: "Distribución de Ingresos",
+    cashAdvances: "Adelantos en Efectivo",
   },
   programSettings: {
     programInformation: "Información del Programa",
@@ -169,8 +168,7 @@ export default {
     leaderPercentage: "Porcentaje para Líderes",
     leaderPercentageDescription:
       "Porcentaje de las ventas que va a los líderes",
-    colporterCashAdvanceLimit:
-      "Límite de Adelanto en Efectivo para Colportores",
+    colporterCashAdvanceLimit: "Límite de Adelanto en Efectivo para Colportores",
     colporterCashAdvanceDescription:
       "Porcentaje máximo de las ventas semanales para adelantos en efectivo de colportores",
     leaderCashAdvanceLimit: "Límite de Adelanto en Efectivo para Líderes",
@@ -488,6 +486,7 @@ export default {
       "Puedes restablecer la contraseña de este usuario a la predeterminada: {{password}}",
     resetPasswordButton: "Restablecer Contraseña",
     passwordResetConfirmation: "Contraseña restablecida a:",
+    allStatuses: "Todos los Estados", // Added translation
   },
   personForm: {
     addNewPerson: "Agregar Nueva Persona",
@@ -508,7 +507,7 @@ export default {
     deleteSuccess: "Persona eliminada exitosamente",
     errorSaving: "Error al guardar la persona",
     errorDeletingCOLPORTER: "Error al eliminar el colportor",
-    errorDeletingLEADER: "Error al eliminar el líder"
+    errorDeletingLEADER: "Error al eliminar el líder",
   },
   peoplePage: {
     searchPlaceholder: "Buscar personas",
@@ -648,7 +647,7 @@ export default {
       "Vista diaria de transacciones financieras y libros entregados",
     finances: "Finanzas",
     deliveredBooks: "Libros Entregados",
-    successApproved: 'Transacción aprobada exitosamente',
+    successApproved: "Transacción aprobada exitosamente",
     newTransaction: "Nueva Transacción",
     largeBooks: "Libros Grandes",
     smallBooks: "Libros Pequeños",
@@ -679,7 +678,6 @@ export default {
     approved: "Aprobado",
     rejected: "Rechazado",
     notes: "Notas",
-
   },
   addExpenseForm: {
     noLeadersFound: "No se encontraron líderes",
@@ -804,27 +802,27 @@ export default {
       reports: "Informes",
       donations: "Donaciones",
       programReport: "Informe del Programa",
-      individualReport: "Informe Individual"
+      individualReport: "Informe Individual",
     },
     users: {
       users: "Usuarios",
       manageUsers: "Gestionar Usuarios",
-      manageRoles: "Gestionar Roles"
+      manageRoles: "Gestionar Roles",
     },
     people: {
       people: "Personas",
       allPeople: "Todas las Personas",
       colporters: "Colportores",
-      leaders: "Líderes"
+      leaders: "Líderes",
     },
-    program: 'Programa',
+    program: "Programa",
     donations: "Donaciones",
     profile: "Perfil",
     settings: "Configuración",
     deliveredBooks: "Libros Entregados",
     records: "Registros",
     expenses: "Gastos",
-    administration: "Administración"
+    administration: "Administración",
   },
   deposits: {
     title: "Depósitos",
