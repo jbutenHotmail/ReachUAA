@@ -144,7 +144,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     !location.pathname.includes('/program-select') && 
     !location.pathname.includes('/setup')
   ) {
-    console.log('No program found, redirecting to program selection');
     return <Navigate to="/program-select" replace />;
   }
   

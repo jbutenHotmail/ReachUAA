@@ -24,7 +24,6 @@ const GoalProgress: React.FC<GoalProgressProps> = ({ goal }) => {
   const remaining = goal.amount - goal.achieved;
   
   const formatDate = (date: string) => {
-    console.log(date);
     return format(new Date(date), 'PP', { locale });
   };
   

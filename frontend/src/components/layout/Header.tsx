@@ -1,22 +1,43 @@
-import React from 'react';
-import { useTranslation } from 'react-i18next';
-import { NavLink } from 'react-router-dom'; // Import NavLink
-import { Menu, User, LogOut, Footprints } from 'lucide-react';
-import { useAuthStore } from '../../stores/authStore';
-import { useProgramStore } from '../../stores/programStore';
-import Avatar from '../ui/Avatar';
-import logoReach from '../../assets/logo_reach.webp';
+"use client"
+
+import React, { useEffect, useRef } from "react"
+import { useTranslation } from "react-i18next"
+import { NavLink } from "react-router-dom"
+import { Menu, User, LogOut, Footprints } from "lucide-react"
+import { useAuthStore } from "../../stores/authStore"
+import { useProgramStore } from "../../stores/programStore"
+import Avatar from "../ui/Avatar"
+import logoReach from "../../assets/logo_reach.webp"
+
 interface HeaderProps {
-  onMenuToggle: () => void;
+  onMenuToggle: () => void
 }
 
 const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
-  const { t } = useTranslation();
-  const { user, logout } = useAuthStore();
-  const { program } = useProgramStore();
-  const [dropdownOpen, setDropdownOpen] = React.useState(false);
+  const { t } = useTranslation()
+  const { user, logout } = useAuthStore()
+  const { program } = useProgramStore()
+  const [dropdownOpen, setDropdownOpen] = React.useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const toggleDropdown = () => setDropdownOpen(!dropdownOpen);
+  const toggleDropdown = () => setDropdownOpen(!dropdownOpen)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [dropdownOpen])
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
@@ -29,12 +50,12 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
           >
             <Menu size={20} />
           </button>
-          
+
           {/* Logo for mobile */}
           <div className="md:hidden ml-2">
-            <img src={logoReach} alt="Reach UAA" className="h-8 w-16" />
+            <img src={logoReach || "/placeholder.svg"} alt="Reach UAA" className="h-8 w-16" />
           </div>
-          
+
           {/* Program name for mobile */}
           {program && (
             <div className="ml-3 sm:flex md:flex items-center">
@@ -49,17 +70,13 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
             </div>
           )}
         </div>
-        
+
         <div className="flex items-center space-x-2 sm:space-x-3">
-       
-          <div className="relative">
-            <button
-              onClick={toggleDropdown}
-              className="flex items-center space-x-1 sm:space-x-2 focus:outline-none"
-            >
+          <div className="relative" ref={dropdownRef}>
+            <button onClick={toggleDropdown} className="flex items-center space-x-1 sm:space-x-2 focus:outline-none">
               <Avatar
-                name={user?.name || ''}
-                src={user?.profile_image_url || ''}
+                name={user?.name || ""}
+                src={user?.profile_image_url || ""}
                 size="sm"
                 className="ring-2 ring-white/20 w-7 h-7 sm:w-8 sm:h-8"
               />
@@ -67,28 +84,28 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
                 {user?.name}
               </span>
             </button>
-            
+
             {dropdownOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 z-50">
                 <NavLink
                   to="/profile"
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                   onClick={() => {
-                    setDropdownOpen(false);
+                    setDropdownOpen(false)
                   }}
                 >
                   <User size={16} className="mr-2" />
-                  {t('profile.title')}
+                  {t("profile.title")}
                 </NavLink>
                 <button
                   onClick={() => {
-                    logout();
-                    setDropdownOpen(false);
+                    logout()
+                    setDropdownOpen(false)
                   }}
                   className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                 >
                   <LogOut size={16} className="mr-2" />
-                  {t('auth.logout')}
+                  {t("auth.logout")}
                 </button>
               </div>
             )}
@@ -96,7 +113,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
         </div>
       </div>
     </header>
-  );
-};
+  )
+}
 
-export default Header;
+export default Header

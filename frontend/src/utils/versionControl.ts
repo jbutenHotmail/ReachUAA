@@ -114,7 +114,6 @@ export const checkForUpdates = async (): Promise<void> => {
           await Promise.all(
             cacheNames.map(cacheName => window.caches.delete(cacheName))
           );
-          console.log('Cache cleared successfully');
         } catch (err) {
           console.error('Error clearing cache:', err);
         }

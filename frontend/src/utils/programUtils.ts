@@ -28,7 +28,6 @@ export const isColportableDay = (date: Date): boolean => {
   const customDay = program.customDays?.find(day => {
     // Normalize the custom day date to YYYY-MM-DD
     const customDayStr = new Date(day.date).toISOString().split('T')[0];
-    console.log(customDayStr, dateStr, customDayStr === dateStr);
     return customDayStr === dateStr;
   });
   

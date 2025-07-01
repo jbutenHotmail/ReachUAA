@@ -47,7 +47,6 @@ const ViewerDashboard = () => {
   
   // Handle manual refresh
   const handleDataRefresh = () => {
-    console.log(user);
     if (!user?.id) return;
     fetchPersonalStats(user.id, true);
   };
