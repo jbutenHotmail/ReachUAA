@@ -21,6 +21,7 @@ const ColporterReport: React.FC = () => {
   const [colporterData, setColporterData] = useState<any>(null);
   const [weeklyData, setWeeklyData] = useState<any>(null);
 
+  console.log('zsdfvxdfdfdsfgdf')
   useEffect(() => {
     const getColporterId = async () => {
       try {

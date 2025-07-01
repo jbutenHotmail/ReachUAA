@@ -104,8 +104,8 @@ const SummerColporterReport: React.FC = () => {
       try {
         // Get all transactions for this person based on their type - ONLY APPROVED TRANSACTIONS
         const params = personType === 'COLPORTER' 
-          ? { studentId: personId, status: 'APPROVED' } 
-          : { leaderId: personId, status: 'APPROVED' };
+          ? { studentId: personId, status: 'APPROVED', programId: program?.id } 
+          : { leaderId: personId, status: 'APPROVED', programId: program?.id };
         
         const personTransactions = await api.get('/transactions', { params });
         console.log(personTransactions)
