@@ -5,7 +5,7 @@ import * as db from '../config/database.js';
 export const getUsers = async (req, res) => {
   try {
     const { programId } = req.query;
-    
+    console.log(programId)
     // Base query to get users with their associated person
     let query = `
       SELECT u.id, u.person_id as personId, u.email, u.role, u.status, u.last_login as lastLogin,
@@ -20,7 +20,7 @@ export const getUsers = async (req, res) => {
     // Add program filter if programId is provided
     if (programId) {
       query += `
-        WHERE (p.program_id = ? OR u.role = 'ADMIN' OR p.program_id IS NULL)
+        WHERE (p.program_id = ?)
       `;
       params.push(programId);
     }
