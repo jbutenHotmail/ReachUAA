@@ -22,13 +22,13 @@ import dashboardRoutes from './routes/dashboard.js';
 // Get current directory
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
+console.log(process.env.NODE_ENV);
 // Initialize express app
 const app = express();
 // Configure CORS with credentials
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://reachuaa.com'] // Production frontend URL
+    ? ['https://reachuaa.com', 'http://localhost:5173'] // Production frontend URL
     : ['http://localhost:5173', 'https://l9sxxsf4-3000.usw2.devtunnels.ms'],
     credentials: true // Allow cookies to be sent with requests
 }));
