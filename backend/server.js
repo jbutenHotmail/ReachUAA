@@ -25,12 +25,10 @@ const __dirname = dirname(__filename);
 
 // Initialize express app
 const app = express();
-
 // Configure CORS with credentials
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? 'https://reach-uaa.netlify.app' // Production frontend URL
-    // : 'https://l9sxxsf4-3000.usw2.devtunnels.ms', // Development frontend URL
+    ? ['https://reachuaa.com'] // Production frontend URL
     : ['http://localhost:5173', 'https://l9sxxsf4-3000.usw2.devtunnels.ms'],
     credentials: true // Allow cookies to be sent with requests
 }));
