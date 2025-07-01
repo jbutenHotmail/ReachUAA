@@ -16,15 +16,15 @@ import LoadingScreen from "../../components/ui/LoadingScreen"
 type TimePeriod = "day" | "week" | "month" | "all"
 
 // Utility functions for consistent date handling
-const parseTransactionDate = (dateInput: string | Date): Date => {
-  if (typeof dateInput === "string") {
-    // Si la fecha es solo YYYY-MM-DD, agregar tiempo para evitar problemas de zona horaria
-    if (dateInput.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      return new Date(dateInput + "T12:00:00")
-    }
-    return new Date(dateInput)
-  }
-  return new Date(dateInput)
+const getDateFromUTC = (dateString: string): Date => {
+  const utcDate = new Date(dateString)
+  // Extraer año, mes, día de la fecha UTC y crear una fecha local
+  const year = utcDate.getUTCFullYear()
+  const month = utcDate.getUTCMonth()
+  const day = utcDate.getUTCDate()
+
+  // Crear nueva fecha en zona horaria local con los mismos año, mes, día
+  return new Date(year, month, day)
 }
 
 const isSameDay = (date1: Date, date2: Date): boolean => {
@@ -50,6 +50,13 @@ const isDateInWeek = (date: Date, weekStartDate: Date): boolean => {
 
 const isDateInMonth = (date: Date, monthDate: Date): boolean => {
   return date.getMonth() === monthDate.getMonth() && date.getFullYear() === monthDate.getFullYear()
+}
+
+const formatDateKey = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
 }
 
 const DonationsReport: React.FC = () => {
@@ -129,7 +136,7 @@ const DonationsReport: React.FC = () => {
     }
 
     return approvedTransactions.filter((transaction) => {
-      const transactionDate = parseTransactionDate(transaction.date)
+      const transactionDate = getDateFromUTC(transaction.date)
 
       if (timePeriod === "day") {
         return isSameDay(transactionDate, selectedDate)
@@ -160,8 +167,9 @@ const DonationsReport: React.FC = () => {
 
       const colporterData = colporterMap.get(transaction.studentId)
 
-      // Usar la fecha original como clave
-      const dateKey = transaction.date
+      // Usar fecha consistente como clave
+      const transactionDate = getDateFromUTC(transaction.date)
+      const dateKey = formatDateKey(transactionDate)
 
       if (!colporterData.dailySales[dateKey]) {
         colporterData.dailySales[dateKey] = 0
@@ -192,8 +200,9 @@ const DonationsReport: React.FC = () => {
       const colporterData = colporterMap.get(transaction.studentId)
 
       if (transaction.books && transaction.books.length > 0) {
-        // Usar la fecha original como clave
-        const dateKey = transaction.date
+        // Usar fecha consistente como clave
+        const transactionDate = getDateFromUTC(transaction.date)
+        const dateKey = formatDateKey(transactionDate)
 
         if (!colporterData.dailyBooks[dateKey]) {
           colporterData.dailyBooks[dateKey] = { large: 0, small: 0 }
@@ -305,17 +314,16 @@ const DonationsReport: React.FC = () => {
               <div className="px-4 py-2 flex items-center gap-2 border-l border-r border-gray-200">
                 <Calendar size={16} className="text-gray-500" />
                 <span className="text-sm font-medium">
-                  {timePeriod === "day" &&
-                    parseTransactionDate(selectedDate).toLocaleDateString("en-US", { day: "numeric", month: "short" })}
+                  {timePeriod === "day" && selectedDate.toLocaleDateString("en-US", { day: "numeric", month: "short" })}
                   {timePeriod === "week" &&
                     t("donationsReport.weekOf", {
-                      date: parseTransactionDate(selectedDate).toLocaleDateString("en-US", {
+                      date: selectedDate.toLocaleDateString("en-US", {
                         day: "numeric",
                         month: "short",
                       }),
                     })}
                   {timePeriod === "month" &&
-                    parseTransactionDate(selectedDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                    selectedDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
                 </span>
               </div>
 
