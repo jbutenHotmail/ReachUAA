@@ -145,7 +145,8 @@ const TransactionDetails: React.FC = () => {
                       weekday: 'long',
                       year: 'numeric',
                       month: 'long',
-                      day: 'numeric'
+                      day: 'numeric',
+                      timeZone: 'UTC'
                     })}
                   </p>
                 </div>
@@ -158,7 +159,8 @@ const TransactionDetails: React.FC = () => {
                       weekday: 'long',
                       year: 'numeric',
                       month: 'long',
-                      day: 'numeric'
+                      day: 'numeric',
+                      timeZone: 'UTC'
                     })}
                   </p>
                 </div>

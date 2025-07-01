@@ -1,113 +1,130 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import { BookText, Heart, Calendar, UserCog, Users, ChevronLeft, ChevronRight } from "lucide-react"
-import { useNavigate, useLocation } from "react-router-dom"
-import { useTranslation } from "react-i18next"
-import SummerReport from "../../components/reports/SummerReport"
-import SummerBooksReport from "../../components/reports/SummerBooksReport"
-import Card from "../../components/ui/Card"
-import Button from "../../components/ui/Button"
-import { clsx } from "clsx"
-import { useTransactionStore } from "../../stores/transactionStore"
-import LoadingScreen from "../../components/ui/LoadingScreen"
+import type React from "react";
+import { useState, useEffect } from "react";
+import {
+  BookText,
+  Heart,
+  Calendar,
+  UserCog,
+  Users,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import SummerReport from "../../components/reports/SummerReport";
+import SummerBooksReport from "../../components/reports/SummerBooksReport";
+import Card from "../../components/ui/Card";
+import Button from "../../components/ui/Button";
+import { clsx } from "clsx";
+import { useTransactionStore } from "../../stores/transactionStore";
+import LoadingScreen from "../../components/ui/LoadingScreen";
 
-type TimePeriod = "day" | "week" | "month" | "all"
+type TimePeriod = "day" | "week" | "month" | "all";
 
 // Utility functions for consistent date handling
 const getDateFromUTC = (dateString: string): Date => {
-  const utcDate = new Date(dateString)
+  const utcDate = new Date(dateString);
   // Extraer año, mes, día de la fecha UTC y crear una fecha local
-  const year = utcDate.getUTCFullYear()
-  const month = utcDate.getUTCMonth()
-  const day = utcDate.getUTCDate()
+  const year = utcDate.getUTCFullYear();
+  const month = utcDate.getUTCMonth();
+  const day = utcDate.getUTCDate();
 
   // Crear nueva fecha en zona horaria local con los mismos año, mes, día
-  return new Date(year, month, day)
-}
+  return new Date(year, month, day);
+};
 
 const isSameDay = (date1: Date, date2: Date): boolean => {
   return (
     date1.getFullYear() === date2.getFullYear() &&
     date1.getMonth() === date2.getMonth() &&
     date1.getDate() === date2.getDate()
-  )
-}
+  );
+};
 
 const isDateInWeek = (date: Date, weekStartDate: Date): boolean => {
-  const startOfWeek = new Date(weekStartDate)
-  const day = startOfWeek.getDay()
-  startOfWeek.setDate(startOfWeek.getDate() - day)
-  startOfWeek.setHours(0, 0, 0, 0)
+  const startOfWeek = new Date(weekStartDate);
+  const day = startOfWeek.getDay();
+  startOfWeek.setDate(startOfWeek.getDate() - day);
+  startOfWeek.setHours(0, 0, 0, 0);
 
-  const endOfWeek = new Date(startOfWeek)
-  endOfWeek.setDate(startOfWeek.getDate() + 6)
-  endOfWeek.setHours(23, 59, 59, 999)
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+  endOfWeek.setHours(23, 59, 59, 999);
 
-  return date >= startOfWeek && date <= endOfWeek
-}
+  return date >= startOfWeek && date <= endOfWeek;
+};
 
 const isDateInMonth = (date: Date, monthDate: Date): boolean => {
-  return date.getMonth() === monthDate.getMonth() && date.getFullYear() === monthDate.getFullYear()
-}
+  return (
+    date.getMonth() === monthDate.getMonth() &&
+    date.getFullYear() === monthDate.getFullYear()
+  );
+};
 
 const formatDateKey = (date: Date): string => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, "0")
-  const day = String(date.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
-}
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const DonationsReport: React.FC = () => {
-  const { t } = useTranslation()
-  const [showColporters, setShowColporters] = useState(true)
-  const [showLeaders, setShowLeaders] = useState(false)
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>("all")
-  const [selectedDate, setSelectedDate] = useState(new Date())
-  const location = useLocation()
-  const navigate = useNavigate()
-  const { transactions, isLoading, error, fetchAllTransactions, wereTransactionsFetched } = useTransactionStore()
+  const { t } = useTranslation();
+  const [showColporters, setShowColporters] = useState(true);
+  const [showLeaders, setShowLeaders] = useState(false);
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const location = useLocation();
+  const navigate = useNavigate();
+  const {
+    transactions,
+    isLoading,
+    error,
+    fetchAllTransactions,
+    wereTransactionsFetched,
+  } = useTransactionStore();
 
-  const isFinancesRoute = location.pathname.includes("/finances")
+  const isFinancesRoute = location.pathname.includes("/finances");
 
   useEffect(() => {
     const loadTransactionData = async () => {
       try {
         if (!wereTransactionsFetched) {
-          await fetchAllTransactions("APPROVED")
+          await fetchAllTransactions("APPROVED");
         }
       } catch (err) {
-        console.error("Error fetching transaction data:", err)
+        console.error("Error fetching transaction data:", err);
       }
-    }
+    };
 
-    loadTransactionData()
-  }, [fetchAllTransactions, wereTransactionsFetched])
+    loadTransactionData();
+  }, [fetchAllTransactions, wereTransactionsFetched]);
 
   const handleToggleView = () => {
-    setShowColporters(!showColporters)
-  }
+    setShowColporters(!showColporters);
+  };
 
   const handleToggleGrouping = () => {
-    setShowLeaders(!showLeaders)
-  }
+    setShowLeaders(!showLeaders);
+  };
 
   const navigateDate = (direction: "prev" | "next") => {
     setSelectedDate((prev) => {
-      const newDate = new Date(prev)
+      const newDate = new Date(prev);
 
       if (timePeriod === "day") {
-        newDate.setDate(prev.getDate() + (direction === "next" ? 1 : -1))
+        newDate.setDate(prev.getDate() + (direction === "next" ? 1 : -1));
       } else if (timePeriod === "week") {
-        newDate.setDate(prev.getDate() + (direction === "next" ? 7 : -7))
+        newDate.setDate(prev.getDate() + (direction === "next" ? 7 : -7));
       } else if (timePeriod === "month") {
-        newDate.setMonth(prev.getMonth() + (direction === "next" ? 1 : -1))
+        newDate.setMonth(prev.getMonth() + (direction === "next" ? 1 : -1));
       }
 
-      return newDate
-    })
-  }
+      return newDate;
+    });
+  };
 
   const tabs = [
     {
@@ -122,38 +139,40 @@ const DonationsReport: React.FC = () => {
       icon: <BookText size={18} />,
       path: "/reports/donations/delivered-books",
     },
-  ]
+  ];
 
   const getFilteredTransactions = () => {
     if (!transactions || transactions.length === 0) {
-      return []
+      return [];
     }
 
-    const approvedTransactions = transactions.filter((t) => t.status === "APPROVED")
+    const approvedTransactions = transactions.filter(
+      (t) => t.status === "APPROVED"
+    );
 
     if (timePeriod === "all") {
-      return approvedTransactions
+      return approvedTransactions;
     }
 
     return approvedTransactions.filter((transaction) => {
-      const transactionDate = getDateFromUTC(transaction.date)
+      const transactionDate = getDateFromUTC(transaction.date);
 
       if (timePeriod === "day") {
-        return isSameDay(transactionDate, selectedDate)
+        return isSameDay(transactionDate, selectedDate);
       } else if (timePeriod === "week") {
-        return isDateInWeek(transactionDate, selectedDate)
+        return isDateInWeek(transactionDate, selectedDate);
       } else if (timePeriod === "month") {
-        return isDateInMonth(transactionDate, selectedDate)
+        return isDateInMonth(transactionDate, selectedDate);
       }
 
-      return true
-    })
-  }
+      return true;
+    });
+  };
 
   const transformTransactionsToSalesData = () => {
-    const filteredTransactions = getFilteredTransactions()
+    const filteredTransactions = getFilteredTransactions();
 
-    const colporterMap = new Map()
+    const colporterMap = new Map();
 
     filteredTransactions.forEach((transaction) => {
       if (!colporterMap.has(transaction.studentId)) {
@@ -162,30 +181,30 @@ const DonationsReport: React.FC = () => {
           leaderName: transaction.leaderName,
           dailySales: {},
           totalSales: 0,
-        })
+        });
       }
 
-      const colporterData = colporterMap.get(transaction.studentId)
+      const colporterData = colporterMap.get(transaction.studentId);
 
       // Usar fecha consistente como clave
-      const transactionDate = getDateFromUTC(transaction.date)
-      const dateKey = formatDateKey(transactionDate)
+      const transactionDate = getDateFromUTC(transaction.date);
+      const dateKey = formatDateKey(transactionDate);
 
       if (!colporterData.dailySales[dateKey]) {
-        colporterData.dailySales[dateKey] = 0
+        colporterData.dailySales[dateKey] = 0;
       }
 
-      colporterData.dailySales[dateKey] += transaction.total
-      colporterData.totalSales += transaction.total
-    })
+      colporterData.dailySales[dateKey] += transaction.total;
+      colporterData.totalSales += transaction.total;
+    });
 
-    return Array.from(colporterMap.values())
-  }
+    return Array.from(colporterMap.values());
+  };
 
   const transformTransactionsToBookData = () => {
-    const filteredTransactions = getFilteredTransactions()
+    const filteredTransactions = getFilteredTransactions();
 
-    const colporterMap = new Map()
+    const colporterMap = new Map();
 
     filteredTransactions.forEach((transaction) => {
       if (!colporterMap.has(transaction.studentId)) {
@@ -194,41 +213,41 @@ const DonationsReport: React.FC = () => {
           leaderName: transaction.leaderName,
           dailyBooks: {},
           totalBooks: { large: 0, small: 0 },
-        })
+        });
       }
 
-      const colporterData = colporterMap.get(transaction.studentId)
+      const colporterData = colporterMap.get(transaction.studentId);
 
       if (transaction.books && transaction.books.length > 0) {
         // Usar fecha consistente como clave
-        const transactionDate = getDateFromUTC(transaction.date)
-        const dateKey = formatDateKey(transactionDate)
+        const transactionDate = getDateFromUTC(transaction.date);
+        const dateKey = formatDateKey(transactionDate);
 
         if (!colporterData.dailyBooks[dateKey]) {
-          colporterData.dailyBooks[dateKey] = { large: 0, small: 0 }
+          colporterData.dailyBooks[dateKey] = { large: 0, small: 0 };
         }
 
         transaction.books.forEach((book) => {
           if (book.size === "LARGE") {
-            colporterData.dailyBooks[dateKey].large += book.quantity
-            colporterData.totalBooks.large += book.quantity
+            colporterData.dailyBooks[dateKey].large += book.quantity;
+            colporterData.totalBooks.large += book.quantity;
           } else {
-            colporterData.dailyBooks[dateKey].small += book.quantity
-            colporterData.totalBooks.small += book.quantity
+            colporterData.dailyBooks[dateKey].small += book.quantity;
+            colporterData.totalBooks.small += book.quantity;
           }
-        })
+        });
       }
-    })
+    });
 
-    return Array.from(colporterMap.values())
-  }
+    return Array.from(colporterMap.values());
+  };
 
   const formatDateRange = () => {
     if (timePeriod === "all") {
-      return t("donationsReport.completeProgram")
+      return t("donationsReport.completeProgram");
     }
 
-    const startDate = selectedDate
+    const startDate = selectedDate;
 
     if (timePeriod === "day") {
       return startDate.toLocaleDateString("en-US", {
@@ -236,28 +255,43 @@ const DonationsReport: React.FC = () => {
         year: "numeric",
         month: "long",
         day: "numeric",
-      })
+        timeZone: 'UTC'
+      });
     } else if (timePeriod === "week") {
-      const day = startDate.getDay()
-      const sunday = new Date(startDate)
-      sunday.setDate(startDate.getDate() - day)
+      const day = startDate.getDay();
+      const sunday = new Date(startDate);
+      sunday.setDate(startDate.getDate() - day);
 
-      const saturday = new Date(sunday)
-      saturday.setDate(sunday.getDate() + 6)
+      const saturday = new Date(sunday);
+      saturday.setDate(sunday.getDate() + 6);
 
-      return `${sunday.toLocaleDateString("en-US", { month: "long", day: "numeric" })} - ${saturday.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`
+      return `${sunday.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        timeZone: "UTC"
+      })} - ${saturday.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      })}`;
     } else if (timePeriod === "month") {
-      return startDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+      return startDate.toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+        
+      });
     }
 
-    return ""
-  }
+    return "";
+  };
 
-  const salesData = transformTransactionsToSalesData()
-  const booksData = transformTransactionsToBookData()
+  const salesData = transformTransactionsToSalesData();
+  const booksData = transformTransactionsToBookData();
 
   if (isLoading) {
-    return <LoadingScreen message={t("donationsReport.loading")} />
+    return <LoadingScreen message={t("donationsReport.loading")} />;
   }
 
   if (error) {
@@ -268,7 +302,7 @@ const DonationsReport: React.FC = () => {
           <p>{error}</p>
         </div>
       </Card>
-    )
+    );
   }
 
   return (
@@ -281,53 +315,77 @@ const DonationsReport: React.FC = () => {
           </h1>
           <div className="flex items-center gap-2 mt-2">
             <Calendar size={16} className="text-gray-500" />
-            <span className="text-sm font-medium text-gray-600">{formatDateRange()}</span>
+            <span className="text-sm font-medium text-gray-600">
+              {formatDateRange()}
+            </span>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           <Card className="p-0 shadow-sm">
             <div className="flex items-center divide-x">
-              {(["day", "week", "month", "all"] as TimePeriod[]).map((period) => (
-                <button
-                  key={period}
-                  onClick={() => setTimePeriod(period)}
-                  className={clsx(
-                    "px-3 py-2 text-sm font-medium transition-colors",
-                    timePeriod === period
-                      ? "bg-primary-50 text-primary-700"
-                      : "bg-white text-gray-600 hover:bg-gray-50",
-                  )}
-                >
-                  {t(`donationsReport.${period}`)}
-                </button>
-              ))}
+              {(["day", "week", "month", "all"] as TimePeriod[]).map(
+                (period) => (
+                  <button
+                    key={period}
+                    onClick={() => setTimePeriod(period)}
+                    className={clsx(
+                      "px-3 py-2 text-sm font-medium transition-colors",
+                      timePeriod === period
+                        ? "bg-primary-50 text-primary-700"
+                        : "bg-white text-gray-600 hover:bg-gray-50"
+                    )}
+                  >
+                    {t(`donationsReport.${period}`)}
+                  </button>
+                )
+              )}
             </div>
           </Card>
 
           {timePeriod !== "all" && (
             <div className="flex items-center bg-white rounded-lg shadow-sm border border-gray-200">
-              <Button variant="ghost" size="sm" onClick={() => navigateDate("prev")} className="px-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigateDate("prev")}
+                className="px-2"
+              >
                 <ChevronLeft size={20} />
               </Button>
 
               <div className="px-4 py-2 flex items-center gap-2 border-l border-r border-gray-200">
                 <Calendar size={16} className="text-gray-500" />
                 <span className="text-sm font-medium">
-                  {timePeriod === "day" && selectedDate.toLocaleDateString("en-US", { day: "numeric", month: "short" })}
+                  {timePeriod === "day" &&
+                    selectedDate.toLocaleDateString("en-US", {
+                      day: "numeric",
+                      month: "short",
+                      timeZone: 'UTC'
+                    })}
                   {timePeriod === "week" &&
                     t("donationsReport.weekOf", {
                       date: selectedDate.toLocaleDateString("en-US", {
                         day: "numeric",
                         month: "short",
+                        timeZone: 'UTC'
                       }),
                     })}
                   {timePeriod === "month" &&
-                    selectedDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                    selectedDate.toLocaleDateString("en-US", {
+                      month: "long",
+                      year: "numeric",
+                      timeZone: 'UTC'
+                    })}
                 </span>
               </div>
 
-              <Button variant="ghost" size="sm" onClick={() => navigateDate("next")} className="px-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigateDate("next")}
+                className="px-2"
+              >
                 <ChevronRight size={20} />
               </Button>
             </div>
@@ -339,7 +397,9 @@ const DonationsReport: React.FC = () => {
             onClick={handleToggleGrouping}
             leftIcon={showLeaders ? <Users size={16} /> : <UserCog size={16} />}
           >
-            {showLeaders ? t("donationsReport.byColporters") : t("donationsReport.byLeaders")}
+            {showLeaders
+              ? t("donationsReport.byColporters")
+              : t("donationsReport.byLeaders")}
           </Button>
         </div>
       </div>
@@ -354,7 +414,7 @@ const DonationsReport: React.FC = () => {
                 "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm inline-flex items-center gap-2",
                 location.pathname.includes(tab.id)
                   ? "border-primary-500 text-primary-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               )}
             >
               {tab.icon}
@@ -386,7 +446,7 @@ const DonationsReport: React.FC = () => {
         />
       )}
     </div>
-  )
-}
+  );
+};
 
-export default DonationsReport
+export default DonationsReport;

@@ -104,7 +104,8 @@ const NewTransaction: React.FC = () => {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
+    timeZone: 'UTC'
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -232,7 +233,8 @@ const NewTransaction: React.FC = () => {
                   weekday: 'long',
                   year: 'numeric',
                   month: 'long',
-                  day: 'numeric'
+                  day: 'numeric',
+                  timeZone: 'UTC'
                 })}
               </p>
             </div>

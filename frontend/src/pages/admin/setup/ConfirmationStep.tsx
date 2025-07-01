@@ -42,7 +42,8 @@ const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
     return new Date(dateString).toLocaleDateString('es-US', {
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: 'UTC'
     });
   };
 

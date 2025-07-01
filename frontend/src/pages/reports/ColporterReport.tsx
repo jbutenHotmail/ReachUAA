@@ -345,7 +345,8 @@ const ColporterReport: React.FC = () => {
                         {new Date(date).toLocaleDateString('en-US', { 
                           weekday: 'short',
                           month: '2-digit',
-                          day: '2-digit'
+                          day: '2-digit',
+                          timeZone: 'UTC'
                         })}
                       </th>
                     ))}

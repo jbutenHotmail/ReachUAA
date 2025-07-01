@@ -778,6 +778,7 @@ const ProgramSettings: React.FC = () => {
                           month: "long",
                           day: "numeric",
                           year: "numeric",
+                          timeZone: 'UTC'
                         }
                       ),
                       currentStatus: confirmationModal.currentStatus,

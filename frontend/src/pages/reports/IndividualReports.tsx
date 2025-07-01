@@ -52,7 +52,7 @@ const formatDateSafe = (dateString: string): string => {
 
   // Create date in local timezone to avoid UTC conversion issues
   const date = new Date(Number.parseInt(year), Number.parseInt(month) - 1, Number.parseInt(day))
-  return date.toLocaleDateString()
+  return date.toLocaleDateString('en-US', { timeZone: 'UTC' })
 }
 
 // Helper function to get day name without timezone issues
@@ -64,7 +64,7 @@ const getDayNameSafe = (dateString: string): string => {
 
   // Create date in local timezone to avoid UTC conversion issues
   const date = new Date(Number.parseInt(year), Number.parseInt(month) - 1, Number.parseInt(day))
-  return date.toLocaleDateString("en-US", { weekday: "short" })
+  return date.toLocaleDateString("en-US", { weekday: "short", timeZone: 'UTC' })
 }
 
 // Helper function to format date for week labels without timezone issues
@@ -76,7 +76,7 @@ const formatWeekLabelSafe = (dateString: string): string => {
 
   // Create date in local timezone to avoid UTC conversion issues
   const date = new Date(Number.parseInt(year), Number.parseInt(month) - 1, Number.parseInt(day))
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: 'UTC' })
 }
 
 // Helper function to get day of week number without timezone issues

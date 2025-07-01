@@ -439,7 +439,8 @@ const SummerColporterReport: React.FC = () => {
               {stats.bestDay.date ? new Date(stats.bestDay.date).toLocaleDateString('es-ES', {
                 weekday: 'short',
                 month: 'short',
-                day: 'numeric'
+                day: 'numeric',
+                timeZone: 'UTC'
               }) : 'N/A'}
             </p>
             <p className="text-base font-bold text-success-700">${stats.bestDay.amount.toFixed(2)}</p>
@@ -451,7 +452,8 @@ const SummerColporterReport: React.FC = () => {
               {stats.worstDay.date ? new Date(stats.worstDay.date).toLocaleDateString('es-ES', {
                 weekday: 'short',
                 month: 'short',
-                day: 'numeric'
+                day: 'numeric',
+                timeZone: 'UTC'
               }) : 'N/A'}
             </p>
             <p className="text-base font-bold text-warning-700">
@@ -559,7 +561,8 @@ const SummerColporterReport: React.FC = () => {
                       {new Date(date).toLocaleDateString('es-ES', { 
                         weekday: 'short',
                         month: '2-digit',
-                        day: '2-digit'
+                        day: '2-digit',
+                        timeZone: 'UTC'
                       })}
                     </th>
                   ))}
@@ -689,7 +692,8 @@ const SummerColporterReport: React.FC = () => {
                         weekday: 'short',
                         year: 'numeric',
                         month: 'short',
-                        day: 'numeric'
+                        day: 'numeric',
+                        timeZone: 'UTC'
                       })}
                     </td>
                     <td className="px-4 py-3 text-sm text-center">

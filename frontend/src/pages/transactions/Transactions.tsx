@@ -181,6 +181,7 @@ const Transactions: React.FC = () => {
                       year: "numeric",
                       month: window.innerWidth < 640 ? "short" : "long",
                       day: "numeric",
+                      timeZone: 'UTC'
                     })}
                   </span>
                 </noscript>

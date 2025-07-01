@@ -458,7 +458,8 @@ const LeaderDetailPage: React.FC = () => {
                     <div className="text-xs text-gray-500">
                       {colporter.bestDay.date ? new Date(colporter.bestDay.date).toLocaleDateString('es-ES', {
                         month: 'short',
-                        day: 'numeric'
+                        day: 'numeric',
+                        timeZone: 'UTC'
                       }) : 'N/A'}
                     </div>
                     <div className="font-medium text-success-600">
