@@ -4,7 +4,6 @@ import * as db from '../config/database.js';
 export const getTransactions = async (req, res) => {
   try {
     const { date, studentId, leaderId, status, programId } = req.query;
-    console.log(req.query)
     let query = `
       SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
       t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
@@ -37,7 +36,6 @@ export const getTransactions = async (req, res) => {
       conditions.push('t.status = ?');
       params.push(status);
     }
-    console.log(programId)
     if (programId) {
       conditions.push('t.program_id = ?');
       params.push(programId);
@@ -152,7 +150,7 @@ export const createTransaction = async (req, res) => {
       // Insert transaction
       const [transactionResult] = await connection.execute(
         'INSERT INTO transactions (student_id, leader_id, cash, checks, atm_mobile, paypal, total, transaction_date, status, created_by, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [studentId, leaderId, cash || 0, checks || 0, atmMobile || 0, paypal || 0, total, date, 'PENDING', userId, currentProgramId]
+        [studentId, leaderId, cash || 0, checks || 0, atmMobile || 0, paypal || 0, total, '2025-05-12', 'PENDING', userId, currentProgramId]
       );
       
       const transactionId = transactionResult.insertId;
