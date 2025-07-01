@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { 
   UserPlus, Search, Download, 
   Mail, Phone, Building2, MapPin, User,
-  Pencil, Trash2, UserCog
+  Pencil, Trash2, UserCog, X
 } from 'lucide-react';
 import {
   createColumnHelper,
@@ -30,12 +30,14 @@ const AllPeoplePage: React.FC = () => {
   const { t } = useTranslation();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'COLPORTER' | 'LEADER' | ''>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [typeFilter, setTypeFilter] = useState<string>('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingPerson, setEditingPerson] = useState<Person | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const {program} = useProgramStore();
+  const [error, setError] = useState<string | null>(null);
 
   const { 
     people, 
@@ -47,6 +49,18 @@ const AllPeoplePage: React.FC = () => {
     updatePerson,
     deletePerson
   } = useUserStore();
+
+  // Clear feedback messages when component unmounts
+  useEffect(() => {
+    return () => {
+      setError(null);
+      setSuccess(null);
+    };
+  }, []);
+
+  useEffect(() => {    
+    peopleError && setError(peopleError);
+  }, [peopleError]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -63,7 +77,7 @@ const AllPeoplePage: React.FC = () => {
     };
 
     loadData();
-  }, [fetchPeople, werePeopleFetched, t]);
+  }, [fetchPeople, werePeopleFetched, t, program]);
 
   const handleAddPerson = () => {
     setShowAddForm(true);
@@ -74,14 +88,22 @@ const AllPeoplePage: React.FC = () => {
     try {
       if (editingPerson) {
         await updatePerson(editingPerson.id, data);
+        setSuccess(t('personForm.updateSuccess'));
       } else {
         await createPerson(data);
+        setSuccess(t('personForm.createSuccess'));
       }
       
       setShowAddForm(false);
       setEditingPerson(null);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
-      console.error('Error saving person:', error);
+      console.error('Error creating person:', error);
+      setError(error instanceof Error ? error.message : t('personForm.errorSaving'));
+      // Clear error message after 5 seconds
+      setTimeout(() => setError(null), 5000);
     }
   };
 
@@ -94,8 +116,13 @@ const AllPeoplePage: React.FC = () => {
     if (window.confirm(t('peoplePage.confirmDelete'))) {
       try {
         await deletePerson(id, type);
+        setSuccess(t('personForm.deleteSuccess'));
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccess(null), 3000);
       } catch (error) {
-        console.error(`Error deleting ${type.toLowerCase()}:`, error);
+        setError(error instanceof Error ? error.message : t(`personForm.errorDeleting${type}`));
+        // Clear error message after 5 seconds
+        setTimeout(() => setError(null), 5000);
       }
     }
   };
@@ -211,9 +238,10 @@ const AllPeoplePage: React.FC = () => {
       const matchesSearch = person.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
                           person.email.toLowerCase().includes(globalFilter.toLowerCase());
       const matchesType = !typeFilter || person.personType === typeFilter;
-      return matchesSearch && matchesType;
+      const matchesStatus = !statusFilter || person.status === statusFilter;
+      return matchesSearch && matchesType && matchesStatus;
     });
-  }, [people, globalFilter, typeFilter]);
+  }, [people, globalFilter, typeFilter, statusFilter]);
 
   const table = useReactTable({
     data: filteredPeople,
@@ -237,17 +265,34 @@ const AllPeoplePage: React.FC = () => {
     );
   }
 
-  if (error || peopleError) {
-    return (
-      <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
-        <p className="font-medium">{t('peoplePage.errorLoadingPeople')}</p>
-        <p>{error || peopleError}</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
+      {success && (
+        <div className="p-4 bg-success-50 border border-success-200 rounded-lg flex items-center justify-between">
+          <p className="text-success-700">{success}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSuccess(null)}
+          >
+            <X size={16} />
+          </Button>
+        </div>
+      )}
+
+      {error && (
+        <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg flex items-center justify-between">
+          <p className="text-danger-700">{error}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setError(null)}
+          >
+            <X size={16} />
+          </Button>
+        </div>
+      )}
+
       <Card>
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between gap-4">
@@ -268,6 +313,16 @@ const AllPeoplePage: React.FC = () => {
                 <option value="">{t('common.allTypes')}</option>
                 <option value="COLPORTER">{t('common.colporters')}</option>
                 <option value="LEADER">{t('common.leaders')}</option>
+              </select>
+              
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+              >
+                <option value="">All Status</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
               </select>
             </div>
             

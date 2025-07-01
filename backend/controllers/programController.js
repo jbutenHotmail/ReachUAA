@@ -228,9 +228,18 @@ export const createProgram = async (req, res) => {
 // Get active program
 export const getProgram = async (req, res) => {
   try {
-    const program = await db.getOne(
-      "SELECT * FROM programs WHERE is_active = true"
-    );
+    // Obtener el ID del programa del usuario actual
+    const programId = req.user?.currentProgramId;
+    console.log('programId', programId)
+    // Si no hay un programa seleccionado, buscar el programa activo
+    let program;
+    if (programId) {
+      // Buscar el programa específico por ID
+      program = await db.getOne(
+        "SELECT * FROM programs WHERE id = ?",
+        [programId]
+      );
+    }
 
     if (!program) {
       return res.status(404).json({ message: "No active program found" });

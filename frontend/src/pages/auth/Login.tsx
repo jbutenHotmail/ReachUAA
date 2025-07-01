@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import LoginForm from '../../components/auth/LoginForm';
 import { useAuthStore } from '../../stores/authStore';
 import { useSettingsStore } from '../../stores/settingsStore';
-
+import logoreach from '../../assets/logo_reach.webp';
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
@@ -25,7 +25,7 @@ const Login: React.FC = () => {
     <div className="min-h-screen relative overflow-hidden flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       {/* Background with diffused gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#0052B4] via-[#0059cc] to-[#003D85] z-0">
-        <div className="absolute inset-0 bg-[url('/src/assets/logo_reach.webp')] opacity-5 bg-no-repeat bg-center bg-contain blur-3xl"></div>
+        <div className={`absolute inset-0 bg-[url(${logoreach})] opacity-5 bg-no-repeat bg-center bg-contain blur-3xl`}></div>
       </div>
       
       <div className="absolute top-0 right-0 p-4 z-10">
@@ -40,7 +40,7 @@ const Login: React.FC = () => {
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="flex justify-center">
           <img 
-            src="/src/assets/logo_reach.webp" 
+            src={logoreach}
             alt="Reach UAA" 
             className="h-32 w-auto drop-shadow-xl"
           />

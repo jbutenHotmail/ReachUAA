@@ -54,7 +54,7 @@ interface ProgramStore extends ProgramState {
   updateFinancialConfig: (id: number, configData: any) => Promise<void>;
   updateWorkingDay: (id: number, day: string, isWorkingDay: boolean) => Promise<void>;
   addCustomDay: (id: number, date: string, isWorkingDay: boolean) => Promise<void>;
-  resetStores: () => void;
+  resetStore: () => void;
 }
 
 export const useProgramStore = create<ProgramStore>()(
@@ -69,7 +69,6 @@ export const useProgramStore = create<ProgramStore>()(
       createProgram: async (programData) => {
         set({ isLoading: true, error: null });
         try {
-          console.log('programData', programData);
           const response = await api.post('/program', programData);
           
           // Switch to the new program
@@ -103,8 +102,18 @@ export const useProgramStore = create<ProgramStore>()(
       fetchProgram: async () => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.get('/program');
+          // Verificar si el usuario es ADMIN antes de intentar obtener el programa
+          const { user } = useAuthStore.getState();
+          // if (user?.role !== 'ADMIN') {
+          //   set({ 
+          //     program: null, 
+          //     isLoading: false,
+          //     wasProgramFetched: true
+          //   });
+          //   return;
+          // }
           
+          const response = await api.get('/program');
           if (response) {
             set({ 
               program: response, 
@@ -166,7 +175,7 @@ export const useProgramStore = create<ProgramStore>()(
         set({ isLoading: true, error: null });
         try {
           // Reset all stores before switching programs
-          get().resetStores();
+          get().resetStore();
           
           const response = await api.post(`/program/switch/${programId}`);
           
@@ -179,7 +188,9 @@ export const useProgramStore = create<ProgramStore>()(
             
             // Update the current program ID in the auth store
             const authStore = useAuthStore.getState();
+
             authStore.setCurrentProgram(programId);
+
           }
         } catch (error) {
           console.error('Error switching program:', error);
@@ -192,7 +203,16 @@ export const useProgramStore = create<ProgramStore>()(
       },
 
       // Reset all stores to clear local data
-      resetStores: () => {
+      resetStore: () => {
+        // Reset program store state
+        set({
+          program: null,
+          availablePrograms: null,
+          isLoading: false,
+          error: null,
+          wasProgramFetched: false
+        });
+        
         // Reset transaction store
         const transactionStore = useTransactionStore.getState();
         transactionStore.resetStore && transactionStore.resetStore();

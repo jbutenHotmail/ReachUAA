@@ -23,11 +23,28 @@ import { UserRole, BookSize } from '../../types';
 const InventoryTracking: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const { books, fetchBooks, updateInventoryCount, inventoryCounts: storedCounts, fetchInventoryCounts, isLoading, wereBooksLoaded } = useInventoryStore();
-  const { transactions, fetchTransactions, wereTransactionsFetched } = useTransactionStore();
+  const { 
+    books, 
+    fetchBooks, 
+    updateInventoryCount, 
+    inventoryCounts: storedCounts, 
+    fetchInventoryCounts, 
+    isLoading, 
+    wereBooksLoaded 
+  } = useInventoryStore();
+  const { 
+    transactions, 
+    fetchAllTransactions, 
+    wereTransactionsFetched 
+  } = useTransactionStore();
+  
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<number>(0);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const today = new Date();
+  const localDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
+  .toISOString()
+  .split('T')[0];
+  const [selectedDate, setSelectedDate] = useState(localDate);
   const [confirmingDiscrepancy, setConfirmingDiscrepancy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -36,12 +53,16 @@ const InventoryTracking: React.FC = () => {
     if (!wereBooksLoaded) {
       fetchBooks();
     }
+    
+    // Fetch all transactions to have them available for any date
     if (!wereTransactionsFetched) {
-      fetchTransactions(selectedDate);
+      fetchAllTransactions('APPROVED');
     }
+    
+    // Fetch inventory counts for the selected date
     fetchInventoryCounts(selectedDate);
-  }, [fetchBooks, fetchTransactions, fetchInventoryCounts, selectedDate, wereBooksLoaded, wereTransactionsFetched]);
-
+  }, [fetchBooks, fetchAllTransactions, fetchInventoryCounts, selectedDate, wereBooksLoaded, wereTransactionsFetched]);
+  
   const activeBooks = books.filter(book => book.is_active);
 
   const inventoryCounts = React.useMemo(() => {
@@ -65,13 +86,21 @@ const InventoryTracking: React.FC = () => {
                   : 'DISCREPANCY')
           };
         } else {
-          const deliveredCount = transactions
-            .filter(t => t.status === 'APPROVED')
-            .reduce((total, transaction) => {
-              const bookInTransaction = transaction.books?.find(b => b.id === book.id);
-              return total + (bookInTransaction?.quantity || 0);
-            }, 0);
+          // Calculate system count based on book stock and transactions up to the selected date
+          // This is the key change - we need to consider all transactions up to the selected date
+          
+          // Get all approved transactions up to and including the selected date
+          const relevantTransactions = transactions.filter(t => 
+            t.status === 'APPROVED' && t.date <= selectedDate
+          );
+          
+          // Calculate total delivered books for this book up to the selected date
+          const deliveredCount = relevantTransactions.reduce((total, transaction) => {
+            const bookInTransaction = transaction.books?.find(b => b.id === book.id);
+            return total + (bookInTransaction?.quantity || 0);
+          }, 0);
 
+          // System count is the current stock minus delivered books
           const systemCount = Math.max(0, book.stock - deliveredCount);
           
           return {
@@ -91,12 +120,15 @@ const InventoryTracking: React.FC = () => {
       });
     } else {
       return activeBooks.map(book => {
-        const deliveredCount = transactions
-          .filter(t => t.status === 'APPROVED')
-          .reduce((total, transaction) => {
-            const bookInTransaction = transaction.books?.find(b => b.id === book.id);
-            return total + (bookInTransaction?.quantity || 0);
-          }, 0);
+        // Same logic as above for calculating system count
+        const relevantTransactions = transactions.filter(t => 
+          t.status === 'APPROVED' && t.date <= selectedDate
+        );
+        
+        const deliveredCount = relevantTransactions.reduce((total, transaction) => {
+          const bookInTransaction = transaction.books?.find(b => b.id === book.id);
+          return total + (bookInTransaction?.quantity || 0);
+        }, 0);
 
         const systemCount = Math.max(0, book.stock - deliveredCount);
         
@@ -296,7 +328,7 @@ const InventoryTracking: React.FC = () => {
                   {t('inventoryTracking.manualCount')}
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  {t('common.status')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   {t('programSettings.lastUpdated')}

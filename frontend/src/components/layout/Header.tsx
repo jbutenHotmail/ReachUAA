@@ -5,7 +5,7 @@ import { Menu, User, LogOut, Footprints } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useProgramStore } from '../../stores/programStore';
 import Avatar from '../ui/Avatar';
-
+import logoReach from '../../assets/logo_reach.webp';
 interface HeaderProps {
   onMenuToggle: () => void;
 }
@@ -32,7 +32,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
           
           {/* Logo for mobile */}
           <div className="md:hidden ml-2">
-            <img src="/src/assets/logo_reach.webp" alt="Reach UAA" className="h-8 w-16" />
+            <img src={logoReach} alt="Reach UAA" className="h-8 w-16" />
           </div>
           
           {/* Program name for mobile */}

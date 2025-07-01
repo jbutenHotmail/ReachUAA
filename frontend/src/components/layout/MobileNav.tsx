@@ -53,7 +53,7 @@ const MobileNav: React.FC = () => {
         },
         { 
           path: '/reports', 
-          label: t('navigation.reports'), 
+          label: t('navigation.reports.reports'), 
           icon: <BarChart3 size={18} />, 
         },
         baseItems[2],

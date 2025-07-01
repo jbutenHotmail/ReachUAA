@@ -9,7 +9,8 @@ import {
   Fuel, Users, UserPlus, BookOpen, UserCog, UsersRound,
   Package, TrendingUp, Calendar, AlertTriangle, FileText, Plus, Lock
 } from 'lucide-react';
-
+import logoReach from '../../assets/logo_reach.webp';
+import logoReach1 from '../../assets/logo_reach_1.webp';
 import { UserRole } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -162,24 +163,24 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
         icon: <AlertTriangle size={20} />, 
       },
       {
-        label: t('navigation.reports'),
+        label: t('navigation.reports.reports'),
         icon: <BarChart3 size={20} />,
         submenu: [
           {
             path: '/reports/donations/finances',
-            label: 'Donations',
+            label: t('navigation.reports.donations'),
             icon: <Heart size={20} />,
             roles: [UserRole.ADMIN]
           },
           {
             path: '/reports/program',
-            label: 'Program Report',
+            label: t('navigation.reports.programReport'),
             icon: <BarChart3 size={20} />,
             roles: [UserRole.ADMIN]
           },
           {
             path: '/reports/individual',
-            label: 'Individual Reports',
+            label: t('navigation.reports.individualReport'),
             icon: <FileText size={20} />,
             roles: [UserRole.ADMIN]
           },
@@ -194,49 +195,49 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
       // Admin section only for Admin role
       ...(user?.role === UserRole.ADMIN ? [
         {
-          label: 'Administration',
+          label: t('navigation.administration'),
           icon: <Lock size={20} />,
           submenu: [
             {
-              label: 'Users',
+              label: t('navigation.users.users'),
               icon: <UserCog size={20} />,
               submenu: [
                 {
                   path: '/admin/users/manage',
-                  label: 'Manage Users',
+                  label: t('navigation.users.manageUsers'),
                   icon: <UserCog size={20} />,
                 },
                 {
                   path: '/admin/users/roles',
-                  label: 'Manage Roles',
+                  label: t('navigation.users.manageRoles'),
                   icon: <Lock size={20} />,
                 }
               ],
             },
             {
-              label: 'People',
+              label: t('navigation.people.people'),
               icon: <Users size={20} />,
               submenu: [
                 {
                   path: '/admin/people/all',
-                  label: 'All People',
+                  label: t('navigation.people.allPeople'),
                   icon: <Users size={20} />,
                 },
                 {
                   path: '/admin/people/colporters',
-                  label: 'Colporters',
+                  label: t('navigation.people.colporters'),
                   icon: <UserPlus size={20} />,
                 },
                 {
                   path: '/admin/people/leaders',
-                  label: 'Leaders',
+                  label: t('navigation.people.leaders'),
                   icon: <UsersRound size={20} />,
                 }
               ],
             },
             {
               path: '/admin/settings',
-              label: 'Program',
+              label: t('navigation.program'),
               icon: <Calendar size={20} />,
             }
           ],
@@ -278,9 +279,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
         setExpensesOpen(true);
       } else if (item.label === t('cashAdvance.title')) {
         setCashAdvanceOpen(true);
-      } else if (item.label === t('navigation.reports')) {
+      } else if (item.label === t('navigation.reports.reports')) {
         setReportsOpen(true);
-      } else if (item.label === 'Administration') {
+      } else if (item.label === t('navigation.administration')) {
         setAdminOpen(true);
       }
     } else if (!isCollapsed && 'submenu' in item) {
@@ -293,9 +294,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
         setExpensesOpen(!expensesOpen);
       } else if (item.label === t('cashAdvance.title')) {
         setCashAdvanceOpen(!cashAdvanceOpen);
-      } else if (item.label === t('navigation.reports')) {
+      } else if (item.label === t('navigation.reports.reports')) {
         setReportsOpen(!reportsOpen);
-      } else if (item.label === 'Administration') {
+      } else if (item.label === t('navigation.administration')) {
         setAdminOpen(!adminOpen);
       }
     }
@@ -314,9 +315,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
             <button
               onClick={() => {
                 if (level === 0) {
-                  if (subItem.label === 'People') {
+                  if (subItem.label === t('navigation.people.people')) {
                     setPeopleOpen(!peopleOpen);
-                  } else if (subItem.label === 'Users') {
+                  } else if (subItem.label === t('navigation.users.users')) {
                     setUsersOpen(!usersOpen);
                   }
                 }
@@ -339,8 +340,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
                   size={16}
                   className={clsx(
                     'transition-transform',
-                    (subItem.label === 'People' && peopleOpen) ||
-                    (subItem.label === 'Users' && usersOpen)
+                    (subItem.label === t('navigation.people.people') && peopleOpen) ||
+                    (subItem.label === t('navigation.users.users') && usersOpen)
                       ? 'transform rotate-180'
                       : ''
                   )}
@@ -348,8 +349,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
               )}
             </button>
             {(
-              (subItem.label === 'People' && peopleOpen) ||
-              (subItem.label === 'Users' && usersOpen) ||
+              (subItem.label === t('navigation.people.people') && peopleOpen) ||
+              (subItem.label === t('navigation.users.users') && usersOpen) ||
               isCollapsed
             ) && (
               <ul className={clsx(
@@ -416,7 +417,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
               className="flex-1 flex justify-center cursor-pointer w-full"
               onClick={toggleCollapse}
             >
-              <img src="/src/assets/logo_reach.webp" alt="Reach UAA" className="h-12 sm:h-16 w-auto" />
+              <img src={logoReach} alt="Reach UAA" className="h-12 sm:h-16 w-auto" />
             </div>
           ) : (
             <div 
@@ -424,7 +425,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
               onClick={toggleCollapse}
             >
               <img 
-                src="/src/assets/logo_reach_1.webp" 
+                src={logoReach1}
                 alt="Reach UAA" 
                 className="h-10 sm:h-12 w-10 sm:w-12 object-contain rounded-full" 
               />
@@ -468,8 +469,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
                               (item.label === t('navigation.inventory') && inventoryOpen) ||
                               (item.label === t('navigation.expenses') && expensesOpen) ||
                               (item.label === t('cashAdvance.title') && cashAdvanceOpen) ||
-                              (item.label === t('navigation.reports') && reportsOpen) ||
-                              (item.label === 'Administration' && adminOpen)
+                              (item.label === t('navigation.reports.reports') && reportsOpen) ||
+                              (item.label === t('navigation.administration') && adminOpen)
                                 ? 'transform rotate-180'
                                 : ''
                             )}
@@ -481,8 +482,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
                         (item.label === t('navigation.inventory') && inventoryOpen) ||
                         (item.label === t('navigation.expenses') && expensesOpen) ||
                         (item.label === t('cashAdvance.title') && cashAdvanceOpen) ||
-                        (item.label === t('navigation.reports') && reportsOpen) ||
-                        (item.label === 'Administration' && adminOpen)
+                        (item.label === t('navigation.reports.reports') && reportsOpen) ||
+                        (item.label === t('navigation.administration') && adminOpen)
                       ) && !isCollapsed && (
                         <ul className="mt-1 pl-4 sm:pl-6 space-y-1">
                           {renderSubmenuItems(item.submenu)}

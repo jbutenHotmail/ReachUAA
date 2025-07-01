@@ -116,6 +116,10 @@ const BookCatalog: React.FC = () => {
     );
   };
 
+  if(isLoading) {
+    return <LoadingScreen message={t('common.loading')} />;
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6 pb-16 md:pb-0">
       {success && (

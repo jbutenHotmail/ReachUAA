@@ -6,6 +6,7 @@ import {
   updateUser, 
   deleteUser,
   changePassword,
+  resetPassword,
   getUserProfile,
   updateProfile,
   getRolePermissions,
@@ -29,6 +30,9 @@ router.put('/:id', authenticateToken, authorizeRoles(['ADMIN']), updateUser);
 
 // Delete user (admin only)
 router.delete('/:id', authenticateToken, authorizeRoles(['ADMIN']), deleteUser);
+
+// Reset user password (admin only)
+router.post('/:id/reset-password', authenticateToken, authorizeRoles(['ADMIN']), resetPassword);
 
 // Get user profile (any authenticated user)
 router.get('/profile/me', authenticateToken, getUserProfile);

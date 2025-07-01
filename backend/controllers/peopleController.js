@@ -252,7 +252,7 @@ export const deleteColporter = async (req, res) => {
       [id]
     );
     
-    if (transactions[0].count > 0) {
+    if (transactions.length > 0 && transactions[0].count > 0) {
       return res.status(400).json({ 
         message: 'Cannot delete colporter with transactions. Consider deactivating instead.' 
       });
@@ -358,7 +358,7 @@ export const createLeader = async (req, res) => {
       'SELECT * FROM people WHERE email = ? AND program_id = ? AND person_type = ?',
       [email, programId, 'LEADER']
     );
-    
+    console.log(existingPerson)
     if (existingPerson) {
       return res.status(400).json({ message: 'Email already in use for a leader in this program' });
     }
@@ -500,7 +500,7 @@ export const deleteLeader = async (req, res) => {
       [id]
     );
     
-    if (transactions[0].count > 0) {
+    if (transactions.length > 0 && transactions[0].count > 0) {
       return res.status(400).json({ 
         message: 'Cannot delete leader with transactions. Consider deactivating instead.' 
       });

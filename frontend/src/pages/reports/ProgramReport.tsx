@@ -100,7 +100,7 @@ const ProgramReport: React.FC = () => {
       setError(null);
       let dataToFetch: any[] = [];
       !wereExpensesFetched && dataToFetch.push(fetchExpenses());
-      !wereTransactionsFetched && dataToFetch.push(fetchAllTransactions());
+      !wereTransactionsFetched && dataToFetch.push(fetchAllTransactions('APPROVED'));
       !wereChargesFetched && dataToFetch.push(fetchCharges());
       !wereAdvancesFetched && dataToFetch.push(fetchAdvances());
       !wasProgramFetched && dataToFetch.push(fetchProgram());
@@ -124,8 +124,8 @@ const ProgramReport: React.FC = () => {
       const leaderPercentage = program?.financialConfig?.leader_percentage 
         ? parseFloat(program.financialConfig.leader_percentage) 
         : 15;
-      
-      const totalDonations = transactions.reduce((sum, t) => sum + t.total, 0);
+      const approvedTransactions = transactions.filter(t => t.status === 'APPROVED');
+      const totalDonations = approvedTransactions.reduce((sum, t) => sum + t.total, 0);
       
       const filteredCharges = charges.filter(charge => charge.status === 'APPLIED');
       const totalFines = filteredCharges.reduce((sum, c) => sum + c.amount, 0);
@@ -168,7 +168,7 @@ const ProgramReport: React.FC = () => {
       
       const colporterMap = new Map<string, ColporterFinancials>();
       
-      transactions.forEach(t => {
+      approvedTransactions.forEach(t => {
         if (!colporterMap.has(t.studentId)) {
           colporterMap.set(t.studentId, {
             id: t.studentId,

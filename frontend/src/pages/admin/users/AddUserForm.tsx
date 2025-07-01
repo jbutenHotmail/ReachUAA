@@ -21,7 +21,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
   initialData 
 }) => {
   const { t } = useTranslation();
-  const { people, fetchPeople, werePeopleFetched } = useUserStore();
+  const { people, fetchPeople, werePeopleFetched, resetPassword } = useUserStore();
   const { program } = useProgramStore();
   // Form state
   const [formData, setFormData] = useState({
@@ -42,6 +42,11 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
   );
   const [isPersonDropdownOpen, setIsPersonDropdownOpen] = useState(false);
   const personDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Reset password state
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
+  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
 
   // Fetch people data if not already loaded
   useEffect(() => {
@@ -114,6 +119,34 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
     
     return `${firstName}.${lastName}`;
   };
+  
+  // Handle password reset
+  const handleResetPassword = async () => {
+    if (!initialData || !initialData.id) return;
+    
+    setIsResettingPassword(true);
+    setResetPasswordSuccess(null);
+    setResetPasswordError(null);
+    
+    try {
+      // Call API to reset password
+      await resetPassword(initialData.id);
+      
+      // Show success message
+      setResetPasswordSuccess(t('userForm.passwordResetConfirmation') + ' ' + getDefaultPassword(initialData.personName));
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setResetPasswordSuccess(null), 5000);
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      setResetPasswordError('Failed to reset password. Please try again.');
+      
+      // Clear error message after 5 seconds
+      setTimeout(() => setResetPasswordError(null), 5000);
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -147,8 +180,8 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                     required
                   >
-                    <option value="COLPORTER">{t('common.colporter')}</option>
-                    <option value="LEADER">{t('common.leader')}</option>
+                    <option value="COLPORTER">{t('userForm.types.colporter')}</option>
+                    <option value="LEADER">{t('userForm.types.leader')}</option>
                   </select>
                 </div>
               )}
@@ -157,7 +190,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
               {!initialData && (
                 <div className="relative" ref={personDropdownRef}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('userForm.selectPerson', { type: formData.personType === 'COLPORTER' ? t('common.colporter') : t('common.leader') })}
+                    {t('userForm.selectPerson')}
                   </label>
                   <div
                     className={clsx(
@@ -349,15 +382,26 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                       <p className="text-xs text-warning-600 mt-1">
                         {t('userForm.resetPasswordNote', { password: getDefaultPassword(initialData.personName) })}
                       </p>
+                      
+                      {resetPasswordSuccess && (
+                        <div className="mt-2 p-2 bg-success-50 rounded border border-success-200">
+                          <p className="text-xs text-success-700">{resetPasswordSuccess}</p>
+                        </div>
+                      )}
+                      
+                      {resetPasswordError && (
+                        <div className="mt-2 p-2 bg-danger-50 rounded border border-danger-200">
+                          <p className="text-xs text-danger-700">{resetPasswordError}</p>
+                        </div>
+                      )}
+                      
                       <div className="mt-2">
                         <Button
                           type="button"
                           variant="warning"
                           size="sm"
-                          onClick={() => {
-                            // In a real app, this would call an API to reset the password
-                            alert(`${t('userForm.passwordResetConfirmation')} ${getDefaultPassword(initialData.personName)}`);
-                          }}
+                          onClick={handleResetPassword}
+                          isLoading={isResettingPassword}
                         >
                           {t('userForm.resetPasswordButton')}
                         </Button>

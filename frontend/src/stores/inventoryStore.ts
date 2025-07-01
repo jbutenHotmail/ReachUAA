@@ -56,6 +56,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
       set({
         error: error instanceof Error ? error.message : 'An unknown error occurred',
         isLoading: false,
+        wereBooksLoaded: true
       });
     }
   },

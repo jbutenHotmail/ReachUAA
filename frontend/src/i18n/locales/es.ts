@@ -14,7 +14,7 @@ export default {
     all: "Todos",
     welcome: "Bienvenido",
     student: "Estudiante",
-    leader: "Responsable",
+    leader: "Líder",
     total: "Total",
     totals: "Totales",
     select: "Seleccionar",
@@ -46,7 +46,8 @@ export default {
     category: "Categoría",
     note: "Nota",
     success: 'Éxito',
-    refresh: 'Actualizar'
+    refresh: 'Actualizar',
+    switchProgram: 'Seleccionar Programa'
   },
   bookSetup: {
     title: "Configuración de Libros",
@@ -132,6 +133,8 @@ export default {
     importantNotes: "Notas Importantes",
     startDate: "Fecha de Inicio",
     endDate: "Fecha de Fin",
+    addProgram: "Agregar Nuevo Programa",
+    addProgramDescription: "Crea un nuevo programa para gestionar las actividades del colportaje",
     days: {
       monday: "Lunes",
       tuesday: "Martes",
@@ -436,6 +439,16 @@ export default {
     deleteConfirmation:
       "¿Estás seguro de que quieres eliminar este usuario? Esta acción no se puede deshacer.",
     addUser: "Agregar Usuario",
+    createSuccess: "Usuario creado exitosamente",
+    updateSuccess: "Usuario actualizado exitosamente",
+    deleteSuccess: "Usuario eliminado exitosamente",
+    errorCreating: "Error al crear usuario",
+    errorUpdating: "Error al actualizar usuario",
+    errorDeleting: "Error al eliminar usuario",
+    roleChangeSuccess: "Rol de usuario actualizado exitosamente",
+    statusChangeSuccess: "Estado de usuario actualizado exitosamente",
+    errorUpdatingRole: "Error al actualizar rol de usuario",
+    errorUpdatingStatus: "Error al actualizar estado de usuario",
     roleManagementGuidelines: "Directrices de Gestión de Roles",
     statusChanges: "Cambios de Estado",
     roleChanges: "Cambios de Rol",
@@ -490,6 +503,12 @@ export default {
     role: "Rol",
     viewer: "Espectador",
     supervisor: "Supervisor",
+    createSuccess: "Persona creada exitosamente",
+    updateSuccess: "Persona actualizada exitosamente",
+    deleteSuccess: "Persona eliminada exitosamente",
+    errorSaving: "Error al guardar la persona",
+    errorDeletingCOLPORTER: "Error al eliminar el colportor",
+    errorDeletingLEADER: "Error al eliminar el líder"
   },
   peoplePage: {
     searchPlaceholder: "Buscar personas",
@@ -638,7 +657,7 @@ export default {
     colporter: "Colportor",
     transactionsCount: "transacciones",
     checks: "Cheques",
-    atmMobile: "ATM o Móvil",
+    atmMobile: "ATH Movil",
     selectLeaderPlaceholder: "Selecciona el líder supervisor de hoy",
     selectColporterPlaceholder: "Selecciona colportor",
     noLeadersFound: "No se encontraron líderes",
@@ -660,6 +679,7 @@ export default {
     approved: "Aprobado",
     rejected: "Rechazado",
     notes: "Notas",
+
   },
   addExpenseForm: {
     noLeadersFound: "No se encontraron líderes",
@@ -780,13 +800,31 @@ export default {
     newTransaction: "Nueva Transacción",
     inventory: "Inventario",
     deposits: "Depósitos",
-    reports: "Reportes",
+    reports: {
+      reports: "Informes",
+      donations: "Donaciones",
+      programReport: "Informe del Programa",
+      individualReport: "Informe Individual"
+    },
+    users: {
+      users: "Usuarios",
+      manageUsers: "Gestionar Usuarios",
+      manageRoles: "Gestionar Roles"
+    },
+    people: {
+      people: "Personas",
+      allPeople: "Todas las Personas",
+      colporters: "Colportores",
+      leaders: "Líderes"
+    },
+    program: 'Programa',
     donations: "Donaciones",
     profile: "Perfil",
-    settings: "Configuraciones",
+    settings: "Configuración",
     deliveredBooks: "Libros Entregados",
     records: "Registros",
     expenses: "Gastos",
+    administration: "Administración"
   },
   deposits: {
     title: "Depósitos",
@@ -968,6 +1006,14 @@ export default {
       "Gestiona los detalles y configuraciones de seguridad de tu cuenta",
   },
   admin: {
+    users: "Usuarios",
+    people: "Personas",
+    program: "Programa",
+    manageUsers: "Gestionar Usuarios",
+    manageRoles: "Gestionar Roles",
+    allPeople: "Todas las Personas",
+    colporters: "Colportores",
+    leaders: "Líderes",
     userManagement: "Gestión de Usuarios",
     peopleManagement: "Gestión de Personas",
     programSettings: "Configuración del Programa",

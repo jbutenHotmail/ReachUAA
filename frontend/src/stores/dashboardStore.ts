@@ -118,7 +118,6 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       currentState.lastFetchTime && 
       now - currentState.lastFetchTime < CACHE_TIMEOUT
     ) {
-      console.log('Using cached dashboard stats');
       return;
     }
     
@@ -130,7 +129,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       // Get current program ID
       const { program } = useProgramStore.getState();
       const programId = program?.id;
-      
+      console.log(programId)
       // Prepare params
       const params: Record<string, string | number> = { date: today };
       if (programId) {
@@ -176,7 +175,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
           },
           salesChart: stats.salesChart || []
         };
-        
+        console.log(validatedStats)
         set({ 
           stats: validatedStats, 
           isLoading: false, 
@@ -204,7 +203,6 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       currentState.lastPersonalStatsFetchTime && 
       now - currentState.lastPersonalStatsFetchTime < CACHE_TIMEOUT
     ) {
-      console.log('Using cached personal stats');
       return;
     }
     
@@ -229,7 +227,6 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
           status: 'APPROVED'
         }
       });
-      console.log(personalStats);
       set({ 
         personalStats, 
         isLoadingPersonalStats: false, 

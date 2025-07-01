@@ -30,8 +30,9 @@ const app = express();
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? 'https://reach-uaa.netlify.app' // Production frontend URL
-    : 'http://localhost:5173', // Development frontend URL
-  credentials: true // Allow cookies to be sent with requests
+    // : 'https://l9sxxsf4-3000.usw2.devtunnels.ms', // Development frontend URL
+    : ['http://localhost:5173', 'https://l9sxxsf4-3000.usw2.devtunnels.ms'],
+    credentials: true // Allow cookies to be sent with requests
 }));
 
 // Increase payload size limit to 50MB

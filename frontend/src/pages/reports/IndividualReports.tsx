@@ -134,7 +134,7 @@ const IndividualReports: React.FC = () => {
         setEndDate(lastDay.toISOString().split("T")[0])
 
         // Calculate total program sales and leader count
-        const allTransactions = wereTransactionsFetched ? transactions : await fetchAllTransactions()
+        const allTransactions = wereTransactionsFetched ? transactions : await fetchAllTransactions('APPROVED');
         const totalSales = allTransactions
           .filter(
             (t) =>
@@ -228,7 +228,7 @@ const IndividualReports: React.FC = () => {
     setError(null)
 
     try {
-      const fetchedTransactions = wereTransactionsFetched ? transactions : await fetchAllTransactions()
+      const fetchedTransactions = wereTransactionsFetched ? transactions : await fetchAllTransactions('APPROVED')
       !wereChargesFetched && (await fetchCharges())
       !wereAdvancesFetched && (await fetchAdvances())
 

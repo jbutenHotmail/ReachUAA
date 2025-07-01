@@ -1,3 +1,4 @@
+// src/pages/program/ProgramSelectionPage.tsx
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -8,7 +9,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import LoadingScreen from '../../components/ui/LoadingScreen';
-import Badge from '../../components/ui/Badge';
+import logoReach from '../../assets/logo_reach.webp';
 
 const ProgramSelectionPage: React.FC = () => {
   const { t } = useTranslation();
@@ -16,55 +17,52 @@ const ProgramSelectionPage: React.FC = () => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const { settings, changeLanguage } = useSettingsStore();
-  const { program, availablePrograms, fetchAvailablePrograms, switchProgram, wasProgramFetched } = useProgramStore();
+  const { program, availablePrograms, fetchAvailablePrograms, switchProgram, resetStore } = useProgramStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
   const [switchingMessage, setSwitchingMessage] = useState('Switching program...');
 
   // Check if we're coming from the layout (not direct navigation)
-  // We consider it from layout if the path is explicitly /admin/programs or /program-select
-  // Coming from login would have state.from.pathname = '/login'
   const isFromLayout = location.pathname === '/admin/programs' || 
                        (location.pathname === '/program-select' && location.state?.from?.pathname !== '/login');
   
   const showBackButton = isFromLayout && program;
 
   useEffect(() => {
-    // Only fetch available programs if user is admin
-    if (user?.role === 'ADMIN') {
-      const loadPrograms = async () => {
-        setIsLoading(true);
-        try {
+    // Asegurarse de que el store de programa esté limpio al cargar esta página
+    // Esto evita problemas con programas almacenados en localStorage
+    // if (!isFromLayout) {
+    //   resetStore();
+    // }
+    
+    const loadPrograms = async () => {
+      setIsLoading(true);
+      try {
+        // Solo cargar programas si el usuario es ADMIN
+        if (user?.role === 'ADMIN') {
           await fetchAvailablePrograms();
-        } catch (err) {
-          setError('Failed to load available programs');
-          console.error('Error loading programs:', err);
-        } finally {
-          setIsLoading(false);
+        } else {
+          // Si no es ADMIN, redirigir al dashboard
+          navigate('/dashboard');
         }
-      };
+      } catch (err) {
+        setError('Failed to load available programs');
+        console.error('Error loading programs:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-      loadPrograms();
-    } else {
-      // For non-admin users, just set loading to false
-      setIsLoading(false);
-    }
-  }, [fetchAvailablePrograms, user]);
+    loadPrograms();
+  }, [fetchAvailablePrograms, navigate, user, isFromLayout, resetStore]);
 
-  // If there's only one program, automatically select it
+  // Si hay solo un programa disponible y el usuario es ADMIN, seleccionarlo automáticamente
   useEffect(() => {
     if (user?.role === 'ADMIN' && availablePrograms && availablePrograms.length === 1 && !program && !isFromLayout) {
       handleProgramSwitch(availablePrograms[0].id);
     }
   }, [availablePrograms, program, isFromLayout, user]);
-
-  // If a program is already selected and we're not coming from the layout, redirect to dashboard
-  useEffect(() => {
-    if (program && !isFromLayout && wasProgramFetched) {
-      navigate('/dashboard');
-    }
-  }, [program, navigate, isFromLayout, wasProgramFetched]);
 
   const handleProgramSwitch = async (programId: number) => {
     setSwitching(true);
@@ -124,10 +122,8 @@ const ProgramSelectionPage: React.FC = () => {
         <div className="bg-primary-100 rounded-full p-4 mb-4">
           <Plus size={32} className="text-primary-600" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900">Add New Program</h3>
-        <p className="text-sm text-gray-500 text-center mt-2">
-          Create a new program to manage colportage activities
-        </p>
+        <h3 className="text-lg font-semibold text-gray-900">{t('programSetup.addProgram')}</h3>
+        <p className="text-sm text-gray-500 text-center mt-2">{t('programSetup.addProgramDescription')}</p>
       </div>
     </Card>
   );
@@ -137,7 +133,7 @@ const ProgramSelectionPage: React.FC = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <img src="/src/assets/logo_reach.webp" alt="Reach UAA" className="h-24 mx-auto mb-4" />
+            <img src={logoReach} alt="Reach UAA" className="h-24 mx-auto mb-4" />
             
             {/* Language and Logout buttons */}
             <div className="absolute top-4 right-4 flex gap-2">
@@ -163,6 +159,11 @@ const ProgramSelectionPage: React.FC = () => {
             </div>
           </div>
           
+          <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg text-warning-700 mb-6">
+            <p className="font-medium">{t('programSetup.noProgramsFound')}</p>
+            <p>{t('programSetup.noProgramsFoundDescription')}</p>
+          </div>
+          
           {renderAddNewProgramCard()}
           
           <div className="text-xs text-center text-gray-500 mt-8">
@@ -177,7 +178,7 @@ const ProgramSelectionPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-4xl">
         <div className="text-center mb-8 relative">
-          <img src="/src/assets/logo_reach.webp" alt="Reach UAA" className="h-24 mx-auto mb-4" />
+          <img src={logoReach} alt="Reach UAA" className="h-24 mx-auto mb-4" />
           
           {/* Back button if coming from layout */}
           {showBackButton && (
@@ -222,7 +223,7 @@ const ProgramSelectionPage: React.FC = () => {
             {t('common.selectProgram')}
           </h1>
           <p className="mt-2 text-gray-600">
-            Welcome, {user?.name}! Please select a program to continue.
+            {t('programSetup.welcomingMessage', { name: user?.name })}
           </p>
         </div>
 
@@ -272,8 +273,8 @@ const ProgramSelectionPage: React.FC = () => {
                     rightIcon={<ArrowRight size={16} />}
                   >
                     {Boolean(prog.is_active) 
-                      ? "Continue with this Program" 
-                      : "Select this Program"}
+                      ? t('common.switchProgram')
+                      : t('common.selectProgram')}
                   </Button>
                 </div>
               </div>

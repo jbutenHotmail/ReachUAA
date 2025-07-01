@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { UserRole } from '../types';
 import { useAuthStore } from '../stores/authStore';
@@ -20,8 +20,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireProgram = true
 }) => {
   const location = useLocation();
-  const { isAuthenticated, user, isLoading, refreshToken } = useAuthStore();
-  const { program, fetchProgram, wasProgramFetched } = useProgramStore();
+  const { isAuthenticated, user, isLoading, refreshToken, checkStorageAndLogout } = useAuthStore();
+  const { program, wasProgramFetched, resetStore } = useProgramStore();
+  
+  // Usar useRef para evitar múltiples llamadas a fetchProgram
+  const fetchingUserProgramRef = useRef(false);
   
   // Try to refresh token if not authenticated
   useEffect(() => {
@@ -39,12 +42,70 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }, [isAuthenticated, isLoading, refreshToken]);
   
   // Fetch program if authenticated and not already fetched - ONLY FOR ADMIN USERS
+  // useEffect(() => {
+  //   const fetchProgramData = async () => {
+  //     // Solo ejecutar si el usuario es ADMIN, está autenticado, no se ha cargado el programa
+  //     // y no estamos ya en proceso de carga
+  //     if (
+  //       isAuthenticated && 
+  //       user?.role === UserRole.ADMIN && 
+  //       !wasProgramFetched && 
+  //       !fetchingProgramRef.current
+  //     ) {
+  //       fetchingProgramRef.current = true;
+  //       try {
+  //         await fetchProgram();
+  //       } catch (error) {
+  //         console.error('Error fetching program:', error);
+  //       } finally {
+  //         fetchingProgramRef.current = false;
+  //       }
+  //     }
+  //   };
+    
+  //   fetchProgramData();
+  // }, [isAuthenticated, fetchProgram, wasProgramFetched, user]);
+  
+  // Para usuarios no administradores, obtener su programa asociado
   useEffect(() => {
-    if (isAuthenticated && !wasProgramFetched && user?.role === UserRole.ADMIN) {
-      console.log('Fetching program from ProtectedRoute for ADMIN');
-      fetchProgram();
+    const fetchUserProgram = async () => {
+      // Solo ejecutar si el usuario NO es ADMIN, está autenticado
+      // y no estamos ya en proceso de carga
+      if (
+        isAuthenticated && 
+        user && 
+        user.role !== UserRole.ADMIN && 
+        !fetchingUserProgramRef.current
+      ) {
+        fetchingUserProgramRef.current = true;
+        try {
+          // Primero resetear el store para evitar conflictos
+          (!wasProgramFetched || program?.id !== user.currentProgramId) && resetStore();
+          // Obtener el programa asociado al usuario
+          if (user.currentProgramId) {
+            // Obtener el ID del programa asociado a la persona
+
+              const { setCurrentProgram } = useAuthStore.getState();
+              setCurrentProgram(user.currentProgramId);
+            }
+        } catch (error) {
+          console.error('Error fetching user program:', error);
+        } finally {
+          fetchingUserProgramRef.current = false;
+        }
+      }
+    };
+    
+    fetchUserProgram();
+  }, []);
+  
+  // Verificar si auth-storage ha sido borrado
+  useEffect(() => {
+    const wasLoggedOut = checkStorageAndLogout();
+    if (wasLoggedOut && location.pathname !== '/login') {
+      window.location.href = '/login';
     }
-  }, [isAuthenticated, fetchProgram, wasProgramFetched, user]);
+  }, [checkStorageAndLogout, location.pathname]);
   
   if (isLoading) {
     return (
@@ -63,15 +124,25 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <AccessDeniedPage />;
   }
   
-  // If program is required but not selected, redirect to program selection
-  // Skip this check for the program selection page itself to avoid infinite loop
-  // Also skip for non-admin users and setup page
+  // Si el usuario no es ADMIN, no necesita un programa seleccionado
+  if (user && user.role !== UserRole.ADMIN) {
+    // Resetear el store de programa si el usuario no es ADMIN
+    // Esto evita que se use un programa almacenado en localStorage
+    // al que el usuario no tiene acceso
+    if (program && location.pathname.includes('/login')) {
+      resetStore();
+    }
+    return <>{children}</>;
+  }
+  
+  // Si el usuario es ADMIN y se requiere un programa, pero no hay programa seleccionado
+  // y no estamos en la página de selección de programa o setup, redirigir a la selección de programa
   if (
     requireProgram && 
+    user?.role === UserRole.ADMIN &&
     !program && 
     !location.pathname.includes('/program-select') && 
-    !location.pathname.includes('/setup') && 
-    user?.role === UserRole.ADMIN
+    !location.pathname.includes('/setup')
   ) {
     console.log('No program found, redirecting to program selection');
     return <Navigate to="/program-select" replace />;

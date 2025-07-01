@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { AuthState, User } from '../types';
 import { api, refreshAccessToken } from '../api';
+import { useProgramStore } from './programStore';
 
 interface LoginResponse {
   user: User;
@@ -18,6 +19,7 @@ interface AuthStore extends AuthState {
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   refreshToken: () => Promise<void>;
   setCurrentProgram: (programId: number) => void;
+  checkStorageAndLogout: () => boolean; // Función para verificar el almacenamiento
 }
 
 // Helper function to get current user from localStorage
@@ -75,10 +77,21 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           console.error('Logout error:', error);
         } finally {
-          // Clear local storage tokens
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('user');
-          set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+          // Clear ALL localStorage items
+          localStorage.clear();
+          
+          // Reset all state
+          set({ 
+            user: null, 
+            token: null, 
+            isAuthenticated: false, 
+            isLoading: false,
+          });
+          // set wasprogramfetched to false in program store
+          useProgramStore.setState(state => ({
+            ...state,
+            wasProgramFetched: false
+          }));
         }
       },
 
@@ -98,8 +111,7 @@ export const useAuthStore = create<AuthStore>()(
           });
         } catch (error) {
           // Clear everything on refresh failure
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('user');
+          localStorage.clear();
           
           set({ 
             user: null, 
@@ -202,6 +214,22 @@ export const useAuthStore = create<AuthStore>()(
           localStorage.setItem('user', JSON.stringify(updatedUser));
           set({ user: updatedUser });
         }
+      },
+      
+      // Función para verificar el almacenamiento y desloguear si es necesario
+      checkStorageAndLogout: () => {
+        const authStorage = localStorage.getItem('auth-storage');
+        if (!authStorage) {
+          // Si no existe el auth-storage, desloguear al usuario
+          set({ 
+            user: null, 
+            token: null, 
+            isAuthenticated: false, 
+            isLoading: false 
+          });
+          return true; // Indica que se ha deslogueado
+        }
+        return false; // No se ha deslogueado
       }
     }),
     {

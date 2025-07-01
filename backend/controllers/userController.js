@@ -4,14 +4,30 @@ import * as db from '../config/database.js';
 // Get all users
 export const getUsers = async (req, res) => {
   try {
-    const users = await db.query(
-      `SELECT u.id, u.person_id as personId, u.email, u.role, u.status, u.last_login as lastLogin,
-       u.created_at as createdAt, u.updated_at as updatedAt,
-       CONCAT(p.first_name, ' ', p.last_name) as personName, p.person_type as personType
-       FROM users u
-       LEFT JOIN people p ON u.person_id = p.id
-       ORDER BY u.created_at DESC`
-    );
+    const { programId } = req.query;
+    
+    // Base query to get users with their associated person
+    let query = `
+      SELECT u.id, u.person_id as personId, u.email, u.role, u.status, u.last_login as lastLogin,
+      u.created_at as createdAt, u.updated_at as updatedAt,
+      CONCAT(p.first_name, ' ', p.last_name) as personName, p.person_type as personType
+      FROM users u
+      LEFT JOIN people p ON u.person_id = p.id
+    `;
+    
+    const params = [];
+    
+    // Add program filter if programId is provided
+    if (programId) {
+      query += `
+        WHERE (p.program_id = ? OR u.role = 'ADMIN' OR p.program_id IS NULL)
+      `;
+      params.push(programId);
+    }
+    
+    query += ` ORDER BY u.created_at DESC`;
+    
+    const users = await db.query(query, params);
     
     res.json(users);
   } catch (error) {
@@ -219,6 +235,53 @@ export const deleteUser = async (req, res) => {
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
     console.error('Error deleting user:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Reset user password
+export const resetPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if user exists
+    const user = await db.getOne(
+      `SELECT u.id, u.email, p.first_name, p.last_name
+       FROM users u
+       LEFT JOIN people p ON u.person_id = p.id
+       WHERE u.id = ?`,
+      [id]
+    );
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Generate default password based on name
+    let defaultPassword;
+    if (user.first_name && user.last_name) {
+      defaultPassword = `${user.first_name.toLowerCase()}.${user.last_name.toLowerCase()}`;
+    } else {
+      // If no name is available, use email as base for password
+      const emailParts = user.email.split('@');
+      defaultPassword = emailParts[0];
+    }
+    
+    // Hash new password
+    const passwordHash = await bcrypt.hash(defaultPassword, 10);
+    
+    // Update password
+    await db.update(
+      'UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?',
+      [passwordHash, id]
+    );
+    
+    res.json({ 
+      message: 'Password reset successfully',
+      defaultPassword // Return the default password in the response
+    });
+  } catch (error) {
+    console.error('Error resetting password:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
@@ -474,6 +537,7 @@ export default {
   updateUser,
   deleteUser,
   changePassword,
+  resetPassword,
   getUserProfile,
   updateProfile,
   getRolePermissions,

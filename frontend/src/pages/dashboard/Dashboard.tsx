@@ -51,24 +51,19 @@ const Dashboard: React.FC = () => {
     if (user) {
       !wasSummaryFetched && fetchSummary(user.id);
       !wasSalesHistoryFetched && fetchSalesHistory(user.id, selectedPeriod);
-      !wereStatsFetched && fetchDashboardStats();
+      !wereStatsFetched && program && fetchDashboardStats();
       !wereAdvancesFetched && fetchAdvances();
       !wasProgramFetched && fetchProgram();
       
-      // Fetch today's transactions using the consistent date format
-    //   const today = getCurrentDate();
-    //   console.log('Frontend today date:', today);
-    //   !wereTransactionsFetched && !wereStatsFetched && fetchTransactions(today);
     }
-  }, []);
+  }, [program]);
 
-
+  
   useEffect(() => {
     const loadTransactionData = async () => {
       try {
         // Fetch all APPROVED transactions without date filtering
         !wereTransactionsFetched && await fetchAllTransactions();
-        console.log(wereTransactionsFetched);
       } catch (err) {
         console.error('Error fetching transaction data:', err);
       }

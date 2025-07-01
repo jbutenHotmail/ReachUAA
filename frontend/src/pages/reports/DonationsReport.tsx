@@ -28,7 +28,7 @@ const DonationsReport: React.FC = () => {
     const loadTransactionData = async () => {
       try {
         if (!wereTransactionsFetched) {
-          await fetchAllTransactions();
+          await fetchAllTransactions('APPROVED');
         }
       } catch (err) {
         console.error('Error fetching transaction data:', err);

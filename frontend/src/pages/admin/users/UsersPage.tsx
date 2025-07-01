@@ -1,11 +1,10 @@
-// UsersPage.tsx
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   Users, Search, Download, UserPlus,
   Shield, ShieldCheck, Eye, 
   Edit, Save, X, AlertCircle,
-  Trash2
+  Trash2, CheckCircle
 } from 'lucide-react';
 import {
   createColumnHelper,
@@ -37,6 +36,8 @@ const UsersPage: React.FC = () => {
   const [editingRole, setEditingRole] = useState<UserRole>(UserRole.VIEWER);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUserData, setEditingUserData] = useState<User | null>(null);
+  const [userError, setUserError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const { 
     users, 
@@ -49,9 +50,24 @@ const UsersPage: React.FC = () => {
     wereUsersFetched
   } = useUserStore();
 
+  // Clear feedback messages when component unmounts
+  useEffect(() => {
+    return () => {
+      setUserError(null);
+      setSuccess(null);
+    };
+  }, []);
+
+  // Update local error state when store error changes
+  useEffect(() => {
+    if (error) {
+      setUserError(error);
+    }
+  }, [error]);
+
   useEffect(() => {
     !wereUsersFetched && fetchUsers();
-  }, [fetchUsers]);
+  }, [fetchUsers, wereUsersFetched]);
 
   const getRoleIcon = (role: UserRole) => {
     switch (role) {
@@ -79,7 +95,7 @@ const UsersPage: React.FC = () => {
         leftIcon={getRoleIcon(role)}
         className="capitalize"
       >
-        {t(`userForm.roles.${role.toLowerCase()}`)}
+        {role.toLowerCase()}
       </Badge>
     );
   };
@@ -88,8 +104,11 @@ const UsersPage: React.FC = () => {
     try {
       await updateUser(userId, { role: newRole });
       setEditingUser(null);
+      setSuccess(t('userForm.roleChangeSuccess'));
+      setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
-      console.error('Error updating user role:', error);
+      setUserError(error instanceof Error ? error.message : t('userForm.errorUpdatingRole'));
+      setTimeout(() => setUserError(null), 5000);
     }
   };
 
@@ -97,8 +116,11 @@ const UsersPage: React.FC = () => {
     try {
       const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
       await updateUser(userId, { status: newStatus });
+      setSuccess(t('userForm.statusChangeSuccess'));
+      setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
-      console.error('Error toggling user status:', error);
+      setUserError(error instanceof Error ? error.message : t('userForm.errorUpdatingStatus'));
+      setTimeout(() => setUserError(null), 5000);
     }
   };
 
@@ -121,8 +143,11 @@ const UsersPage: React.FC = () => {
     try {
       await createUser(userData);
       setShowAddForm(false);
+      setSuccess(t('userForm.createSuccess'));
+      setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
-      console.error('Error creating user:', error);
+      setUserError(error instanceof Error ? error.message : t('userForm.errorCreating'));
+      setTimeout(() => setUserError(null), 5000);
     }
   };
 
@@ -133,8 +158,11 @@ const UsersPage: React.FC = () => {
       await updateUser(editingUserData.id, userData);
       setEditingUserData(null);
       setShowAddForm(false);
+      setSuccess(t('userForm.updateSuccess'));
+      setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
-      console.error('Error updating user:', error);
+      setUserError(error instanceof Error ? error.message : t('userForm.errorUpdating'));
+      setTimeout(() => setUserError(null), 5000);
     }
   };
 
@@ -145,8 +173,11 @@ const UsersPage: React.FC = () => {
     
     try {
       await deleteUser(userId);
+      setSuccess(t('userForm.deleteSuccess'));
+      setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
-      console.error('Error deleting user:', error);
+      setUserError(error instanceof Error ? error.message : t('userForm.errorDeleting'));
+      setTimeout(() => setUserError(null), 5000);
     }
   };
 
@@ -169,7 +200,7 @@ const UsersPage: React.FC = () => {
 
   const columns = [
     columnHelper.accessor('name', {
-      header: t('userForm.name'),
+      header: 'User',
       cell: info => (
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700">
@@ -183,18 +214,18 @@ const UsersPage: React.FC = () => {
       ),
     }),
     columnHelper.accessor('personType', {
-      header: t('userForm.personType'),
+      header: 'Type',
       cell: info => (
         <Badge
           variant={info.getValue() === 'COLPORTER' ? 'primary' : 'success'}
           size="sm"
         >
-          {t(`userForm.types.${info.getValue()?.toLowerCase()}`) || 'Admin'}
+          {info.getValue() || 'Admin'}
         </Badge>
       ),
     }),
     columnHelper.accessor('role', {
-      header: t('userForm.userRole'),
+      header: 'Role',
       cell: info => (
         <div>
           {editingUser === info.row.original.id ? (
@@ -204,9 +235,9 @@ const UsersPage: React.FC = () => {
                 onChange={(e) => setEditingRole(e.target.value as UserRole)}
                 className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                <option value={UserRole.ADMIN}>{t('userForm.roles.admin')}</option>
-                <option value={UserRole.SUPERVISOR}>{t('userForm.roles.supervisor')}</option>
-                <option value={UserRole.VIEWER}>{t('userForm.roles.viewer')}</option>
+                <option value={UserRole.ADMIN}>Admin</option>
+                <option value={UserRole.SUPERVISOR}>Supervisor</option>
+                <option value={UserRole.VIEWER}>Viewer</option>
               </select>
               <Button
                 variant="success"
@@ -239,14 +270,14 @@ const UsersPage: React.FC = () => {
       ),
     }),
     columnHelper.accessor('status', {
-      header: t('userForm.accountStatus'),
+      header: 'Status',
       cell: info => (
         <div className="flex items-center gap-2">
           <Badge
             variant={info.getValue() === 'ACTIVE' ? 'success' : 'danger'}
             rounded
           >
-            {t(`userForm.status.${info.getValue().toLowerCase()}`)}
+            {info.getValue()}
           </Badge>
           <Button
             variant="ghost"
@@ -259,7 +290,7 @@ const UsersPage: React.FC = () => {
       ),
     }),
     columnHelper.accessor('lastLogin', {
-      header: t('userForm.lastLogin'),
+      header: 'Last Login',
       cell: info => (
         info.getValue() ? (
           <div>
@@ -269,17 +300,17 @@ const UsersPage: React.FC = () => {
             </div>
           </div>
         ) : (
-          <span className="text-gray-400">{t('userForm.neverLoggedIn')}</span>
+          <span className="text-gray-400">Never</span>
         )
       ),
     }),
     columnHelper.accessor('createdAt', {
-      header: t('userForm.createdAt'),
+      header: 'Created',
       cell: info => new Date(info.getValue()).toLocaleDateString(),
     }),
     columnHelper.display({
       id: 'actions',
-      header: t('common.actions'),
+      header: 'Actions',
       cell: info => (
         <div className="flex items-center gap-2">
           <Button
@@ -318,22 +349,45 @@ const UsersPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <LoadingScreen message={t('userForm.loadingUsers')} />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
-        <p className="font-medium">{t('userForm.errorLoadingUsers')}</p>
-        <p>{error}</p>
+        <LoadingScreen message="Loading users..." />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {success && (
+        <div className="p-4 bg-success-50 border border-success-200 rounded-lg flex items-center justify-between">
+          <div className="flex items-start gap-3">
+            <CheckCircle className="text-success-500 flex-shrink-0 mt-0.5" size={20} />
+            <p className="text-success-700">{success}</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSuccess(null)}
+          >
+            <X size={16} />
+          </Button>
+        </div>
+      )}
+
+      {userError && (
+        <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg flex items-center justify-between">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="text-danger-500 flex-shrink-0 mt-0.5" size={20} />
+            <p className="text-danger-700">{userError}</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setUserError(null)}
+          >
+            <X size={16} />
+          </Button>
+        </div>
+      )}
+
       {/* Role Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
@@ -341,9 +395,9 @@ const UsersPage: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <ShieldCheck className="text-red-500" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">{t('userForm.roles.admin')}</p>
+            <p className="text-sm font-medium text-gray-500">Administrators</p>
             <p className="mt-1 text-2xl font-bold text-red-600">{roleStats[UserRole.ADMIN] || 0}</p>
-            <p className="text-xs text-gray-500">{t('userForm.roleDescriptions.admin')}</p>
+            <p className="text-xs text-gray-500">Full system access</p>
           </div>
         </Card>
         
@@ -352,9 +406,9 @@ const UsersPage: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <Shield className="text-blue-500" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">{t('userForm.roles.supervisor')}</p>
+            <p className="text-sm font-medium text-gray-500">Supervisors</p>
             <p className="mt-1 text-2xl font-bold text-blue-600">{roleStats[UserRole.SUPERVISOR] || 0}</p>
-            <p className="text-xs text-gray-500">{t('userForm.roleDescriptions.supervisor')}</p>
+            <p className="text-xs text-gray-500">Program leaders</p>
           </div>
         </Card>
         
@@ -363,9 +417,9 @@ const UsersPage: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <Eye className="text-green-500" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">{t('userForm.roles.viewer')}</p>
+            <p className="text-sm font-medium text-gray-500">Viewers</p>
             <p className="mt-1 text-2xl font-bold text-green-600">{roleStats[UserRole.VIEWER] || 0}</p>
-            <p className="text-xs text-gray-500">{t('userForm.roleDescriptions.viewer')}</p>
+            <p className="text-xs text-gray-500">Read-only access</p>
           </div>
         </Card>
       </div>
@@ -375,7 +429,7 @@ const UsersPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div className="flex flex-col sm:flex-row gap-4">
               <Input
-                placeholder={t('userForm.searchPlaceholder')}
+                placeholder="Search users..."
                 value={globalFilter}
                 onChange={(e) => setGlobalFilter(e.target.value)}
                 leftIcon={<Search size={18} />}
@@ -388,9 +442,9 @@ const UsersPage: React.FC = () => {
                 className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               >
                 <option value="">{t('common.allTypes')}</option>
-                <option value={UserRole.ADMIN}>{t('userForm.roles.admin')}</option>
-                <option value={UserRole.SUPERVISOR}>{t('userForm.roles.supervisor')}</option>
-                <option value={UserRole.VIEWER}>{t('userForm.roles.viewer')}</option>
+                <option value={UserRole.ADMIN}>Admin</option>
+                <option value={UserRole.SUPERVISOR}>Supervisor</option>
+                <option value={UserRole.VIEWER}>Viewer</option>
               </select>
 
               <select
@@ -398,9 +452,9 @@ const UsersPage: React.FC = () => {
                 onChange={(e) => setStatusFilter(e.target.value as 'ACTIVE' | 'INACTIVE' | '')}
                 className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               >
-                <option value="">{t('common.all')}</option>
-                <option value="ACTIVE">{t('userForm.status.active')}</option>
-                <option value="INACTIVE">{t('userForm.status.inactive')}</option>
+                <option value="">All Status</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
               </select>
             </div>
             
@@ -417,7 +471,7 @@ const UsersPage: React.FC = () => {
                 leftIcon={<UserPlus size={18} />}
                 onClick={() => setShowAddForm(true)}
               >
-                {t('userForm.addUser')}
+                Add User
               </Button>
             </div>
           </div>
@@ -441,18 +495,18 @@ const UsersPage: React.FC = () => {
                 <div className="space-y-3">
                   {/* Type */}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">{t('userForm.personType')}:</span>
+                    <span className="text-sm font-medium text-gray-700">Type:</span>
                     <Badge
                       variant={user.personType === 'COLPORTER' ? 'primary' : 'success'}
                       size="sm"
                     >
-                      {t(`userForm.types.${user.personType?.toLowerCase()}`) || 'Admin'}
+                      {user.personType || 'Admin'}
                     </Badge>
                   </div>
                   
                   {/* Role */}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">{t('userForm.userRole')}:</span>
+                    <span className="text-sm font-medium text-gray-700">Role:</span>
                     {editingUser === user.id ? (
                       <div className="flex items-center gap-2">
                         <select
@@ -460,9 +514,9 @@ const UsersPage: React.FC = () => {
                           onChange={(e) => setEditingRole(e.target.value as UserRole)}
                           className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500"
                         >
-                          <option value={UserRole.ADMIN}>{t('userForm.roles.admin')}</option>
-                          <option value={UserRole.SUPERVISOR}>{t('userForm.roles.supervisor')}</option>
-                          <option value={UserRole.VIEWER}>{t('userForm.roles.viewer')}</option>
+                          <option value={UserRole.ADMIN}>Admin</option>
+                          <option value={UserRole.SUPERVISOR}>Supervisor</option>
+                          <option value={UserRole.VIEWER}>Viewer</option>
                         </select>
                         <Button
                           variant="success"
@@ -495,13 +549,13 @@ const UsersPage: React.FC = () => {
 
                   {/* Status */}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">{t('userForm.accountStatus')}:</span>
+                    <span className="text-sm font-medium text-gray-700">Status:</span>
                     <div className="flex items-center gap-2">
                       <Badge
                         variant={user.status === 'ACTIVE' ? 'success' : 'danger'}
                         rounded
                       >
-                        {t(`userForm.status.${user.status.toLowerCase()}`)}
+                        {user.status}
                       </Badge>
                       <Button
                         variant="ghost"
@@ -515,7 +569,7 @@ const UsersPage: React.FC = () => {
 
                   {/* Last Login */}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">{t('userForm.lastLogin')}:</span>
+                    <span className="text-sm font-medium text-gray-700">Last Login:</span>
                     <span className="text-sm text-gray-600">
                       {user.lastLogin ? (
                         <>
@@ -523,7 +577,7 @@ const UsersPage: React.FC = () => {
                           {new Date(user.lastLogin).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </>
                       ) : (
-                        t('userForm.neverLoggedIn')
+                        'Never'
                       )}
                     </span>
                   </div>
@@ -535,14 +589,14 @@ const UsersPage: React.FC = () => {
                       size="sm"
                       onClick={() => handleEditUser(user)}
                     >
-                      {t('common.edit')}
+                      Edit
                     </Button>
                     <Button
                       variant="danger"
                       size="sm"
                       onClick={() => handleDeleteUser(user.id)}
                     >
-                      {t('common.delete')}
+                      Delete
                     </Button>
                   </div>
                 </div>
@@ -611,13 +665,13 @@ const UsersPage: React.FC = () => {
         <div className="flex items-start gap-4">
           <AlertCircle className="text-warning-500 flex-shrink-0 mt-1" size={24} />
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('userForm.roleManagementGuidelines')}</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Role Management Guidelines</h3>
             <ul className="text-sm text-gray-600 space-y-2">
-              <li>• <strong>{t('userForm.roles.admin')}:</strong> {t('userForm.roleDescriptions.admin')}</li>
-              <li>• <strong>{t('userForm.roles.supervisor')}:</strong> {t('userForm.roleDescriptions.supervisor')}</li>
-              <li>• <strong>{t('userForm.roles.viewer')}:</strong> {t('userForm.roleDescriptions.viewer')}</li>
-              <li>• <strong>{t('userForm.statusChanges')}:</strong> {t('userForm.statusDescriptions.inactive')}</li>
-              <li>• <strong>{t('userForm.roleChanges')}:</strong> {t('userForm.roleChangeEffect')}</li>
+              <li>• <strong>Admin:</strong> Full system access, can manage all users, settings, and data.</li>
+              <li>• <strong>Supervisor:</strong> Can manage colporters, view reports, and handle daily operations.</li>
+              <li>• <strong>Viewer:</strong> Read-only access to their own data and basic features.</li>
+              <li>• <strong>Status Changes:</strong> Inactive users cannot log in but their data is preserved.</li>
+              <li>• <strong>Role Changes:</strong> Take effect immediately and may require users to log in again.</li>
             </ul>
           </div>
         </div>

@@ -39,7 +39,6 @@ const GoalProgress: React.FC<GoalProgressProps> = ({ goal }) => {
   } else {
     progressVariant = 'danger';
   }
-  console.log(goal)
   return (
     <Card
       title={t('dashboard.goal')}

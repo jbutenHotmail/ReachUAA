@@ -40,7 +40,7 @@ const NewTransaction: React.FC = () => {
   const [stayOnPage, setStayOnPage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!wereBooksLoaded || !wasProgramFetched || !werePeopleFetched);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const leaderDropdownRef = useRef<HTMLDivElement>(null);
@@ -54,9 +54,7 @@ const NewTransaction: React.FC = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      setIsLoading(true);
       try {
-        !wereUsersFetched && await fetchUsers();
         !wereBooksLoaded && await fetchBooks();
         !wasProgramFetched && await fetchProgram();
         !werePeopleFetched && await fetchPeople();
@@ -65,6 +63,7 @@ const NewTransaction: React.FC = () => {
       } finally {
         // Add a small delay to ensure the loading screen is visible
         setTimeout(() => setIsLoading(false), 800);
+        setIsLoading(false);
       }
     };
     
@@ -119,8 +118,6 @@ const NewTransaction: React.FC = () => {
     try {
       // Use the consistent date format for today
       const todayFormatted = getCurrentDate();
-      console.log('Creating transaction with date:', todayFormatted);
-      
       await createTransaction({
         leaderId: selectedLeader.id,
         leaderName: selectedLeader.name,

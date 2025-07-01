@@ -77,12 +77,12 @@ export const useAuth = (): UseAuthReturn => {
       setIsAuthenticated(false);
       
       // Clear user data
-      localStorage.removeItem('user');
       
       navigate('/login');
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
+      localStorage.clear();
       setIsLoading(false);
     }
   }, [navigate]);

@@ -49,7 +49,8 @@ export default {
     type: "Type",
     note: "Note",
     success: 'Success',
-    refresh: 'Refresh'
+    refresh: 'Refresh',
+    switchProgram: 'Switch Program'
   },
   bookSetup: {
     title: "Book Setup",
@@ -119,6 +120,7 @@ export default {
     programPercentageDescription: 'Percentage of sales that goes to the program.',
         revenueDistribution: 'Revenue Distribution',
         cashAdvances: 'Cash Advances',
+        addProgramDescription: ' Create a new program to manage colportage activities',
 
   },
   programSettings: {
@@ -424,6 +426,7 @@ export default {
   },
   userForm: {
     editUser: "Edit User",
+    updateSuccess: "User updated successfully",
     selectPerson: "Select Person",
     createUser: "Create New User",
     personType: "Person Type",
@@ -714,7 +717,7 @@ export default {
     colporter: "Colporter",
     transactionsCount: "transactions",
     checks: "Checks",
-    atmMobile: "ATM or Mobile",
+    atmMobile: "ATH Movil",
     selectLeaderPlaceholder: "Select today's supervising leader",
     selectColporterPlaceholder: "Select colporter",
     noLeadersFound: "No leaders found",
@@ -854,13 +857,31 @@ export default {
     newTransaction: "New Transaction",
     inventory: "Inventory",
     deposits: "Deposits",
-    reports: "Reports",
     donations: "Donations",
     profile: "Profile",
     settings: "Settings",
     deliveredBooks: "Delivered Books",
     records: "Records",
     expenses: "Expenses",
+    administration: "Administration",
+    reports: {
+      reports: "Reports",
+      donations: "Donations",
+      programReport: "Program Report",
+      individualReport: "Individual Report",
+    },
+    users: {
+      users: "Users",
+      manageUsers: "Manage Users",
+      manageRoles: "Manage Roles"
+    },
+    people: {
+      people: "People",
+      allPeople: "All People",
+      colporters: "Colporters",
+      leaders: "Leaders"
+    },
+    program: 'Program',
   },
   deposits: {
     title: "Deposits",
@@ -888,6 +909,7 @@ export default {
     period: "Period",
     from: "From",
     to: "To",
+    donations: "Donations",
     distributionExpenses: "Revenue Distribution and Expenses",
     totalBooks: "Total Books",
     completeProgram: "Complete program",

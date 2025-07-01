@@ -172,13 +172,13 @@ const TransactionDetails: React.FC = () => {
                 <div className="p-3 bg-green-50 rounded-lg">
                   <p className="text-sm text-green-600">{t('transactionDetails.cash')}</p>
                   <p className="text-lg font-semibold text-green-700">
-                    ${transaction.cash.toFixed(2)}
+                    ${Number(transaction.cash).toFixed(2)}
                   </p>
                 </div>
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <p className="text-sm text-blue-600">{t('transactionDetails.checks')}</p>
                   <p className="text-lg font-semibold text-blue-700">
-                    ${transaction.checks.toFixed(2)}
+                    ${Number(transaction.checks).toFixed(2)}
                   </p>
                 </div>
                 <div className="p-3 bg-purple-50 rounded-lg">
@@ -233,12 +233,11 @@ const TransactionDetails: React.FC = () => {
                   <div>
                     <p className="font-medium text-gray-900">{book.title}</p>
                     <div className="flex items-center gap-2">
-                      <p className="text-sm text-gray-500">${book.price.toFixed(2)}</p>
                       <Badge 
                         variant={bookSize === BookSize.LARGE ? "primary" : "success"}
                         size="sm"
                       >
-                        {t(`transactionDetails.${bookSize === BookSize.LARGE ? 'largeBooks' : 'smallBooks'}`)}
+                        {t(`inventory.${bookSize === BookSize.LARGE ? 'large' : 'small'}`)}
                       </Badge>
                     </div>
                   </div>

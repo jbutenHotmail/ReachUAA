@@ -17,8 +17,10 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   personType?: string;
+  personId?: string; // ID de la persona asociada
   lastLogin?: string;
   status: 'ACTIVE' | 'INACTIVE';
+  currentProgramId?: number; // ID del programa actual
 }
 
 // Define AuthState interface
@@ -44,10 +46,10 @@ export interface Person {
   createdAt: string;
   updatedAt: string;
   personType: 'COLPORTER' | 'LEADER';
+  programId?: number | null;
   // Fields specific to colporters
   school?: string;
   age?: string;
-  programId?: string;
   // Fields specific to leaders
   institution?: string;
 }
@@ -241,8 +243,8 @@ export interface Colporter {
   hasUser: boolean;
   createdAt: string;
   updatedAt: string;
-  programId?: string;
   profile_image_url?: string;
+  programId?: number | null;
 }
 
 export interface Leader {
@@ -257,9 +259,7 @@ export interface Leader {
   hasUser: boolean;
   createdAt: string;
   updatedAt: string;
-  profile_image_url?: string;
-    programId?: string;
-
+  programId?: number | null;
 }
 
 // Updated ProgramConfig interface with achieved property

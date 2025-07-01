@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { User, UserRole, Person } from "../types";
+import { User, Person } from "../types";
 import { api } from "../api";
 import { useProgramStore } from "./programStore";
 
@@ -11,6 +11,7 @@ interface UserState {
   werePeopleFetched: boolean;
   wereUsersFetched: boolean;
   setWerePeopleFetched: (value: boolean) => void;
+  isCreatingPerson: boolean; // Nuevo estado para controlar la creación
 }
 
 interface UserStore extends UserState {
@@ -25,6 +26,7 @@ interface UserStore extends UserState {
     currentPassword: string,
     newPassword: string
   ) => Promise<void>;
+  resetPassword: (userId: string) => Promise<void>;
   getRolePermissions: () => Promise<any[]>;
   updateRolePermissions: (permissions: any[]) => Promise<void>;
   createPerson: (personData: Partial<Person>) => Promise<Person>;
@@ -43,6 +45,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
   error: null,
   werePeopleFetched: false,
   wereUsersFetched: false,
+  isCreatingPerson: false, // Inicializado como false
   setWerePeopleFetched: (value: boolean) => set({ werePeopleFetched: value }),
 
   fetchUsers: async () => {
@@ -150,7 +153,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
     try {
       await api.delete(`/users/${id}`);
       set((state) => ({
-        users: state.users.filter((user) => user.id !== id),
+        users: state.users.filter((user) => Number(user.id) !== Number(id)),
         isLoading: false,
       }));
     } catch (error) {
@@ -170,6 +173,21 @@ export const useUserStore = create<UserStore>((set, get) => ({
         currentPassword,
         newPassword,
       });
+      set({ isLoading: false });
+    } catch (error) {
+      set({
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+        isLoading: false,
+      });
+      throw error;
+    }
+  },
+
+  resetPassword: async (userId) => {
+    set({ isLoading: true, error: null });
+    try {
+      await api.post(`/users/${userId}/reset-password`);
       set({ isLoading: false });
     } catch (error) {
       set({
@@ -212,21 +230,33 @@ export const useUserStore = create<UserStore>((set, get) => ({
     }
   },
 
-  // New methods for person management
+  // Método modificado para evitar la doble ejecución
   createPerson: async (personData) => {
-    set({ isLoading: true, error: null });
+    // Verificar si ya está en proceso de creación
+    if (get().isCreatingPerson) {
+      throw new Error("Creation already in progress");
+    }
+    set({ isLoading: true, error: null, isCreatingPerson: true });
     try {
       let newPerson;
 
+      // Asegurarse de que el programId esté incluido
+      const { program } = useProgramStore.getState();
+      const dataWithProgram = {
+        ...personData,
+        programId: personData.programId || (program ? program.id : null)
+      };
+
       if (personData.personType === "COLPORTER") {
-        newPerson = await api.post<Person>("/people/colporters", personData);
+        newPerson = await api.post<Person>("/people/colporters", dataWithProgram);
       } else {
-        newPerson = await api.post<Person>("/people/leaders", personData);
+        newPerson = await api.post<Person>("/people/leaders", dataWithProgram);
       }
 
       set((state) => ({
         people: [...state.people, newPerson],
         isLoading: false,
+        isCreatingPerson: false
       }));
 
       return newPerson;
@@ -235,6 +265,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
         error:
           error instanceof Error ? error.message : "An unknown error occurred",
         isLoading: false,
+        isCreatingPerson: false
       });
       throw error;
     }
@@ -303,6 +334,8 @@ export const useUserStore = create<UserStore>((set, get) => ({
       isLoading: false,
       error: null,
       werePeopleFetched: false,
+      wereUsersFetched: false,
+      isCreatingPerson: false
     });
   },
 }));
