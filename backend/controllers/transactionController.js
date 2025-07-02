@@ -144,7 +144,6 @@ export const createTransaction = async (req, res) => {
     
     // Calculate total
     const total = (cash || 0) + (checks || 0) + (atmMobile || 0) + (paypal || 0);
-    console.log(req.body)
     // Start transaction
     const result = await db.transaction(async (connection) => {
       // Insert transaction
