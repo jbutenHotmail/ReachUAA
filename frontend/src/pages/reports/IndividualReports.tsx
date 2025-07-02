@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
@@ -16,7 +14,7 @@ import { useChargeStore } from "../../stores/chargeStore"
 import { useCashAdvanceStore } from "../../stores/cashAdvanceStore"
 import { useProgramStore } from "../../stores/programStore"
 import { isColportableDay } from "../../utils/programUtils"
-import { getEndOfMonth, getStartOfMonth, isDateInRange } from "../../utils/dateUtils"
+import { getEndOfMonth, getStartOfMonth, isDateInRange, getDateRange, parseDate } from "../../utils/dateUtils"
 
 interface ReportData {
   personId: string
@@ -43,52 +41,31 @@ interface ReportData {
   percentage: number
 }
 
-// Helper function to format dates without timezone issues
+// Helper function to format dates consistently
 const formatDateSafe = (dateString: string): string => {
   if (!dateString) return ""
-
-  // Extract date part if it's an ISO string
-  const datePart = dateString.includes("T") ? dateString.split("T")[0] : dateString
-  const [year, month, day] = datePart.split("-")
-
-  // Create date in local timezone to avoid UTC conversion issues
-  const date = new Date(Number.parseInt(year), Number.parseInt(month) - 1, Number.parseInt(day))
-  return date.toLocaleDateString('en-US', { timeZone: 'UTC' })
+  const date = parseDate(dateString)
+  return date.toLocaleDateString("en-US")
 }
 
-// Helper function to get day name without timezone issues
+// Helper function to get day name consistently
 const getDayNameSafe = (dateString: string): string => {
   if (!dateString) return ""
-
-  const datePart = dateString.includes("T") ? dateString.split("T")[0] : dateString
-  const [year, month, day] = datePart.split("-")
-
-  // Create date in local timezone to avoid UTC conversion issues
-  const date = new Date(Number.parseInt(year), Number.parseInt(month) - 1, Number.parseInt(day))
-  return date.toLocaleDateString("en-US", { weekday: "short", timeZone: 'UTC' })
+  const date = parseDate(dateString)
+  return date.toLocaleDateString("en-US", { weekday: "short" })
 }
 
-// Helper function to format date for week labels without timezone issues
+// Helper function to format date for week labels consistently
 const formatWeekLabelSafe = (dateString: string): string => {
   if (!dateString) return ""
-
-  const datePart = dateString.includes("T") ? dateString.split("T")[0] : dateString
-  const [year, month, day] = datePart.split("-")
-
-  // Create date in local timezone to avoid UTC conversion issues
-  const date = new Date(Number.parseInt(year), Number.parseInt(month) - 1, Number.parseInt(day))
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: 'UTC' })
+  const date = parseDate(dateString)
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
-// Helper function to get day of week number without timezone issues
+// Helper function to get day of week number consistently
 const getDayOfWeekSafe = (dateString: string): number => {
   if (!dateString) return 0
-
-  const datePart = dateString.includes("T") ? dateString.split("T")[0] : dateString
-  const [year, month, day] = datePart.split("-")
-
-  // Create date in local timezone to avoid UTC conversion issues
-  const date = new Date(Number.parseInt(year), Number.parseInt(month) - 1, Number.parseInt(day))
+  const date = parseDate(dateString)
   return date.getDay()
 }
 
@@ -114,6 +91,7 @@ const IndividualReports: React.FC = () => {
 
   const personDropdownRef = useRef<HTMLDivElement>(null)
 
+  // Initial data loading useEffect
   useEffect(() => {
     const loadInitialData = async () => {
       setIsLoading(true)
@@ -135,30 +113,12 @@ const IndividualReports: React.FC = () => {
         setStartDate(startOfMonth)
         setEndDate(endOfMonth)
 
-        console.log("Date range:", startOfMonth, "to", endOfMonth)
+        console.log("Default date range:", startOfMonth, "to", endOfMonth)
 
-        // Calculate total program sales and leader count
-        const allTransactions = wereTransactionsFetched ? transactions : await fetchAllTransactions("APPROVED")
-
-        // Filter transactions using consistent date handling
-        const filteredTransactions = allTransactions.filter((t) => {
-          // Skip if not approved
-          if (t.status !== "APPROVED") return false
-
-          // Use consistent date range checking
-          return isDateInRange(t.date, startOfMonth, endOfMonth)
-        })
-
-        const totalSales = filteredTransactions.reduce((sum, t) => sum + t.total, 0)
-
-        console.log("Filtered transactions:", filteredTransactions.length)
-        console.log("Total sales:", totalSales)
-
-        setTotalProgramSales(totalSales)
-
+        // Get leader count for calculations
         const leaders = getLeaders()
         const activeLeaders = leaders.filter((l) => l.status === "ACTIVE")
-        setTotalLeadersCount(activeLeaders.length || 1) // Ensure we don't divide by zero
+        setTotalLeadersCount(activeLeaders.length || 1)
       } catch (error) {
         console.error("Error loading initial data:", error)
         setError(t("common.error"))
@@ -174,9 +134,45 @@ const IndividualReports: React.FC = () => {
     wereChargesFetched,
     wereAdvancesFetched,
     wasProgramFetched,
-    wereTransactionsFetched,
-    transactions,
+    fetchUsers,
+    fetchPeople,
+    fetchCharges,
+    fetchAdvances,
+    fetchProgram,
+    getLeaders,
+    t,
   ])
+
+  // Calculate totalProgramSales when dates change
+  useEffect(() => {
+    const calculateProgramSales = async () => {
+      if (!startDate || !endDate) return
+
+      try {
+        // Ensure transactions are loaded
+        const allTransactions = wereTransactionsFetched ? transactions : await fetchAllTransactions("APPROVED")
+
+        // Filter transactions using consistent date handling for the selected date range
+        const filteredTransactions = allTransactions.filter((t) => {
+          if (t.status !== "APPROVED") return false
+          return isDateInRange(t.date, startDate, endDate)
+        })
+
+        const totalSales = filteredTransactions.reduce((sum, t) => sum + t.total, 0)
+
+        console.log("Program sales calculation:")
+        console.log("Date range:", startDate, "to", endDate)
+        console.log("Filtered transactions:", filteredTransactions.length)
+        console.log("Total program sales:", totalSales)
+
+        setTotalProgramSales(totalSales)
+      } catch (error) {
+        console.error("Error calculating program sales:", error)
+      }
+    }
+
+    calculateProgramSales()
+  }, [startDate, endDate, transactions, wereTransactionsFetched, fetchAllTransactions])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -215,18 +211,6 @@ const IndividualReports: React.FC = () => {
     }
   }, [isPersonDropdownOpen])
 
-  const generateDateRange = (start: string, end: string) => {
-    const startDate = new Date(start + "T00:00:00")
-    const endDate = new Date(end + "T23:59:59")
-    const dateArray = []
-
-    for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
-      dateArray.push(date.toISOString().split("T")[0])
-    }
-
-    return dateArray
-  }
-
   const generateReport = async () => {
     if (!selectedPerson || !startDate || !endDate) {
       setError(t("individualReports.errorMissingSelection"))
@@ -237,14 +221,20 @@ const IndividualReports: React.FC = () => {
     setError(null)
 
     try {
-      const fetchedTransactions = wereTransactionsFetched ? transactions : await fetchAllTransactions('APPROVED')
+      const fetchedTransactions = wereTransactionsFetched ? transactions : await fetchAllTransactions("APPROVED")
+
       !wereChargesFetched && (await fetchCharges())
       !wereAdvancesFetched && (await fetchAdvances())
 
-      const dateRange = generateDateRange(startDate, endDate)
+      // Generate date range using consistent date utilities
+      const dateRange = getDateRange(startDate, endDate)
+
+      console.log("Generated date range:", dateRange)
+
       const personTransactions = fetchedTransactions.filter((t) => {
-        const transactionDate = t.date.split("T")[0] // Extract YYYY-MM-DD from ISO string
-        const isInDateRange = transactionDate >= startDate && transactionDate <= endDate
+        // Use consistent date range checking
+        const isInDateRange = isDateInRange(t.date, startDate, endDate)
+
         return (
           (personType === "COLPORTER"
             ? Number(t.studentId) === Number(selectedPerson.id)
@@ -254,20 +244,20 @@ const IndividualReports: React.FC = () => {
         )
       })
 
+      console.log("Person transactions:", personTransactions)
+
       // Only include APPLIED charges (not PENDING or CANCELLED)
       const personCharges = charges.filter((c) => {
-        const chargeDate = c.date.includes("T") ? c.date.split("T")[0] : c.date
-        return (
-          c.personId === selectedPerson.id && chargeDate >= startDate && chargeDate <= endDate && c.status === "APPLIED"
-        )
+        return c.personId === selectedPerson.id && isDateInRange(c.date, startDate, endDate) && c.status === "APPLIED"
       })
 
       // Only include APPROVED advances (not PENDING or REJECTED)
       const personAdvances = advances.filter((a) => {
-        const weekStart = a.weekStartDate.includes("T") ? a.weekStartDate.split("T")[0] : a.weekStartDate
-        const weekEnd = a.weekEndDate.includes("T") ? a.weekEndDate.split("T")[0] : a.weekEndDate
         return (
-          a.personId === selectedPerson.id && weekStart >= startDate && weekEnd <= endDate && a.status === "APPROVED"
+          a.personId === selectedPerson.id &&
+          isDateInRange(a.weekStartDate, startDate, endDate) &&
+          isDateInRange(a.weekEndDate, startDate, endDate) &&
+          a.status === "APPROVED"
         )
       })
 
@@ -286,9 +276,9 @@ const IndividualReports: React.FC = () => {
       if (personType === "COLPORTER") {
         dateRange.forEach((date) => {
           const dayTransactions = personTransactions.filter((t) => {
-            const transactionDate = t.date.split("T")[0]
-            return transactionDate === date
+            return isDateInRange(t.date, date, date) // Check if transaction is on this specific date
           })
+
           const dayTotal = dayTransactions.reduce((sum, t) => sum + t.total, 0)
           dailyEarnings[date] = dayTotal
         })
@@ -301,26 +291,30 @@ const IndividualReports: React.FC = () => {
 
       // Calculate earnings
       let totalEarnings = 0
+
       if (personType === "COLPORTER") {
         totalEarnings = Object.values(dailyEarnings).reduce((sum, amount) => sum + amount, 0)
       } else {
-        // For leaders, calculate earnings based on total program sales divided by number of leaders
-        const allProgramTransactions = fetchedTransactions.filter(
-          (t) =>
-            new Date(t.date) >= new Date(startDate) && new Date(t.date) <= new Date(endDate) && t.status === "APPROVED",
-        )
-
-        const totalSales = allProgramTransactions.reduce((sum, t) => sum + t.total, 0)
-        totalEarnings = totalSales // Store total program sales for display
+        // For leaders, use the already calculated totalProgramSales for the selected date range
+        totalEarnings = totalProgramSales // Store total program sales for display
       }
 
       const totalCharges = personCharges.reduce((sum, charge) => sum + charge.amount, 0)
       const totalAdvances = personAdvances.reduce((sum, advance) => sum + advance.advanceAmount, 0)
+
       const netAmount =
         personType === "COLPORTER"
           ? totalEarnings * (percentage / 100) - totalCharges - totalAdvances
           : (totalProgramSales * (percentage / 100)) / totalLeadersCount - totalCharges - totalAdvances
-      console.log(totalProgramSales)
+
+      console.log("Report calculation:")
+      console.log("Person type:", personType)
+      console.log("Total program sales:", totalProgramSales)
+      console.log("Total earnings:", totalEarnings)
+      console.log("Percentage:", percentage)
+      console.log("Total leaders:", totalLeadersCount)
+      console.log("Net amount:", netAmount)
+
       setReportData({
         personId: selectedPerson.id,
         personName: selectedPerson.name,
@@ -354,7 +348,6 @@ const IndividualReports: React.FC = () => {
   }
 
   const people = personType === "COLPORTER" ? getColporters() : getLeaders()
-
   const filteredPeople = people.filter((person) => person.name.toLowerCase().includes(personSearch.toLowerCase()))
 
   const handlePersonTypeChange = (type: "COLPORTER" | "LEADER") => {
@@ -383,6 +376,7 @@ const IndividualReports: React.FC = () => {
         if (currentWeek.length > 0) {
           const weekTotal = currentWeek.reduce((sum, day) => sum + day.amount, 0)
           const endDate = currentWeek[currentWeek.length - 1].date
+
           weeks.push({
             startDate: currentWeek[0].date,
             endDate,
@@ -390,14 +384,13 @@ const IndividualReports: React.FC = () => {
             weekTotal,
             days: currentWeek,
           })
+
           currentWeek = []
         }
       }
 
-      // Create date safely for isColportableDay check
-      const datePart = date.includes("T") ? date.split("T")[0] : date
-      const [year, month, day] = datePart.split("-")
-      const currentDate = new Date(Number.parseInt(year), Number.parseInt(month) - 1, Number.parseInt(day))
+      // Create date consistently for isColportableDay check
+      const currentDate = parseDate(date)
       const isColportable = program ? isColportableDay(currentDate) : true
 
       currentWeek.push({
@@ -411,6 +404,7 @@ const IndividualReports: React.FC = () => {
     if (currentWeek.length > 0) {
       const weekTotal = currentWeek.reduce((sum, day) => sum + day.amount, 0)
       const endDate = currentWeek[currentWeek.length - 1].date
+
       weeks.push({
         startDate: currentWeek[0].date,
         endDate,
@@ -552,7 +546,6 @@ const IndividualReports: React.FC = () => {
           <p><strong>${t("common.type")}:</strong> ${t(`personForm.${reportData.personType.toLowerCase()}`)}</p>
           <p><strong>${t("reports.period")}:</strong> ${formatDateSafe(reportData.startDate)} - ${formatDateSafe(reportData.endDate)}</p>
         </div>
-
         ${
           reportData.personType === "LEADER"
             ? `
@@ -563,7 +556,6 @@ const IndividualReports: React.FC = () => {
           `
             : ""
         }
-
         ${
           reportData.personType === "COLPORTER"
             ? `
@@ -602,8 +594,7 @@ const IndividualReports: React.FC = () => {
                   <td class="charges-cell">
                     ${(() => {
                       const weekCharges = reportData.charges.filter((charge) => {
-                        const chargeDate = charge.date.includes("T") ? charge.date.split("T")[0] : charge.date
-                        return chargeDate >= week.startDate && chargeDate <= week.endDate
+                        return isDateInRange(charge.date, week.startDate, week.endDate)
                       })
                       const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
                       return chargeTotal > 0 ? `-${chargeTotal.toFixed(2)}` : "-"
@@ -612,8 +603,7 @@ const IndividualReports: React.FC = () => {
                   <td class="advances-cell">
                     ${(() => {
                       const weekAdvances = reportData.advances.filter((advance) => {
-                        const advanceDate = advance.date.includes("T") ? advance.date.split("T")[0] : advance.date
-                        return advanceDate >= week.startDate && advanceDate <= week.endDate
+                        return isDateInRange(advance.date, week.startDate, week.endDate)
                       })
                       const advanceTotal = weekAdvances.reduce((sum, a) => sum + a.amount, 0)
                       return advanceTotal > 0 ? `-${advanceTotal.toFixed(2)}` : "-"
@@ -653,7 +643,6 @@ const IndividualReports: React.FC = () => {
         `
             : ""
         }
-
         ${
           reportData.charges.length > 0
             ? `
@@ -689,7 +678,6 @@ const IndividualReports: React.FC = () => {
         `
             : ""
         }
-
         ${
           reportData.advances.length > 0
             ? `
@@ -725,7 +713,6 @@ const IndividualReports: React.FC = () => {
         `
             : ""
         }
-
         <div class="summary-section">
           <h2>${t("dashboard.financialSummary")}</h2>
           <div class="summary-item">
@@ -773,7 +760,6 @@ const IndividualReports: React.FC = () => {
     if (!reportData) return
 
     let csvContent = "data:text/csv;charset=utf-8,"
-
     csvContent += `${t("individualReports.title")}\r\n`
     csvContent += `${t("common.person")},${reportData.personName}\r\n`
     csvContent += `${t("common.type")},${t(`personForm.${reportData.personType.toLowerCase()}`)}\r\n`
@@ -791,15 +777,15 @@ const IndividualReports: React.FC = () => {
           csvContent += `${dayData ? dayData.amount.toFixed(2) : "0.00"},`
         })
         csvContent += `${week.weekTotal.toFixed(2)},`
+
         const weekCharges = reportData.charges.filter((charge) => {
-          const chargeDate = charge.date.includes("T") ? charge.date.split("T")[0] : charge.date
-          return chargeDate >= week.startDate && chargeDate <= week.endDate
+          return isDateInRange(charge.date, week.startDate, week.endDate)
         })
         const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
         csvContent += `${chargeTotal > 0 ? "-" + chargeTotal.toFixed(2) : "-"},`
+
         const weekAdvances = reportData.advances.filter((advance) => {
-          const advanceDate = advance.date.includes("T") ? advance.date.split("T")[0] : advance.date
-          return advanceDate >= week.startDate && advanceDate <= week.endDate
+          return isDateInRange(advance.date, week.startDate, week.endDate)
         })
         const advanceTotal = weekAdvances.reduce((sum, a) => sum + a.amount, 0)
         csvContent += `${advanceTotal > 0 ? "-" + advanceTotal.toFixed(2) : "-"}\r\n`
@@ -814,8 +800,10 @@ const IndividualReports: React.FC = () => {
         csvContent += `${dayTotal.toFixed(2)},`
       })
       csvContent += `${reportData.totalEarnings.toFixed(2)},`
+
       const totalCharges = reportData.charges.reduce((sum, c) => sum + c.amount, 0)
       csvContent += `${totalCharges > 0 ? "-" + totalCharges.toFixed(2) : "-"},`
+
       const totalAdvances = reportData.advances.reduce((sum, a) => sum + a.amount, 0)
       csvContent += `${totalAdvances > 0 ? "-" + totalAdvances.toFixed(2) : "-"}\r\n\r\n`
     } else {
@@ -961,6 +949,7 @@ const IndividualReports: React.FC = () => {
                   />
                 </button>
               </div>
+
               {selectedPerson && (
                 <div className="px-3 py-2 border-t border-gray-200 bg-primary-50">
                   <div className="flex items-center justify-between">
@@ -979,6 +968,7 @@ const IndividualReports: React.FC = () => {
                 </div>
               )}
             </div>
+
             {isPersonDropdownOpen &&
               !selectedPerson &&
               personDropdownRef.current &&
@@ -1033,7 +1023,6 @@ const IndividualReports: React.FC = () => {
               onChange={(e) => setStartDate(e.target.value)}
               required
             />
-
             <Input
               label={t("programSettings.endDate")}
               type="date"
@@ -1063,7 +1052,6 @@ const IndividualReports: React.FC = () => {
             <Button variant="outline" leftIcon={<Download size={18} />} onClick={exportReportCSV}>
               {t("reports.export")}
             </Button>
-
             <Button variant="primary" leftIcon={<Printer size={18} />} onClick={printReport}>
               {t("reports.print")}
             </Button>
@@ -1158,8 +1146,7 @@ const IndividualReports: React.FC = () => {
                           <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-50">
                             {(() => {
                               const weekCharges = reportData.charges.filter((charge) => {
-                                const chargeDate = charge.date.includes("T") ? charge.date.split("T")[0] : charge.date
-                                return chargeDate >= week.startDate && chargeDate <= week.endDate
+                                return isDateInRange(charge.date, week.startDate, week.endDate)
                               })
                               const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
                               return chargeTotal > 0 ? `-${chargeTotal.toFixed(2)}` : "-"
@@ -1168,10 +1155,7 @@ const IndividualReports: React.FC = () => {
                           <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-purple-50">
                             {(() => {
                               const weekAdvances = reportData.advances.filter((advance) => {
-                                const advanceDate = advance.date.includes("T")
-                                  ? advance.date.split("T")[0]
-                                  : advance.date
-                                return advanceDate >= week.startDate && advanceDate <= week.endDate
+                                return isDateInRange(advance.date, week.startDate, week.endDate)
                               })
                               const advanceTotal = weekAdvances.reduce((sum, a) => sum + a.amount, 0)
                               return advanceTotal > 0 ? `-${advanceTotal.toFixed(2)}` : "-"
@@ -1493,6 +1477,7 @@ const IndividualReports: React.FC = () => {
                       </span>
                       <span className="text-lg font-bold text-gray-900">${reportData.totalEarnings.toFixed(2)}</span>
                     </div>
+
                     <div className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
                       <span className="text-sm font-medium text-gray-600">
                         {t("individualReports.percentageLabel", {
@@ -1509,6 +1494,7 @@ const IndividualReports: React.FC = () => {
                         ).toFixed(2)}
                       </span>
                     </div>
+
                     {reportData.charges.length > 0 && (
                       <div className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
                         <span className="text-sm font-medium text-gray-600">{t("charges.totalCharges")}</span>
@@ -1517,6 +1503,7 @@ const IndividualReports: React.FC = () => {
                         </span>
                       </div>
                     )}
+
                     {reportData.advances.length > 0 && (
                       <div className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
                         <span className="text-sm font-medium text-gray-600">{t("cashAdvance.totalAdvances")}</span>
@@ -1525,12 +1512,14 @@ const IndividualReports: React.FC = () => {
                         </span>
                       </div>
                     )}
+
                     <div className="flex justify-between items-center p-3 bg-success-100 rounded-lg shadow-sm border border-success-200">
                       <span className="text-sm font-medium text-success-700">{t("dashboard.finalAmount")}</span>
                       <span className="text-xl font-bold text-success-700">${reportData.netAmount.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
+
                 <div>
                   <h3 className="text-lg font-semibold text-primary-900 mb-4">
                     {t("individualReports.reportDetails")}

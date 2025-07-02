@@ -1,5 +1,6 @@
 /**
  * Utility functions for handling dates consistently between frontend and backend
+ * @exports parseDate
  */
 
 /**
@@ -16,7 +17,7 @@ const getDateFromUTC = (dateString: string): Date => {
 /**
  * Parses a date string consistently, handling both YYYY-MM-DD and ISO formats
  */
-const parseDate = (dateInput: string | Date): Date => {
+export const parseDate = (dateInput: string | Date): Date => {
   if (dateInput instanceof Date) {
     return new Date(dateInput.getFullYear(), dateInput.getMonth(), dateInput.getDate())
   }
