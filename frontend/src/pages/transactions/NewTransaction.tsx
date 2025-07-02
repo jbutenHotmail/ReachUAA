@@ -91,11 +91,13 @@ const nextColportableDay = useMemo(() => getNextColportableDay(today), [today]);
   const colporters = people.filter(person => person.personType === 'COLPORTER');
 
   const filteredLeaders = leaders.filter((leader) =>
-    leader.name.toLowerCase().includes(leaderSearch.toLowerCase())
+    leader.name.toLowerCase().includes(leaderSearch.toLowerCase()) ||
+    leader.apellido.toLocaleLowerCase().includes(leaderSearch.toLowerCase())
   );
 
   const filteredColporters = colporters.filter((colporter) =>
-    colporter.name.toLowerCase().includes(colporterSearch.toLowerCase())
+    colporter.name.toLowerCase().includes(colporterSearch.toLowerCase()) ||
+    colporter.apellido.toLocaleLowerCase().includes(colporterSearch.toLowerCase())
   );
 
   const total = cash + checks + atmMobile + paypal;
@@ -398,7 +400,7 @@ const nextColportableDay = useMemo(() => getNextColportableDay(today), [today]);
                                 setIsLeaderDropdownOpen(false);
                               }}
                             >
-                              <div className="font-medium text-sm">{leader.name}</div>
+                              <div className="font-medium text-sm">{leader.name} {leader.apellido}</div>
                             </button>
                           ))
                         ) : (
@@ -489,7 +491,7 @@ const nextColportableDay = useMemo(() => getNextColportableDay(today), [today]);
                                 setIsColporterDropdownOpen(false);
                               }}
                             >
-                              <div className="font-medium text-sm">{colporter.name}</div>
+                              <div className="font-medium text-sm">{colporter.name} {colporter.apellido}</div>
                             </button>
                           ))
                         ) : (
