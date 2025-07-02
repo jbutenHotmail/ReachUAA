@@ -25,7 +25,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
   initialPersonType
 }) => {
   const { t } = useTranslation();
-  const { createPerson, updatePerson, isLoading } = useUserStore();
+  const { isLoading } = useUserStore();
   const { program } = useProgramStore();
   const [personType, setPersonType] = useState<'COLPORTER' | 'LEADER'>(
     initialData?.personType || initialPersonType || 'COLPORTER'
@@ -259,20 +259,6 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
                   required={personType === 'LEADER'}
                   className="md:col-span-2"
                 />
-              )}
-
-              {program && (
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('navigation.program')}
-                  </label>
-                  <div className="p-3 bg-primary-50 rounded-lg border border-primary-200">
-                    <p className="text-sm text-primary-700">
-                      {t('programSettings.noteProgramInformation')}: <strong>{program.name}</strong>
-                    </p>
-                    <input type="hidden" name="programId" value={program.id} />
-                  </div>
-                </div>
               )}
 
               {!initialData && (
