@@ -16,6 +16,7 @@ import { useChargeStore } from "../../stores/chargeStore"
 import { useCashAdvanceStore } from "../../stores/cashAdvanceStore"
 import { useProgramStore } from "../../stores/programStore"
 import { isColportableDay } from "../../utils/programUtils"
+import { getEndOfMonth, getStartOfMonth, isDateInRange } from "../../utils/dateUtils"
 
 interface ReportData {
   personId: string
@@ -116,33 +117,43 @@ const IndividualReports: React.FC = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       setIsLoading(true)
-      const dataToFetch: any[] = []
-      !wereUsersFetched && dataToFetch.push(fetchUsers())
-      !werePeopleFetched && dataToFetch.push(fetchPeople())
-      !wereChargesFetched && dataToFetch.push(fetchCharges())
-      !wereAdvancesFetched && dataToFetch.push(fetchAdvances())
-      !wasProgramFetched && dataToFetch.push(fetchProgram())
+      const dataToFetch = []
+
+      if (!wereUsersFetched) dataToFetch.push(fetchUsers())
+      if (!werePeopleFetched) dataToFetch.push(fetchPeople())
+      if (!wereChargesFetched) dataToFetch.push(fetchCharges())
+      if (!wereAdvancesFetched) dataToFetch.push(fetchAdvances())
+      if (!wasProgramFetched) dataToFetch.push(fetchProgram())
+
       try {
         await Promise.all(dataToFetch)
 
-        // Set default date range to current month
-        const today = new Date()
-        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
-        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+        // Set default date range to current month using consistent date utilities
+        const startOfMonth = getStartOfMonth()
+        const endOfMonth = getEndOfMonth()
 
-        setStartDate(firstDay.toISOString().split("T")[0])
-        setEndDate(lastDay.toISOString().split("T")[0])
+        setStartDate(startOfMonth)
+        setEndDate(endOfMonth)
+
+        console.log("Date range:", startOfMonth, "to", endOfMonth)
 
         // Calculate total program sales and leader count
-        const allTransactions = wereTransactionsFetched ? transactions : await fetchAllTransactions('APPROVED');
-        const totalSales = allTransactions
-          .filter(
-            (t) =>
-              new Date(t.date) >= new Date(firstDay) &&
-              new Date(t.date) <= new Date(lastDay) &&
-              t.status === "APPROVED",
-          )
-          .reduce((sum, t) => sum + t.total, 0)
+        const allTransactions = wereTransactionsFetched ? transactions : await fetchAllTransactions("APPROVED")
+
+        // Filter transactions using consistent date handling
+        const filteredTransactions = allTransactions.filter((t) => {
+          // Skip if not approved
+          if (t.status !== "APPROVED") return false
+
+          // Use consistent date range checking
+          return isDateInRange(t.date, startOfMonth, endOfMonth)
+        })
+
+        const totalSales = filteredTransactions.reduce((sum, t) => sum + t.total, 0)
+
+        console.log("Filtered transactions:", filteredTransactions.length)
+        console.log("Total sales:", totalSales)
+
         setTotalProgramSales(totalSales)
 
         const leaders = getLeaders()
@@ -158,15 +169,13 @@ const IndividualReports: React.FC = () => {
 
     loadInitialData()
   }, [
-    fetchUsers,
-    fetchPeople,
-    fetchCharges,
-    fetchAdvances,
-    fetchProgram,
+    wereUsersFetched,
+    werePeopleFetched,
+    wereChargesFetched,
+    wereAdvancesFetched,
+    wasProgramFetched,
     wereTransactionsFetched,
     transactions,
-    getLeaders,
-    t,
   ])
 
   useEffect(() => {
@@ -311,7 +320,7 @@ const IndividualReports: React.FC = () => {
         personType === "COLPORTER"
           ? totalEarnings * (percentage / 100) - totalCharges - totalAdvances
           : (totalProgramSales * (percentage / 100)) / totalLeadersCount - totalCharges - totalAdvances
-
+      console.log(totalProgramSales)
       setReportData({
         personId: selectedPerson.id,
         personName: selectedPerson.name,
