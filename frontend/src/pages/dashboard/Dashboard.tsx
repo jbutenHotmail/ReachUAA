@@ -148,7 +148,7 @@ const Dashboard: React.FC = () => {
     startDate: program.start_date,
     endDate: program.end_date
   } : null;
-
+  
   return (
     <div className="space-y-6 sm:space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center">

@@ -11,6 +11,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { UserRole } from '../../types';
 import LoadingScreen from '../ui/LoadingScreen';
 import { formatDateToString } from '../../utils/dateUtils';
+import { formatNumber } from '../../utils/numberUtils';
 
 interface DailyTransactionsProps {
   transactions: Transaction[];
@@ -385,19 +386,19 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                     {t('common.totals')}
                   </td>
                   <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                    ${Number(totals.cash).toFixed(2)}
+                    ${formatNumber(Number(totals.cash))}
                   </td>
                   <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                    ${Number(totals.checks).toFixed(2)}
+                    ${formatNumber(Number(totals.checks))}
                   </td>
                   <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                    ${Number(totals.atmMobile).toFixed(2)}
+                    ${formatNumber(Number(totals.atmMobile))}
                   </td>
                   <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                    ${Number(totals.paypal).toFixed(2)}
+                    ${formatNumber(Number(totals.paypal))}
                   </td>
                   <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                    ${Number(totals.total).toFixed(2)}
+                    ${formatNumber(Number(totals.total))}
                   </td>
                   <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center font-medium">
                     <Badge variant="primary">{bookTotals.large}</Badge>

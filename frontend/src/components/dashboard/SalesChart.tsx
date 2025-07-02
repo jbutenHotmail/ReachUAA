@@ -16,6 +16,7 @@ import Card from '../ui/Card';
 import { SalesData } from '../../types';
 import { format, subDays, isAfter } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
+import { parseDate } from '../../utils/dateUtils';
 
 // Register ChartJS components
 ChartJS.register(
@@ -55,7 +56,7 @@ const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
   const chartData = filterData();
   
   // Prepare data for Chart.js
-  const labels = chartData.map(item => format(new Date(item.date), 'MMM dd', { locale }));
+  const labels = chartData.map(item => format(parseDate(item.date), locale === enUS ? "MMM dd" : "dd MMM", { locale }));
   const amounts = chartData.map(item => item.amount);
   
   const chartOptions = {

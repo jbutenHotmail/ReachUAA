@@ -122,6 +122,7 @@ export default {
     programName: "Nombre del Programa",
     programLogo: "Logotipo del Programa",
     programLogoDescription: "Carga un logotipo para tu programa (opcional)",
+    programSelection: "Selección del Programa",
     workingDaysDescription:
       "Selecciona los días de la semana que serán días laborales en tu programa.",
     workingDaysNote:
@@ -562,6 +563,10 @@ export default {
     loading: "Cargando estadísticas...",
     programSales: "Ventas del Programa",
     errorTitle: "Error al Cargar Datos",
+    goalAchieved: "¡Logro alcanzado!",
+    onTrack: "En curso",
+    behindTarget: "Atrás del objetivo",
+    needsAttention: "Necesita atención",
     errorNoProfile:
       "Tu cuenta no está vinculada a un perfil de colportor o líder",
     errorLoadingStats: "No se pudieron cargar tus estadísticas personales",

@@ -53,7 +53,7 @@ const FinancialBreakdown: React.FC = () => {
       // Pequeño retraso para asegurar que el estado de carga se muestre
       const timer = setTimeout(() => {
         const validTransactions = transactions.filter(t => t.status === 'APPROVED');
-        const totalRevenue = validTransactions.reduce((sum, t) => sum + t.total, 0);
+        const totalRevenue = validTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0);
         
         const studentPercentage = program.financialConfig?.colporter_percentage 
           ? parseFloat(program.financialConfig.colporter_percentage) 

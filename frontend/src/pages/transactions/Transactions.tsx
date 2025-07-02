@@ -13,6 +13,7 @@ import { clsx } from "clsx"
 import { useUserStore } from "../../stores/userStore"
 import { formatDateToString } from "../../utils/dateUtils"
 import { BookSize } from "../../types"
+import { formatNumber } from "../../utils/numberUtils"
 
 const Transactions: React.FC = () => {
   const { t } = useTranslation()
@@ -93,8 +94,8 @@ const Transactions: React.FC = () => {
         total: 0,
         transactions: 0,
       }
-
-      current.total += t.total
+      
+      current.total += Number(t.total)
       current.transactions += 1
       totals.set(t.leaderId, current)
     })
@@ -334,6 +335,7 @@ const Transactions: React.FC = () => {
             <div className="space-y-3 sm:space-y-4">
               {activeTab === "finances" ? (
                 <>
+                
                   {leaderTotals.map((leader) => (
                     <div key={leader.id} className="flex justify-between items-center p-3 bg-primary-50 rounded-lg">
                       <div className="min-w-0">
@@ -343,7 +345,7 @@ const Transactions: React.FC = () => {
                         </span>
                       </div>
                       <Badge variant="primary" size="lg" className="ml-2 flex-shrink-0">
-                        ${Number(leader.total).toFixed(2)}
+                        {formatNumber(leader.total)}
                       </Badge>
                     </div>
                   ))}
@@ -351,7 +353,7 @@ const Transactions: React.FC = () => {
                   <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg border-t-2 border-blue-100 mt-4">
                     <span className="text-sm font-medium text-blue-700">{t("common.total")}</span>
                     <Badge variant="primary" size="lg">
-                      ${Number(dayTotal).toFixed(2)}
+                      {formatNumber(dayTotal)}
                     </Badge>
                   </div>
                 </>

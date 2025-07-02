@@ -136,6 +136,7 @@ export default {
     mottoPlaceholder: "Reaching hearts and minds through literature",
     financialGoalPlaceholder: "100000",
     importantNotes: "Important Notes",
+    programSelection: "Program Selection",
     startDate: "Start Date",
     endDate: "End Date",
     days: {
@@ -627,6 +628,10 @@ export default {
     loading: "Loading stats...",
     errorTitle: "Error Loading Data",
     programSales: "Program Sales",
+    goalAchieved: "Goal Achieved",
+    onTrack: "On Track",
+    behindTarget: "Behind Target",
+    needsAttention: "Needs Attention",
     errorNoProfile:
       "Your account is not linked to a colporter or leader profile",
     errorLoadingStats: "Failed to load your personal statistics",
