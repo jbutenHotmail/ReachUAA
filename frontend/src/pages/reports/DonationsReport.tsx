@@ -194,8 +194,8 @@ const DonationsReport: React.FC = () => {
         colporterData.dailySales[dateKey] = 0;
       }
 
-      colporterData.dailySales[dateKey] += transaction.total;
-      colporterData.totalSales += transaction.total;
+      colporterData.dailySales[dateKey] += Number(transaction.total);
+      colporterData.totalSales += Number(transaction.total);
     });
 
     return Array.from(colporterMap.values());

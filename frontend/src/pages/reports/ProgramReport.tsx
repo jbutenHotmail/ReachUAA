@@ -125,7 +125,7 @@ const ProgramReport: React.FC = () => {
         ? parseFloat(program.financialConfig.leader_percentage) 
         : 15;
       const approvedTransactions = transactions.filter(t => t.status === 'APPROVED');
-      const totalDonations = approvedTransactions.reduce((sum, t) => sum + t.total, 0);
+      const totalDonations = approvedTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0);
       
       const filteredCharges = charges.filter(charge => charge.status === 'APPLIED');
       const totalFines = filteredCharges.reduce((sum, c) => sum + c.amount, 0);

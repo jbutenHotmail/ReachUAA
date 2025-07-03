@@ -8,7 +8,7 @@ import Badge from '../../components/ui/Badge';
 import { useProgramStore } from '../../stores/programStore';
 import { api } from '../../api';
 import LoadingScreen from '../../components/ui/LoadingScreen';
-import { Colporter } from '../../types';
+import { Colporter, Leader } from '../../types';
 
 interface ColporterSummerStats {
   bruto: {
@@ -71,7 +71,7 @@ const SummerColporterReport: React.FC = () => {
         }
         
         // If not found as colporter, try as a leader
-        const leaders = await api.get('/people/leaders');
+        const leaders: Leader[] = await api.get('/people/leaders', { params });
         const leader = leaders.find((p: any) => 
           `${p.name} ${p.apellido}` === name || 
           p.name === name
