@@ -87,7 +87,7 @@ const Dashboard: React.FC = () => {
     const dailySales = stats.today.sales;
     const previousDaysSales = stats.salesChart.slice(-8, -1); // Last 7 days excluding today
     const previousDaysAverage = previousDaysSales.length > 0 
-      ? previousDaysSales.reduce((sum, day) => sum + day.amount, 0) / previousDaysSales.length
+      ? previousDaysSales.reduce((sum, day) => Number(sum) + Number(day.amount), 0) / previousDaysSales.length
       : dailySales;
     
     const dailyChangeValue = previousDaysAverage === 0 
