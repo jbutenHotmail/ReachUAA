@@ -190,7 +190,7 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
       
       set((state) => ({
         transactions: state.transactions.map(t => 
-          t.id === id ? transaction : t
+          Number(t.id) === Number(id) ? transaction : t
         ),
         isLoading: false,
       }));
@@ -223,12 +223,12 @@ export const useTransactionStore = create<TransactionStore>((set, get) => ({
       const { transaction } = await api.patch<{ message: string; transaction: Transaction }>(`/transactions/${id}/reject`);
       
       // Check if this was previously approved (we need to update book counts)
-      const prevTransaction = get().transactions.find(t => t.id === id);
+      const prevTransaction = get().transactions.find(t => Number(t.id) === Number(id));
       const wasApproved = prevTransaction?.status === 'APPROVED';
       
       set((state) => ({
         transactions: state.transactions.map(t => 
-          t.id === id ? transaction : t
+          Number(t.id) === Number(id) ? transaction : t
         ),
         isLoading: false,
       }));
