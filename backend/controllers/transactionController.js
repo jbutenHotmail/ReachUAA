@@ -149,7 +149,7 @@ export const createTransaction = async (req, res) => {
       // Insert transaction
       const [transactionResult] = await connection.execute(
         'INSERT INTO transactions (student_id, leader_id, cash, checks, atm_mobile, paypal, total, transaction_date, status, created_by, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [studentId, leaderId, cash || 0, checks || 0, atmMobile || 0, paypal || 0, total, '2025-06-30', 'PENDING', userId, currentProgramId]
+        [studentId, leaderId, cash || 0, checks || 0, atmMobile || 0, paypal || 0, total, '2025-07-01', 'PENDING', userId, currentProgramId]
       );
       
       const transactionId = transactionResult.insertId;
