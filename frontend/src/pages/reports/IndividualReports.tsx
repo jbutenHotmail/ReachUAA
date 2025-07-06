@@ -1,8 +1,7 @@
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
-import { createPortal } from "react-dom"
 import { useTranslation } from "react-i18next"
-import { ChevronDown, X, AlertTriangle, Download, FileText, Printer, Wallet } from "lucide-react"
+import { AlertTriangle, Download, FileText, Printer, Wallet, ChevronDown, X } from "lucide-react"
 import { clsx } from "clsx"
 import Card from "../../components/ui/Card"
 import Button from "../../components/ui/Button"
@@ -15,6 +14,7 @@ import { useCashAdvanceStore } from "../../stores/cashAdvanceStore"
 import { useProgramStore } from "../../stores/programStore"
 import { isColportableDay } from "../../utils/programUtils"
 import { getEndOfMonth, getStartOfMonth, isDateInRange, getDateRange, parseDate } from "../../utils/dateUtils"
+import { formatNumber } from "../../utils/numberUtils"
 
 interface ReportData {
   personId: string
@@ -86,9 +86,6 @@ const IndividualReports: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [reportData, setReportData] = useState<ReportData | null>(null)
-  const [totalProgramSales, setTotalProgramSales] = useState(0)
-  const [totalLeadersCount, setTotalLeadersCount] = useState(1)
-
   const personDropdownRef = useRef<HTMLDivElement>(null)
 
   // Initial data loading useEffect
@@ -96,7 +93,6 @@ const IndividualReports: React.FC = () => {
     const loadInitialData = async () => {
       setIsLoading(true)
       const dataToFetch = []
-
       if (!wereUsersFetched) dataToFetch.push(fetchUsers())
       if (!werePeopleFetched) dataToFetch.push(fetchPeople())
       if (!wereChargesFetched) dataToFetch.push(fetchCharges())
@@ -105,20 +101,13 @@ const IndividualReports: React.FC = () => {
 
       try {
         await Promise.all(dataToFetch)
-
         // Set default date range to current month using consistent date utilities
         const startOfMonth = getStartOfMonth()
         const endOfMonth = getEndOfMonth()
-
         setStartDate(startOfMonth)
         setEndDate(endOfMonth)
 
-        console.log("Default date range:", startOfMonth, "to", endOfMonth)
-
         // Get leader count for calculations
-        const leaders = getLeaders()
-        const activeLeaders = leaders.filter((l) => l.status === "ACTIVE")
-        setTotalLeadersCount(activeLeaders.length || 1)
       } catch (error) {
         console.error("Error loading initial data:", error)
         setError(t("common.error"))
@@ -142,37 +131,6 @@ const IndividualReports: React.FC = () => {
     getLeaders,
     t,
   ])
-
-  // Calculate totalProgramSales when dates change
-  useEffect(() => {
-    const calculateProgramSales = async () => {
-      if (!startDate || !endDate) return
-
-      try {
-        // Ensure transactions are loaded
-        const allTransactions = wereTransactionsFetched ? transactions : await fetchAllTransactions("APPROVED")
-
-        // Filter transactions using consistent date handling for the selected date range
-        const filteredTransactions = allTransactions.filter((t) => {
-          if (t.status !== "APPROVED") return false
-          return isDateInRange(t.date, startDate, endDate)
-        })
-
-        const totalSales = filteredTransactions.reduce((sum, t) => sum + t.total, 0)
-
-        console.log("Program sales calculation:")
-        console.log("Date range:", startDate, "to", endDate)
-        console.log("Filtered transactions:", filteredTransactions.length)
-        console.log("Total program sales:", totalSales)
-
-        setTotalProgramSales(totalSales)
-      } catch (error) {
-        console.error("Error calculating program sales:", error)
-      }
-    }
-
-    calculateProgramSales()
-  }, [startDate, endDate, transactions, wereTransactionsFetched, fetchAllTransactions])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -222,19 +180,16 @@ const IndividualReports: React.FC = () => {
 
     try {
       const fetchedTransactions = wereTransactionsFetched ? transactions : await fetchAllTransactions("APPROVED")
-
       !wereChargesFetched && (await fetchCharges())
       !wereAdvancesFetched && (await fetchAdvances())
 
       // Generate date range using consistent date utilities
       const dateRange = getDateRange(startDate, endDate)
-
       console.log("Generated date range:", dateRange)
 
       const personTransactions = fetchedTransactions.filter((t) => {
         // Use consistent date range checking
         const isInDateRange = isDateInRange(t.date, startDate, endDate)
-
         return (
           (personType === "COLPORTER"
             ? Number(t.studentId) === Number(selectedPerson.id)
@@ -271,48 +226,36 @@ const IndividualReports: React.FC = () => {
             : 15
 
       const dailyEarnings: Record<string, number> = {}
-
-      // For colporters, calculate daily earnings based on their transactions
-      if (personType === "COLPORTER") {
-        dateRange.forEach((date) => {
-          const dayTransactions = personTransactions.filter((t) => {
-            return isDateInRange(t.date, date, date) // Check if transaction is on this specific date
-          })
-
-          const dayTotal = dayTransactions.reduce((sum, t) => sum + t.total, 0)
-          dailyEarnings[date] = dayTotal
-        })
-      } else {
-        // For leaders, set placeholder value since we don't show daily breakdown
-        dateRange.forEach((date) => {
-          dailyEarnings[date] = 0
-        })
-      }
-
-      // Calculate earnings
       let totalEarnings = 0
 
-      if (personType === "COLPORTER") {
-        totalEarnings = Object.values(dailyEarnings).reduce((sum, amount) => sum + amount, 0)
-      } else {
-        // For leaders, use the already calculated totalProgramSales for the selected date range
-        totalEarnings = totalProgramSales // Store total program sales for display
-      }
+      // For both colporters and leaders, calculate daily earnings based on their relevant transactions
+      dateRange.forEach((date) => {
+        const dayTransactions = personTransactions.filter((t) => {
+          return isDateInRange(t.date, date, date) // Check if transaction is on this specific date
+        })
+        const dayTotal = dayTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0)
+        dailyEarnings[date] = dayTotal
+      })
+
+      totalEarnings = Object.values(dailyEarnings).reduce((sum, amount) => Number(sum) + Number(amount), 0)
 
       const totalCharges = personCharges.reduce((sum, charge) => sum + charge.amount, 0)
       const totalAdvances = personAdvances.reduce((sum, advance) => sum + advance.advanceAmount, 0)
 
-      const netAmount =
-        personType === "COLPORTER"
-          ? totalEarnings * (percentage / 100) - totalCharges - totalAdvances
-          : (totalProgramSales * (percentage / 100)) / totalLeadersCount - totalCharges - totalAdvances
+      // Calculate net amount based on person type
+      let netAmount: number
+      if (personType === "COLPORTER") {
+        // For colporters: their sales * percentage - charges - advances
+        netAmount = totalEarnings * (percentage / 100) - totalCharges - totalAdvances
+      } else {
+        // For leaders: their team sales * percentage - charges - advances (no division by total leaders)
+        netAmount = totalEarnings * (percentage / 100) - totalCharges - totalAdvances
+      }
 
       console.log("Report calculation:")
       console.log("Person type:", personType)
-      console.log("Total program sales:", totalProgramSales)
-      console.log("Total earnings:", totalEarnings)
+      console.log("Team/Individual sales:", totalEarnings)
       console.log("Percentage:", percentage)
-      console.log("Total leaders:", totalLeadersCount)
       console.log("Net amount:", netAmount)
 
       setReportData({
@@ -322,7 +265,7 @@ const IndividualReports: React.FC = () => {
         startDate,
         endDate,
         dailyEarnings,
-        totalEarnings,
+        totalEarnings, // For leaders, this represents their team sales
         charges: personCharges.map((c) => ({
           id: c.id,
           date: c.date,
@@ -348,7 +291,11 @@ const IndividualReports: React.FC = () => {
   }
 
   const people = personType === "COLPORTER" ? getColporters() : getLeaders()
-  const filteredPeople = people.filter((person) => person.name.toLowerCase().includes(personSearch.toLowerCase()))
+  const filteredPeople = people.filter(
+    (person) =>
+      person.name.toLowerCase().includes(personSearch.toLowerCase()) ||
+      person.apellido?.toLowerCase().includes(personSearch.toLowerCase()),
+  )
 
   const handlePersonTypeChange = (type: "COLPORTER" | "LEADER") => {
     setPersonType(type)
@@ -376,7 +323,6 @@ const IndividualReports: React.FC = () => {
         if (currentWeek.length > 0) {
           const weekTotal = currentWeek.reduce((sum, day) => sum + day.amount, 0)
           const endDate = currentWeek[currentWeek.length - 1].date
-
           weeks.push({
             startDate: currentWeek[0].date,
             endDate,
@@ -384,7 +330,6 @@ const IndividualReports: React.FC = () => {
             weekTotal,
             days: currentWeek,
           })
-
           currentWeek = []
         }
       }
@@ -404,7 +349,6 @@ const IndividualReports: React.FC = () => {
     if (currentWeek.length > 0) {
       const weekTotal = currentWeek.reduce((sum, day) => sum + day.amount, 0)
       const endDate = currentWeek[currentWeek.length - 1].date
-
       weeks.push({
         startDate: currentWeek[0].date,
         endDate,
@@ -546,16 +490,18 @@ const IndividualReports: React.FC = () => {
           <p><strong>${t("common.type")}:</strong> ${t(`personForm.${reportData.personType.toLowerCase()}`)}</p>
           <p><strong>${t("reports.period")}:</strong> ${formatDateSafe(reportData.startDate)} - ${formatDateSafe(reportData.endDate)}</p>
         </div>
+
         ${
           reportData.personType === "LEADER"
             ? `
             <div class="leader-note">
-              <p><strong>${t("common.note")}:</strong> ${t("individualReports.leaderEarningsNote", { percentage: reportData.percentage, count: totalLeadersCount })}</p>
-              <p>${t("individualReports.totalProgramSales")}: $${reportData.totalEarnings.toFixed(2)}</p>
+              <p><strong>${t("common.note")}:</strong> ${t("individualReports.leaderEarningsBasedOnTeam", { percentage: reportData.percentage })}</p>
+              <p>${t("individualReports.teamSales")}: $${Number(reportData.totalEarnings).toFixed(2)}</p>
             </div>
           `
             : ""
         }
+
         ${
           reportData.personType === "COLPORTER"
             ? `
@@ -590,7 +536,7 @@ const IndividualReports: React.FC = () => {
                       }</td>`
                     })
                     .join("")}
-                  <td>${week.weekTotal.toFixed(2)}</td>
+                  <td>${formatNumber(week.weekTotal)}</td>
                   <td class="charges-cell">
                     ${(() => {
                       const weekCharges = reportData.charges.filter((charge) => {
@@ -621,10 +567,10 @@ const IndividualReports: React.FC = () => {
                       const dayData = week.days.find((d) => d.dayName === dayName)
                       return sum + (dayData ? dayData.amount : 0)
                     }, 0)
-                    return `<td>${dayTotal.toFixed(2)}</td>`
+                    return `<td>${formatNumber(dayTotal)}</td>`
                   })
                   .join("")}
-                <td>${reportData.totalEarnings.toFixed(2)}</td>
+                <td>${formatNumber(Number(reportData.totalEarnings))}</td>
                 <td class="charges-cell">
                   ${(() => {
                     const chargeTotal = reportData.charges.reduce((sum, c) => sum + c.amount, 0)
@@ -643,6 +589,7 @@ const IndividualReports: React.FC = () => {
         `
             : ""
         }
+
         ${
           reportData.charges.length > 0
             ? `
@@ -678,6 +625,7 @@ const IndividualReports: React.FC = () => {
         `
             : ""
         }
+
         ${
           reportData.advances.length > 0
             ? `
@@ -713,19 +661,16 @@ const IndividualReports: React.FC = () => {
         `
             : ""
         }
+
         <div class="summary-section">
           <h2>${t("dashboard.financialSummary")}</h2>
           <div class="summary-item">
-            <span>${reportData.personType === "LEADER" ? t("individualReports.totalProgramSales") : t("dashboard.totalSales")}:</span>
-            <span>$${reportData.totalEarnings.toFixed(2)}</span>
+            <span>${reportData.personType === "LEADER" ? t("individualReports.teamSales") : t("dashboard.totalSales")}:</span>
+            <span>$${Number(reportData.totalEarnings).toFixed(2)}</span>
           </div>
           <div class="summary-item">
-            <span>${t("individualReports.percentageLabel", { personType: t(`personForm.${reportData.personType.toLowerCase()}`), percentage: reportData.percentage, count: totalLeadersCount })}:</span>
-            <span>$${(
-              reportData.personType === "COLPORTER"
-                ? reportData.totalEarnings * (reportData.percentage / 100)
-                : (reportData.totalEarnings * (reportData.percentage / 100)) / totalLeadersCount
-            ).toFixed(2)}</span>
+            <span>${t("individualReports.percentageLabel", { personType: t(`personForm.${reportData.personType.toLowerCase()}`), percentage: reportData.percentage })}:</span>
+            <span>$${(reportData.totalEarnings * (reportData.percentage / 100)).toFixed(2)}</span>
           </div>
           <div class="summary-item">
             <span>${t("charges.totalCharges")}:</span>
@@ -776,7 +721,7 @@ const IndividualReports: React.FC = () => {
           const dayData = week.days.find((d) => d.dayName === dayName)
           csvContent += `${dayData ? dayData.amount.toFixed(2) : "0.00"},`
         })
-        csvContent += `${week.weekTotal.toFixed(2)},`
+        csvContent += `${formatNumber(week.weekTotal)},`
 
         const weekCharges = reportData.charges.filter((charge) => {
           return isDateInRange(charge.date, week.startDate, week.endDate)
@@ -797,9 +742,9 @@ const IndividualReports: React.FC = () => {
           const dayData = week.days.find((d) => d.dayName === dayName)
           return sum + (dayData ? dayData.amount : 0)
         }, 0)
-        csvContent += `${dayTotal.toFixed(2)},`
+        csvContent += `${formatNumber(dayTotal)},`
       })
-      csvContent += `${reportData.totalEarnings.toFixed(2)},`
+      csvContent += `${formatNumber(Number(reportData.totalEarnings))},`
 
       const totalCharges = reportData.charges.reduce((sum, c) => sum + c.amount, 0)
       csvContent += `${totalCharges > 0 ? "-" + totalCharges.toFixed(2) : "-"},`
@@ -807,9 +752,9 @@ const IndividualReports: React.FC = () => {
       const totalAdvances = reportData.advances.reduce((sum, a) => sum + a.amount, 0)
       csvContent += `${totalAdvances > 0 ? "-" + totalAdvances.toFixed(2) : "-"}\r\n\r\n`
     } else {
-      csvContent += `${t("dashboard.programSales")}\r\n`
-      csvContent += `${t("individualReports.totalProgramSales")},${reportData.totalEarnings.toFixed(2)}\r\n`
-      csvContent += `${t("individualReports.percentageLabel", { personType: t(`personForm.leader`), percentage: reportData.percentage, count: totalLeadersCount })},${((reportData.totalEarnings * (reportData.percentage / 100)) / totalLeadersCount).toFixed(2)}\r\n\r\n`
+      csvContent += `${t("dashboard.teamSales")}\r\n`
+      csvContent += `${t("individualReports.teamSales")},${formatNumber(Number(reportData.totalEarnings))}\r\n`
+      csvContent += `${t("individualReports.percentageEarnings", { personType: t(`personForm.leader`), percentage: reportData.percentage })},${(reportData.totalEarnings * (reportData.percentage / 100)).toFixed(2)}\r\n\r\n`
     }
 
     if (reportData.charges.length > 0) {
@@ -839,12 +784,8 @@ const IndividualReports: React.FC = () => {
     }
 
     csvContent += `${t("dashboard.financialSummary")}\r\n`
-    csvContent += `${reportData.personType === "LEADER" ? t("individualReports.totalProgramSales") : t("dashboard.totalSales")},,${reportData.totalEarnings.toFixed(2)}\r\n`
-    csvContent += `${t("individualReports.percentageLabel", { personType: t(`personForm.${reportData.personType.toLowerCase()}`), percentage: reportData.percentage, count: totalLeadersCount })},,${(
-      reportData.personType === "COLPORTER"
-        ? reportData.totalEarnings * (reportData.percentage / 100)
-        : (reportData.totalEarnings * (reportData.percentage / 100)) / totalLeadersCount
-    ).toFixed(2)}\r\n`
+    csvContent += `${reportData.personType === "LEADER" ? t("individualReports.teamSales") : t("dashboard.totalSales")},,${formatNumber(Number(reportData.totalEarnings))}\r\n`
+    csvContent += `${t("individualReports.percentageEarnings", { personType: t(`personForm.${reportData.personType.toLowerCase()}`), percentage: reportData.percentage })},,${(reportData.totalEarnings * (reportData.percentage / 100)).toFixed(2)}\r\n`
     csvContent += `${t("charges.totalCharges")},,${reportData.charges.reduce((sum, c) => sum + c.amount, 0).toFixed(2)}\r\n`
     csvContent += `${t("cashAdvance.totalAdvances")},,${reportData.advances.reduce((sum, a) => sum + a.amount, 0).toFixed(2)}\r\n`
     csvContent += `${t("dashboard.finalAmount")},,${reportData.netAmount.toFixed(2)}\r\n`
@@ -873,47 +814,48 @@ const IndividualReports: React.FC = () => {
       )}
 
       <Card title={t("individualReports.generateReport")} icon={<FileText size={20} />}>
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">{t("personForm.personType")}</label>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <button
                 type="button"
                 onClick={() => handlePersonTypeChange("COLPORTER")}
                 className={clsx(
-                  "flex items-center justify-center p-4 border-2 rounded-lg transition-colors",
+                  "flex items-center justify-center p-3 sm:p-4 border-2 rounded-lg transition-colors",
                   personType === "COLPORTER"
                     ? "border-primary-500 bg-primary-50 text-primary-700"
                     : "border-gray-300 hover:border-primary-300 hover:bg-primary-50/50",
                 )}
               >
                 <div className="text-center">
-                  <div className="font-medium">{t("personForm.colporter")}</div>
-                  <div className="text-xs text-gray-500 mt-1">{t("personForm.colporterDescription")}</div>
+                  <div className="font-medium text-sm sm:text-base">{t("personForm.colporter")}</div>
+                  <div className="text-xs text-gray-500 mt-1 hidden sm:block">
+                    {t("personForm.colporterDescription")}
+                  </div>
                 </div>
               </button>
-
               <button
                 type="button"
                 onClick={() => handlePersonTypeChange("LEADER")}
                 className={clsx(
-                  "flex items-center justify-center p-4 border-2 rounded-lg transition-colors",
+                  "flex items-center justify-center p-3 sm:p-4 border-2 rounded-lg transition-colors",
                   personType === "LEADER"
                     ? "border-primary-500 bg-primary-50 text-primary-700"
                     : "border-gray-300 hover:border-primary-300 hover:bg-primary-50/50",
                 )}
               >
                 <div className="text-center">
-                  <div className="font-medium">{t("personForm.leader")}</div>
-                  <div className="text-xs text-gray-500 mt-1">{t("personForm.leaderDescription")}</div>
+                  <div className="font-medium text-sm sm:text-base">{t("personForm.leader")}</div>
+                  <div className="text-xs text-gray-500 mt-1 hidden sm:block">{t("personForm.leaderDescription")}</div>
                 </div>
               </button>
             </div>
           </div>
 
           <div className="relative" ref={personDropdownRef}>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t("userForm.selectPerson", { type: t(`personForm.${personType.toLowerCase()}`) })}
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {personType === "COLPORTER" ? t("personForm.selectColporter") : t("personForm.selectLeader")}
             </label>
             <div
               className={clsx(
@@ -924,9 +866,9 @@ const IndividualReports: React.FC = () => {
               <div className="flex items-center">
                 <input
                   type="text"
-                  placeholder={t("userForm.searchPersonPlaceholder", {
-                    type: t(`personForm.${personType.toLowerCase()}`),
-                  })}
+                  placeholder={
+                    personType === "COLPORTER" ? t("personForm.searchColporter") : t("personForm.searchLeader")
+                  }
                   value={personSearch}
                   onChange={(e) => {
                     setPersonSearch(e.target.value)
@@ -949,11 +891,15 @@ const IndividualReports: React.FC = () => {
                   />
                 </button>
               </div>
-
               {selectedPerson && (
                 <div className="px-3 py-2 border-t border-gray-200 bg-primary-50">
                   <div className="flex items-center justify-between">
-                    <div className="font-medium text-primary-900 text-sm">{selectedPerson.name}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-primary-900 text-sm">{selectedPerson.name}</div>
+                      <Badge variant={personType === "COLPORTER" ? "primary" : "success"} size="sm">
+                        {t(`personForm.${personType.toLowerCase()}`)}
+                      </Badge>
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
@@ -968,54 +914,43 @@ const IndividualReports: React.FC = () => {
                 </div>
               )}
             </div>
-
-            {isPersonDropdownOpen &&
-              !selectedPerson &&
-              personDropdownRef.current &&
-              createPortal(
-                <div
-                  className="fixed bg-white rounded-md shadow-lg border border-gray-200 max-h-80 overflow-hidden z-[9999]"
-                  style={{
-                    top: personDropdownRef.current.getBoundingClientRect().bottom + window.scrollY + 4,
-                    left: personDropdownRef.current.getBoundingClientRect().left + window.scrollX,
-                    width: personDropdownRef.current.getBoundingClientRect().width,
-                  }}
-                  onMouseDown={(e) => e.preventDefault()} // Prevent input blur
-                >
-                  <div className="overflow-y-auto max-h-80">
-                    <div className="py-1">
-                      {filteredPeople.length > 0 ? (
-                        filteredPeople.map((person) => (
-                          <button
-                            key={person.id}
-                            type="button"
-                            className="w-full text-left px-4 py-2 hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors duration-150"
-                            onMouseDown={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              setSelectedPerson({ id: person.id, name: person.name })
-                              setPersonSearch("")
-                              setIsPersonDropdownOpen(false)
-                            }}
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                            }}
-                          >
-                            <div className="font-medium text-sm text-gray-900">{person.name}</div>
-                          </button>
-                        ))
-                      ) : (
-                        <div className="px-4 py-2 text-sm text-gray-500">{t("userForm.noMatchingPeople")}</div>
-                      )}
-                    </div>
-                  </div>
-                </div>,
-                document.body,
-              )}
+            {isPersonDropdownOpen && !selectedPerson && (
+              <div className="absolute z-50 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 top-full left-0">
+                <div className="max-h-60 overflow-y-auto py-1">
+                  {filteredPeople.length > 0 ? (
+                    filteredPeople.map((person) => (
+                      <button
+                        key={person.id}
+                        type="button"
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 focus:outline-none focus:bg-gray-50"
+                        onClick={() => {
+                          setSelectedPerson({
+                            id: person.id,
+                            name: `${person.name} ${person.apellido || ""}`.trim(),
+                          })
+                          setPersonSearch("")
+                          setIsPersonDropdownOpen(false)
+                        }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="font-medium text-sm">
+                            {person.name} {person.apellido || ""}
+                          </div>
+                          <Badge variant={personType === "COLPORTER" ? "primary" : "success"} size="sm">
+                            {t(`personForm.${personType.toLowerCase()}`)}
+                          </Badge>
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-2 text-sm text-gray-500">{t("common.noResults")}</div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <Input
               label={t("programSettings.startDate")}
               type="date"
@@ -1032,13 +967,13 @@ const IndividualReports: React.FC = () => {
             />
           </div>
 
-          <div className="flex justify-end">
+          <div className="w-full">
             <Button
               variant="primary"
               onClick={generateReport}
               isLoading={isLoading}
               disabled={!selectedPerson || !startDate || !endDate}
-              className="w-full sm:w-auto"
+              className="w-full"
             >
               {t("individualReports.generateReport")}
             </Button>
@@ -1141,22 +1076,22 @@ const IndividualReports: React.FC = () => {
                             )
                           })}
                           <td className="px-4 py-3 text-sm text-center font-medium whitespace-nowrap">
-                            {week.weekTotal.toFixed(2)}
+                            {formatNumber(week.weekTotal)}
                           </td>
                           <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-50">
                             {(() => {
-                              const weekCharges = reportData.charges.filter((charge) => {
-                                return isDateInRange(charge.date, week.startDate, week.endDate)
-                              })
+                              const weekCharges = reportData.charges.filter((charge) =>
+                                isDateInRange(charge.date, week.startDate, week.endDate),
+                              )
                               const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
                               return chargeTotal > 0 ? `-${chargeTotal.toFixed(2)}` : "-"
                             })()}
                           </td>
                           <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-purple-50">
                             {(() => {
-                              const weekAdvances = reportData.advances.filter((advance) => {
-                                return isDateInRange(advance.date, week.startDate, week.endDate)
-                              })
+                              const weekAdvances = reportData.advances.filter((advance) =>
+                                isDateInRange(advance.date, week.startDate, week.endDate),
+                              )
                               const advanceTotal = weekAdvances.reduce((sum, a) => sum + a.amount, 0)
                               return advanceTotal > 0 ? `-${advanceTotal.toFixed(2)}` : "-"
                             })()}
@@ -1174,12 +1109,12 @@ const IndividualReports: React.FC = () => {
                           }, 0)
                           return (
                             <td key={dayName} className="px-4 py-3 text-sm text-center whitespace-nowrap">
-                              {dayTotal.toFixed(2)}
+                              {formatNumber(dayTotal)}
                             </td>
                           )
                         })}
                         <td className="px-4 py-3 text-sm text-center whitespace-nowrap">
-                          {reportData.totalEarnings.toFixed(2)}
+                          {formatNumber(Number(reportData.totalEarnings))}
                         </td>
                         <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-100">
                           {(() => {
@@ -1196,9 +1131,8 @@ const IndividualReports: React.FC = () => {
                       </tr>
                       <tr className="bg-success-100 font-bold">
                         <td colSpan={8} className="px-4 py-3 text-sm font-bold text-success-800">
-                          {t("dashboard.finalAmount")} ({reportData.percentage}% {t("common.of")} {t("dashboard.sales")}
-                          {reportData.personType === "LEADER" ? ` ÷ ${totalLeadersCount}` : ""} - {t("charges.title")} -{" "}
-                          {t("cashAdvance.title")})
+                          {t("dashboard.finalAmount")} ({reportData.percentage}% {t("common.of")} {t("dashboard.sales")}{" "}
+                          - {t("charges.title")} - {t("cashAdvance.title")})
                         </td>
                         <td colSpan={3} className="px-4 py-3 text-center text-sm font-bold text-success-800">
                           {reportData.netAmount.toFixed(2)}
@@ -1208,162 +1142,131 @@ const IndividualReports: React.FC = () => {
                   </table>
                 </div>
               ) : (
-                <div className="p-6">
-                  <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-blue-800 font-medium">
-                      <strong>{t("common.note")}:</strong>{" "}
-                      {t("individualReports.leaderEarningsNote", {
-                        percentage: reportData.percentage,
-                        count: totalLeadersCount,
-                      })}
-                    </p>
-                    <p className="text-blue-800">
-                      {t("individualReports.totalProgramSales")}: ${reportData.totalEarnings.toFixed(2)}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div className="p-4 bg-primary-50 rounded-lg border border-primary-200">
-                      <h3 className="text-lg font-semibold text-primary-800 mb-3">{t("dashboard.programSales")}</h3>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-primary-700">
-                          {t("individualReports.totalProgramSales")}:
-                        </span>
-                        <span className="text-xl font-bold text-primary-900">
-                          ${reportData.totalEarnings.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center mt-2">
-                        <span className="text-sm font-medium text-primary-700">
-                          {t("individualReports.percentageLabel", {
-                            personType: t(`personForm.leader`),
-                            percentage: reportData.percentage,
-                            count: totalLeadersCount,
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr>
+                        <th
+                          rowSpan={2}
+                          className="border border-gray-400 px-3 py-2 bg-[#0052B4] text-white text-sm align-middle"
+                        >
+                          {t("common.week")}
+                        </th>
+                        <th colSpan={8} className="border border-gray-400 px-3 py-2 bg-[#0052B4] text-white text-sm">
+                          {t("dashboard.teamEarnings")}
+                        </th>
+                        <th
+                          rowSpan={2}
+                          className="border border-gray-400 px-3 py-2 bg-red-700 text-white text-sm align-middle"
+                        >
+                          {t("charges.title")}
+                        </th>
+                        <th
+                          rowSpan={2}
+                          className="border border-gray-400 px-3 py-2 bg-purple-700 text-white text-sm align-middle"
+                        >
+                          {t("cashAdvance.title")}
+                        </th>
+                      </tr>
+                      <tr>
+                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => (
+                          <th
+                            key={dayName}
+                            className="border border-gray-400 px-3 py-2 bg-[#0052B4] text-white text-sm"
+                          >
+                            {t(`programSettings.days.${dayName.toLowerCase()}`)}
+                          </th>
+                        ))}
+                        <th className="border border-gray-400 px-3 py-2 bg-[#0052B4] text-white text-sm">
+                          {t("common.total")}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {groupEarningsByWeeks(reportData.dailyEarnings).map((week, index) => (
+                        <tr
+                          key={week.startDate}
+                          className={clsx(
+                            "hover:bg-gray-50 transition-colors",
+                            index % 2 === 0 ? "bg-yellow-50" : "bg-white",
+                          )}
+                        >
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-white bg-[#0052B4] sticky left-0 z-10">
+                            {index + 1}) {week.weekLabel}
+                          </td>
+                          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => {
+                            const dayData = week.days.find((d) => d.dayName === dayName)
+                            return (
+                              <td key={dayName} className="px-4 py-3 text-sm text-center whitespace-nowrap">
+                                {dayData ? formatNumber(dayData.amount) : "-"}
+                              </td>
+                            )
                           })}
-                          :
-                        </span>
-                        <span className="text-xl font-bold text-primary-900">
-                          ${((reportData.totalEarnings * (reportData.percentage / 100)) / totalLeadersCount).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-3">{t("individualReports.deductions")}</h3>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-700">{t("charges.totalCharges")}:</span>
-                        <span className="text-lg font-bold text-red-600">
-                          -${reportData.charges.reduce((sum, c) => sum + c.amount, 0).toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center mt-2">
-                        <span className="text-sm font-medium text-gray-700">{t("cashAdvance.totalAdvances")}:</span>
-                        <span className="text-lg font-bold text-purple-600">
-                          -${reportData.advances.reduce((sum, a) => sum + a.amount, 0).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-success-50 rounded-lg border border-success-200 mb-6">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-lg font-semibold text-success-800">{t("dashboard.finalAmount")}</h3>
-                      <span className="text-2xl font-bold text-success-700">${reportData.netAmount.toFixed(2)}</span>
-                    </div>
-                    <p className="text-sm text-success-600 mt-1">{t("dashboard.afterDeductions")}</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {reportData.charges.length > 0 && (
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-800 mb-3">{t("charges.title")}</h3>
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  {t("charges.date")}
-                                </th>
-                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  {t("charges.reason")}
-                                </th>
-                                <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  {t("charges.amount")}
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {reportData.charges.map((charge) => (
-                                <tr key={charge.id}>
-                                  <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                                    {formatDateSafe(charge.date)}
-                                  </td>
-                                  <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">{charge.reason}</td>
-                                  <td className="px-3 py-2 whitespace-nowrap text-sm text-right text-red-600">
-                                    ${charge.amount.toFixed(2)}
-                                  </td>
-                                </tr>
-                              ))}
-                              <tr className="bg-gray-50">
-                                <td colSpan={2} className="px-3 py-2 whitespace-nowrap text-sm font-bold text-gray-900">
-                                  {t("charges.totalCharges")}
-                                </td>
-                                <td className="px-3 py-2 whitespace-nowrap text-sm text-right font-bold text-red-600">
-                                  ${reportData.charges.reduce((sum, c) => sum + c.amount, 0).toFixed(2)}
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
-                    {reportData.advances.length > 0 && (
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-800 mb-3">{t("cashAdvance.title")}</h3>
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  {t("cashAdvance.requestDate")}
-                                </th>
-                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  {t("cashAdvance.week")}
-                                </th>
-                                <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  {t("cashAdvance.advanceAmount")}
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {reportData.advances.map((advance) => (
-                                <tr key={advance.id}>
-                                  <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                                    {formatDateSafe(advance.date)}
-                                  </td>
-                                  <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                                    {formatDateSafe(advance.weekStartDate)} - {formatDateSafe(advance.weekEndDate)}
-                                  </td>
-                                  <td className="px-3 py-2 whitespace-nowrap text-sm text-right text-purple-600">
-                                    ${advance.amount.toFixed(2)}
-                                  </td>
-                                </tr>
-                              ))}
-                              <tr className="bg-gray-50">
-                                <td colSpan={2} className="px-3 py-2 whitespace-nowrap text-sm font-bold text-gray-900">
-                                  {t("cashAdvance.totalAdvances")}
-                                </td>
-                                <td className="px-3 py-2 whitespace-nowrap text-sm text-right font-bold text-purple-600">
-                                  ${reportData.advances.reduce((sum, a) => sum + a.amount, 0).toFixed(2)}
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                          <td className="px-4 py-3 text-sm text-center font-medium whitespace-nowrap">
+                            {formatNumber(week.weekTotal)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-50">
+                            {(() => {
+                              const weekCharges = reportData.charges.filter((charge) =>
+                                isDateInRange(charge.date, week.startDate, week.endDate),
+                              )
+                              const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
+                              return chargeTotal > 0 ? `-${chargeTotal.toFixed(2)}` : "-"
+                            })()}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-purple-50">
+                            {(() => {
+                              const weekAdvances = reportData.advances.filter((advance) =>
+                                isDateInRange(advance.date, week.startDate, week.endDate),
+                              )
+                              const advanceTotal = weekAdvances.reduce((sum, a) => sum + a.amount, 0)
+                              return advanceTotal > 0 ? `-${advanceTotal.toFixed(2)}` : "-"
+                            })()}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="bg-gray-100 font-semibold">
+                        <td className="px-4 py-3 text-sm font-bold text-white bg-[#0052B4] sticky left-0 z-10">
+                          {t("common.totals")}
+                        </td>
+                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => {
+                          const dayTotal = groupEarningsByWeeks(reportData.dailyEarnings).reduce((sum, week) => {
+                            const dayData = week.days.find((d) => d.dayName === dayName)
+                            return sum + (dayData ? dayData.amount : 0)
+                          }, 0)
+                          return (
+                            <td key={dayName} className="px-4 py-3 text-sm text-center whitespace-nowrap">
+                              {formatNumber(dayTotal)}
+                            </td>
+                          )
+                        })}
+                        <td className="px-4 py-3 text-sm text-center whitespace-nowrap">
+                          {Number(reportData.totalEarnings).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-100">
+                          {(() => {
+                            const chargeTotal = reportData.charges.reduce((sum, c) => sum + c.amount, 0)
+                            return chargeTotal > 0 ? `-${chargeTotal.toFixed(2)}` : "-"
+                          })()}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-purple-100">
+                          {(() => {
+                            const advanceTotal = reportData.advances.reduce((sum, a) => sum + a.amount, 0)
+                            return advanceTotal > 0 ? `-${advanceTotal.toFixed(2)}` : "-"
+                          })()}
+                        </td>
+                      </tr>
+                      <tr className="bg-success-100 font-bold">
+                        <td colSpan={8} className="px-4 py-3 text-sm font-bold text-success-800">
+                          {t("dashboard.finalAmount")} ({reportData.percentage}% {t("common.of")}{" "}
+                          {t("reports.teamSales")} - {t("charges.title")} - {t("cashAdvance.title")})
+                        </td>
+                        <td colSpan={3} className="px-4 py-3 text-center text-sm font-bold text-success-800">
+                          {reportData.netAmount.toFixed(2)}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
@@ -1472,29 +1375,24 @@ const IndividualReports: React.FC = () => {
                     <div className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
                       <span className="text-sm font-medium text-gray-600">
                         {reportData.personType === "LEADER"
-                          ? t("individualReports.totalProgramSales")
+                          ? t("reports.teamSales")
                           : t("dashboard.totalSales")}
                       </span>
-                      <span className="text-lg font-bold text-gray-900">${reportData.totalEarnings.toFixed(2)}</span>
+                      <span className="text-lg font-bold text-gray-900">
+                        ${formatNumber(Number(reportData.totalEarnings))}
+                      </span>
                     </div>
-
                     <div className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
                       <span className="text-sm font-medium text-gray-600">
                         {t("individualReports.percentageLabel", {
                           personType: t(`personForm.${reportData.personType.toLowerCase()}`),
                           percentage: reportData.percentage,
-                          count: totalLeadersCount,
                         })}
                       </span>
                       <span className="text-lg font-bold text-primary-600">
-                        $
-                        {(reportData.personType === "COLPORTER"
-                          ? reportData.totalEarnings * (reportData.percentage / 100)
-                          : (reportData.totalEarnings * (reportData.percentage / 100)) / totalLeadersCount
-                        ).toFixed(2)}
+                        ${(reportData.totalEarnings * (reportData.percentage / 100)).toFixed(2)}
                       </span>
                     </div>
-
                     {reportData.charges.length > 0 && (
                       <div className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
                         <span className="text-sm font-medium text-gray-600">{t("charges.totalCharges")}</span>
@@ -1503,23 +1401,22 @@ const IndividualReports: React.FC = () => {
                         </span>
                       </div>
                     )}
-
                     {reportData.advances.length > 0 && (
                       <div className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
                         <span className="text-sm font-medium text-gray-600">{t("cashAdvance.totalAdvances")}</span>
                         <span className="text-lg font-bold text-purple-600">
-                          -${reportData.advances.reduce((sum, a) => sum + a.amount, 0).toFixed(2)}
+                          -${formatNumber(reportData.advances.reduce((sum, a) => Number(sum) + Number(a.amount), 0))}
                         </span>
                       </div>
                     )}
-
                     <div className="flex justify-between items-center p-3 bg-success-100 rounded-lg shadow-sm border border-success-200">
                       <span className="text-sm font-medium text-success-700">{t("dashboard.finalAmount")}</span>
-                      <span className="text-xl font-bold text-success-700">${reportData.netAmount.toFixed(2)}</span>
+                      <span className="text-xl font-bold text-success-700">
+                        ${formatNumber(Number(reportData.netAmount))}
+                      </span>
                     </div>
                   </div>
                 </div>
-
                 <div>
                   <h3 className="text-lg font-semibold text-primary-900 mb-4">
                     {t("individualReports.reportDetails")}
@@ -1543,7 +1440,6 @@ const IndividualReports: React.FC = () => {
                         </span>
                       </div>
                     </div>
-
                     {reportData.personType === "COLPORTER" && (
                       <div className="p-3 bg-white rounded-lg shadow-sm">
                         <div className="flex justify-between items-center mb-2">
@@ -1573,10 +1469,9 @@ const IndividualReports: React.FC = () => {
                         </div>
                       </div>
                     )}
-
                     <div className="p-3 bg-success-50 rounded-lg shadow-sm">
                       <p className="text-sm text-success-700">
-                        <strong>{t("dashboard.finalAmount")}:</strong> ${reportData.netAmount.toFixed(2)}
+                        <strong>{t("dashboard.finalAmount")}:</strong> ${formatNumber(Number(reportData.netAmount))}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">{t("dashboard.afterDeductions")}</p>
                     </div>
