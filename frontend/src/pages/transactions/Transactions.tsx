@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 import { useNavigate, useLocation } from "react-router-dom"
 import { Plus, ChevronLeft, ChevronRight, Calendar, DollarSign, BookText } from "lucide-react"
 import { useTransactionStore } from "../../stores/transactionStore"
+import { useProgramStore } from "../../stores/programStore"
 import DailyTransactions from "../../components/dashboard/DailyTransactions"
 import Button from "../../components/ui/Button"
 import Card from "../../components/ui/Card"
@@ -15,12 +16,15 @@ import { formatDateToString } from "../../utils/dateUtils"
 import { BookSize } from "../../types"
 import { formatNumber } from "../../utils/numberUtils"
 
+
 const Transactions: React.FC = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const { fetchPeople, werePeopleFetched } = useUserStore()
   const { transactions, fetchTransactions } = useTransactionStore()
+  const { program, fetchProgram, wasProgramFetched } = useProgramStore()
+
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [selectedLeader, setSelectedLeader] = useState<string>("")
   const [activeTab, setActiveTab] = useState<"finances" | "delivered-books">(() => {
@@ -51,6 +55,10 @@ const Transactions: React.FC = () => {
   useEffect(() => {
     !werePeopleFetched && fetchPeople()
   }, [fetchPeople, werePeopleFetched])
+
+  useEffect(() => {
+    !wasProgramFetched && fetchProgram()
+  }, [fetchProgram, wasProgramFetched])
 
   const navigateDate = (days: number) => {
     const newDate = new Date(selectedDate)
@@ -86,6 +94,9 @@ const Transactions: React.FC = () => {
 
   const leaderTotals = React.useMemo(() => {
     const totals = new Map()
+    const leaderPercentage = program?.financialConfig?.leader_percentage
+      ? Number.parseFloat(program.financialConfig.leader_percentage)
+      : 15
 
     validTransactions.forEach((t) => {
       const current = totals.get(t.leaderId) || {
@@ -93,15 +104,21 @@ const Transactions: React.FC = () => {
         name: t.leaderName,
         total: 0,
         transactions: 0,
+        earnings: 0,
       }
-      
+
       current.total += Number(t.total)
       current.transactions += 1
       totals.set(t.leaderId, current)
     })
 
+    // Calculate earnings for each leader based on their team sales
+    totals.forEach((leader) => {
+      leader.earnings = leader.total * (leaderPercentage / 100)
+    })
+
     return Array.from(totals.values())
-  }, [validTransactions])
+  }, [validTransactions, program])
 
   const dayTotal = React.useMemo(() => {
     return validTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0)
@@ -115,7 +132,7 @@ const Transactions: React.FC = () => {
         Number(t.leaderId) === Number(selectedLeader) &&
         formatDateToString(t.date) === selectedDate.toISOString().split("T")[0],
     )
-  }, [transactions, selectedLeader])
+  }, [transactions, selectedLeader, selectedDate])
 
   // Calculate book totals from valid transactions
   const bookTotals = React.useMemo(() => {
@@ -160,7 +177,6 @@ const Transactions: React.FC = () => {
               <Button variant="ghost" size="sm" onClick={() => navigateDate(-1)} className="px-2">
                 <ChevronLeft size={20} />
               </Button>
-
               <div className="px-3 sm:px-4 py-2 flex items-center gap-2 border-l border-r border-gray-200 relative">
                 <Calendar size={16} className="text-gray-500 pointer-events-none" />
                 <input
@@ -182,17 +198,15 @@ const Transactions: React.FC = () => {
                       year: "numeric",
                       month: window.innerWidth < 640 ? "short" : "long",
                       day: "numeric",
-                      timeZone: 'UTC'
+                      timeZone: "UTC",
                     })}
                   </span>
                 </noscript>
               </div>
-
               <Button variant="ghost" size="sm" onClick={() => navigateDate(1)} className="px-2">
                 <ChevronRight size={20} />
               </Button>
             </div>
-
             <Button variant="outline" size="sm" onClick={goToToday} className="w-full sm:w-auto bg-transparent">
               {t("transactions.today")}
             </Button>
@@ -277,13 +291,11 @@ const Transactions: React.FC = () => {
                           const bookSize = book.size
                           return sum + (bookSize === BookSize.LARGE ? book.quantity : 0)
                         }, 0) || 0
-
                       const smallBooks =
                         transaction.books?.reduce((sum, book) => {
                           const bookSize = book.size
                           return sum + (bookSize === BookSize.SMALL ? book.quantity : 0)
                         }, 0) || 0
-
                       const totalBooks = largeBooks + smallBooks
 
                       return (
@@ -335,7 +347,6 @@ const Transactions: React.FC = () => {
             <div className="space-y-3 sm:space-y-4">
               {activeTab === "finances" ? (
                 <>
-                
                   {leaderTotals.map((leader) => (
                     <div key={leader.id} className="flex justify-between items-center p-3 bg-primary-50 rounded-lg">
                       <div className="min-w-0">
@@ -343,17 +354,19 @@ const Transactions: React.FC = () => {
                         <span className="text-xs text-primary-600 block">
                           {leader.transactions} {t("transactions.transactionsCount")}
                         </span>
+                        <span className="text-xs text-purple-600 block font-medium">
+                          {program?.financialConfig?.leader_percentage + "%"}: ${formatNumber(leader.earnings)}
+                        </span>
                       </div>
                       <Badge variant="primary" size="lg" className="ml-2 flex-shrink-0">
-                        {formatNumber(leader.total)}
+                        ${formatNumber(leader.total)}
                       </Badge>
                     </div>
                   ))}
-
                   <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg border-t-2 border-blue-100 mt-4">
                     <span className="text-sm font-medium text-blue-700">{t("common.total")}</span>
                     <Badge variant="primary" size="lg">
-                      {formatNumber(dayTotal)}
+                      ${formatNumber(dayTotal)}
                     </Badge>
                   </div>
                 </>

@@ -54,7 +54,7 @@ const ColporterReport: React.FC = () => {
       setIsLoading(true);
       try {
         const colporterTransactions = await api.get('/transactions', { 
-          params: { studentId: colporterId, status: 'APPROVED' } 
+          params: { studentId: colporterId, status: 'APPROVED', programId: program?.id }
         });
         
         processTransactionData(colporterTransactions);

@@ -177,7 +177,7 @@ export const getDashboardStats = async (req, res) => {
         books: {
           large: weeklyLargeBooks,
           small: weeklySmallBooks,
-          total: weeklyLargeBooks + weeklySmallBooks
+          total: Number(weeklyLargeBooks) + Number(weeklySmallBooks)
         }
       },
       month: {
@@ -185,7 +185,7 @@ export const getDashboardStats = async (req, res) => {
         books: {
           large: monthlyLargeBooks,
           small: monthlySmallBooks,
-          total: monthlyLargeBooks + monthlySmallBooks
+          total: Number(monthlyLargeBooks) + Number(monthlySmallBooks)
         }
       },
       program: {

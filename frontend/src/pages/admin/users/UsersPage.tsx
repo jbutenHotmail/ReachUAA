@@ -226,7 +226,7 @@ const UsersPage: React.FC = () => {
                 onChange={(e) => setEditingRole(e.target.value as UserRole)}
                 className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                <option value={UserRole.ADMIN}>{t("userForm.roles.admin")}</option>
+                {/* <option value={UserRole.ADMIN}>{t("userForm.roles.admin")}</option> */}
                 <option value={UserRole.SUPERVISOR}>{t("userForm.roles.supervisor")}</option>
                 <option value={UserRole.VIEWER}>{t("userForm.roles.viewer")}</option>
               </select>
@@ -452,7 +452,7 @@ const UsersPage: React.FC = () => {
                       onChange={(e) => setEditingRole(e.target.value as UserRole)}
                       className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
-                      <option value={UserRole.ADMIN}>{t("userForm.roles.admin")}</option>
+                      {/* <option value={UserRole.ADMIN}>{t("userForm.roles.admin")}</option> */}
                       <option value={UserRole.SUPERVISOR}>{t("userForm.roles.supervisor")}</option>
                       <option value={UserRole.VIEWER}>{t("userForm.roles.viewer")}</option>
                     </select>

@@ -553,7 +553,7 @@ export default {
     totalSales: "Total Sales",
     nonColportable: "Non-Colportable",
     reportDetails: "Report Details",
-    percentageLabel: "{{personType}}: {{percentage}}% ({{count}} leaders)",
+    percentageLabel: "{{personType}}: {{percentage}}%",
     leaderEarnings: "Leader Earnings",
     leaderEarningsNote:
       "Leader earnings are calculated based on the total program sales and the number of leaders in the team.",
@@ -917,6 +917,8 @@ export default {
     period: "Period",
     from: "From",
     to: "To",
+    teamSales: "Team Sales",
+    avgTeamSales: "Average Team Sales",
     donations: "Donations",
     distributionExpenses: "Revenue Distribution and Expenses",
     totalBooks: "Total Books",

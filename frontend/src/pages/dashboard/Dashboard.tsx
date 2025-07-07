@@ -1,18 +1,19 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore';
 import { useFinancialStore } from '../../stores/financialStore';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useDashboardStore } from '../../stores/dashboardStore';
 import { useCashAdvanceStore } from '../../stores/cashAdvanceStore';
-
-import StatsGrid from '../../components/dashboard/StatsGrid';
+import { getCurrentDate } from '../../utils/dateUtils';
 import SalesChart from '../../components/dashboard/SalesChart';
 import GoalProgress from '../../components/dashboard/GoalProgress';
 import ProgramProjections from '../../components/dashboard/ProgramProjections';
 import FinancialBreakdown from '../../components/dashboard/FinancialBreakdown';
+import Spinner from '../../components/ui/Spinner';
 import { useProgramStore } from '../../stores/programStore';
-import LoadingScreen from '../../components/ui/LoadingScreen';
+import { BookSize } from '../../types';
+import DashboardTabs from '../../components/dashboard/DashboardTabs';
 
 const Dashboard: React.FC = () => {
   const { t } = useTranslation();
@@ -26,7 +27,9 @@ const Dashboard: React.FC = () => {
   } = useFinancialStore();
   
   const {
+    transactions,
     isLoading: isTransactionsLoading,
+    fetchTransactions,
     fetchAllTransactions,
     wereTransactionsFetched
   } = useTransactionStore();
@@ -43,27 +46,33 @@ const Dashboard: React.FC = () => {
     wereStatsFetched
   } = useDashboardStore();
 
-  const { program, fetchProgram, wasProgramFetched } = useProgramStore();
+  const { program, fetchProgram, wasProgramFetched, isLoading: isProgramLoading } = useProgramStore();
   
-  const selectedPeriod = 'all'
+  const [selectedPeriod, setSelectedPeriod] = useState('30d');
+  const [booksData, setBooksData] = useState<Array<{date: string; large: number; small: number}>>([]);
+  const [totalBooks, setTotalBooks] = useState({ large: 0, small: 0, total: 0 });
   
   useEffect(() => {
     if (user) {
       !wasSummaryFetched && fetchSummary(user.id);
       !wasSalesHistoryFetched && fetchSalesHistory(user.id, selectedPeriod);
-      !wereStatsFetched && program && fetchDashboardStats();
+      !wereStatsFetched && fetchDashboardStats();
       !wereAdvancesFetched && fetchAdvances();
       !wasProgramFetched && fetchProgram();
       
+      // Fetch today's transactions using the consistent date format
+      const today = getCurrentDate();
+      console.log('Frontend today date:', today);
+      !wereTransactionsFetched && fetchTransactions(today);
     }
-  }, [program]);
+  }, [user, fetchSummary, fetchSalesHistory, fetchTransactions, fetchDashboardStats, fetchAdvances, selectedPeriod, fetchProgram, wasSummaryFetched, wasSalesHistoryFetched, wereStatsFetched, wereAdvancesFetched, wasProgramFetched, wereTransactionsFetched]);
 
-  
+
   useEffect(() => {
     const loadTransactionData = async () => {
       try {
         // Fetch all APPROVED transactions without date filtering
-        !wereTransactionsFetched && await fetchAllTransactions();
+        !wereTransactionsFetched && await fetchAllTransactions('APPROVED');
       } catch (err) {
         console.error('Error fetching transaction data:', err);
       }
@@ -72,8 +81,70 @@ const Dashboard: React.FC = () => {
     loadTransactionData();
   }, [fetchAllTransactions, wereTransactionsFetched]);
   
+  // Process transactions to get books data for the chart
+  useEffect(() => {
+    if (transactions.length > 0) {
+      // Only use approved transactions
+      const approvedTransactions = transactions.filter(t => t.status === 'APPROVED');
+      
+      // Group by date and count books by size
+      const booksByDate = approvedTransactions.reduce((acc, transaction) => {
+        const date = transaction.date;
+        
+        if (!acc[date]) {
+          acc[date] = { large: 0, small: 0 };
+        }
+        
+        // Count books by size
+        if (transaction.books && transaction.books.length > 0) {
+          transaction.books.forEach(book => {
+            if (book.size === BookSize.LARGE) {
+              acc[date].large += book.quantity;
+            } else {
+              acc[date].small += book.quantity;
+            }
+          });
+        }
+        
+        return acc;
+      }, {} as Record<string, {large: number, small: number}>);
+      
+      // Convert to array format for the chart
+      const booksDataArray = Object.entries(booksByDate).map(([date, counts]) => ({
+        date,
+        large: counts.large,
+        small: counts.small
+      }));
+      
+      // Sort by date
+      booksDataArray.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      
+      setBooksData(booksDataArray);
+      
+      // Calculate total books
+      const totalLarge = approvedTransactions.reduce((sum, transaction) => {
+        if (!transaction.books) return sum;
+        return sum + transaction.books.reduce((bookSum, book) => {
+          return bookSum + (book.size === BookSize.LARGE ? book.quantity : 0);
+        }, 0);
+      }, 0);
+      
+      const totalSmall = approvedTransactions.reduce((sum, transaction) => {
+        if (!transaction.books) return sum;
+        return sum + transaction.books.reduce((bookSum, book) => {
+          return bookSum + (book.size === BookSize.SMALL ? book.quantity : 0);
+        }, 0);
+      }, 0);
+      
+      setTotalBooks({
+        large: totalLarge,
+        small: totalSmall,
+        total: totalLarge + totalSmall
+      });
+    }
+  }, [transactions]);
 
-  const isLoading = isFinancialLoading || isTransactionsLoading || isDashboardLoading;
+  const isLoading = isFinancialLoading || isTransactionsLoading || isDashboardLoading || isProgramLoading;
 
   // Calculate change percentages by comparing to previous periods
   const calculateChanges = () => {
@@ -87,7 +158,7 @@ const Dashboard: React.FC = () => {
     const dailySales = stats.today.sales;
     const previousDaysSales = stats.salesChart.slice(-8, -1); // Last 7 days excluding today
     const previousDaysAverage = previousDaysSales.length > 0 
-      ? previousDaysSales.reduce((sum, day) => Number(sum) + Number(day.amount), 0) / previousDaysSales.length
+      ? previousDaysSales.reduce((sum, day) => sum + day.amount, 0) / previousDaysSales.length
       : dailySales;
     
     const dailyChangeValue = previousDaysAverage === 0 
@@ -136,7 +207,7 @@ const Dashboard: React.FC = () => {
   if (isLoading && (!stats || !program)) {
     return (
       <div className="flex items-center justify-center h-64">
-        <LoadingScreen message="Loading dashboard stats..." />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -148,7 +219,7 @@ const Dashboard: React.FC = () => {
     startDate: program.start_date,
     endDate: program.end_date
   } : null;
-  
+
   return (
     <div className="space-y-6 sm:space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
@@ -159,10 +230,21 @@ const Dashboard: React.FC = () => {
           </p>
         </div>
         
+        <div className="mt-4 md:mt-0 flex items-center space-x-2">
+          <select
+            value={selectedPeriod}
+            onChange={(e) => setSelectedPeriod(e.target.value)}
+            className="block rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+          >
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="90d">Last 90 days</option>
+            <option value="all">All time</option>
+          </select>
+        </div>
       </div>
-
       {stats && (
-        <StatsGrid 
+        <DashboardTabs 
           dailySales={stats.today.sales}
           weeklySales={stats.week.sales}
           monthlySales={stats.month.sales}
@@ -170,16 +252,25 @@ const Dashboard: React.FC = () => {
           dailyChange={dailyChange}
           weeklyChange={weeklyChange}
           monthlyChange={monthlyChange}
+          dailyBooks={stats.today.books}
+          weeklyBooks={stats.week.books}
+          monthlyBooks={stats.month.books}
+          totalBooks={totalBooks}
         />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2">
-          {stats?.salesChart && <SalesChart data={stats.salesChart} />}
+          {stats?.salesChart && (
+            <SalesChart 
+              data={stats.salesChart} 
+              booksData={booksData}
+            />
+          )}
         </div>
         
         <div>
-          {programGoal && <GoalProgress goal={programGoal} />}
+          {programGoal && <GoalProgress goal={programGoal} isLoading={isLoading} />}
         </div>
       </div>
 

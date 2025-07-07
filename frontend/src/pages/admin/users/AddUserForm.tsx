@@ -311,7 +311,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                   required
                 >
-                  <option value={UserRole.ADMIN}>{t('userForm.roles.admin')}</option>
+                  {/* <option value={UserRole.ADMIN}>{t('userForm.roles.admin')}</option> */}
                   <option value={UserRole.SUPERVISOR}>{t('userForm.roles.supervisor')}</option>
                   <option value={UserRole.VIEWER}>{t('userForm.roles.viewer')}</option>
                 </select>

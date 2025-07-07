@@ -1,3 +1,5 @@
+"use client"
+
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
@@ -106,8 +108,6 @@ const IndividualReports: React.FC = () => {
         const endOfMonth = getEndOfMonth()
         setStartDate(startOfMonth)
         setEndDate(endOfMonth)
-
-        // Get leader count for calculations
       } catch (error) {
         console.error("Error loading initial data:", error)
         setError(t("common.error"))
@@ -132,6 +132,7 @@ const IndividualReports: React.FC = () => {
     t,
   ])
 
+  // Handle outside clicks to close dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (personDropdownRef.current && !personDropdownRef.current.contains(event.target as Node)) {
@@ -144,30 +145,6 @@ const IndividualReports: React.FC = () => {
       document.removeEventListener("mousedown", handleClickOutside)
     }
   }, [])
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (isPersonDropdownOpen) {
-        setIsPersonDropdownOpen(false)
-      }
-    }
-
-    const handleResize = () => {
-      if (isPersonDropdownOpen) {
-        setIsPersonDropdownOpen(false)
-      }
-    }
-
-    if (isPersonDropdownOpen) {
-      window.addEventListener("scroll", handleScroll, true)
-      window.addEventListener("resize", handleResize)
-    }
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll, true)
-      window.removeEventListener("resize", handleResize)
-    }
-  }, [isPersonDropdownOpen])
 
   const generateReport = async () => {
     if (!selectedPerson || !startDate || !endDate) {
@@ -251,12 +228,6 @@ const IndividualReports: React.FC = () => {
         // For leaders: their team sales * percentage - charges - advances (no division by total leaders)
         netAmount = totalEarnings * (percentage / 100) - totalCharges - totalAdvances
       }
-
-      console.log("Report calculation:")
-      console.log("Person type:", personType)
-      console.log("Team/Individual sales:", totalEarnings)
-      console.log("Percentage:", percentage)
-      console.log("Net amount:", netAmount)
 
       setReportData({
         personId: selectedPerson.id,
@@ -490,7 +461,6 @@ const IndividualReports: React.FC = () => {
           <p><strong>${t("common.type")}:</strong> ${t(`personForm.${reportData.personType.toLowerCase()}`)}</p>
           <p><strong>${t("reports.period")}:</strong> ${formatDateSafe(reportData.startDate)} - ${formatDateSafe(reportData.endDate)}</p>
         </div>
-
         ${
           reportData.personType === "LEADER"
             ? `
@@ -501,7 +471,6 @@ const IndividualReports: React.FC = () => {
           `
             : ""
         }
-
         ${
           reportData.personType === "COLPORTER"
             ? `
@@ -589,7 +558,6 @@ const IndividualReports: React.FC = () => {
         `
             : ""
         }
-
         ${
           reportData.charges.length > 0
             ? `
@@ -625,7 +593,6 @@ const IndividualReports: React.FC = () => {
         `
             : ""
         }
-
         ${
           reportData.advances.length > 0
             ? `
@@ -661,7 +628,6 @@ const IndividualReports: React.FC = () => {
         `
             : ""
         }
-
         <div class="summary-section">
           <h2>${t("dashboard.financialSummary")}</h2>
           <div class="summary-item">
@@ -866,9 +832,7 @@ const IndividualReports: React.FC = () => {
               <div className="flex items-center">
                 <input
                   type="text"
-                  placeholder={
-                    personType === "COLPORTER" ? t("personForm.searchColporter") : t("personForm.searchLeader")
-                  }
+                  placeholder={t('userForm.searchPersonPlaceholder', { type: personType.toLowerCase() })}
                   value={personSearch}
                   onChange={(e) => {
                     setPersonSearch(e.target.value)
@@ -915,7 +879,7 @@ const IndividualReports: React.FC = () => {
               )}
             </div>
             {isPersonDropdownOpen && !selectedPerson && (
-              <div className="absolute z-50 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 top-full left-0">
+              <div className="absolute z-50 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200">
                 <div className="max-h-60 overflow-y-auto py-1">
                   {filteredPeople.length > 0 ? (
                     filteredPeople.map((person) => (
@@ -1374,9 +1338,7 @@ const IndividualReports: React.FC = () => {
                   <div className="space-y-4">
                     <div className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
                       <span className="text-sm font-medium text-gray-600">
-                        {reportData.personType === "LEADER"
-                          ? t("reports.teamSales")
-                          : t("dashboard.totalSales")}
+                        {reportData.personType === "LEADER" ? t("reports.teamSales") : t("dashboard.totalSales")}
                       </span>
                       <span className="text-lg font-bold text-gray-900">
                         ${formatNumber(Number(reportData.totalEarnings))}

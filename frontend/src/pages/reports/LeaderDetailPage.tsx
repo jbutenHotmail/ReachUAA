@@ -8,6 +8,7 @@ import Badge from '../../components/ui/Badge';
 import { useProgramStore } from '../../stores/programStore';
 import { api } from '../../api';
 import LoadingScreen from '../../components/ui/LoadingScreen';
+import { Leader } from '../../types';
 
 const LeaderDetailPage: React.FC = () => {
   const { t } = useTranslation();
@@ -22,20 +23,20 @@ const LeaderDetailPage: React.FC = () => {
   const [leaderStats, setLeaderStats] = useState<any>(null);
   const [colporterStats, setColporterStats] = useState<any[]>([]);
   const [monthlyData, setMonthlyData] = useState<Record<string, { sales: number; days: number; books: { large: number; small: number } }>>({});
-  const [programTotalSales, setProgramTotalSales] = useState<number>(0);
-  const [totalLeadersCount, setTotalLeadersCount] = useState<number>(1);
 
   // Fetch leader ID by name
   useEffect(() => {
     const getLeaderId = async () => {
       try {
-        const people = await api.get('/people/leaders');
+        const people: Leader[] = await api.get('/people/leaders');
+        console.log(name, people)
         const leader = people.find((p: any) => 
           `${p.name} ${p.apellido}` === name || 
           p.name === name
         );
         
         if (leader) {
+          console.log(leader)
           setLeaderId(leader.id);
         } else {
           setError(t('common.error'));
@@ -51,7 +52,7 @@ const LeaderDetailPage: React.FC = () => {
     }
   }, [name, t]);
 
-  // Fetch transactions for this leader's team and total program sales
+  // Fetch transactions for this leader's team
   useEffect(() => {
     const loadTransactionData = async () => {
       if (!leaderId) return;
@@ -59,21 +60,10 @@ const LeaderDetailPage: React.FC = () => {
       setIsLoading(true);
       try {
         const leaderTransactions = await api.get('/transactions', { 
-          params: { leaderId, status: 'APPROVED' } 
+          params: { leaderId, status: 'APPROVED', programId: program?.id }
         });
         
-        const allTransactions = await api.get('/transactions', {
-          params: { status: 'APPROVED' }
-        });
-        
-        const totalProgramSales = allTransactions.reduce((sum: number, t: any) => sum + t.total, 0);
-        setProgramTotalSales(totalProgramSales);
-        
-        const leaders = await api.get('/people/leaders');
-        const activeLeaders = leaders.filter((l: any) => l.status === 'ACTIVE');
-        setTotalLeadersCount(activeLeaders.length || 1);
-        
-        processTransactionData(leaderTransactions, totalProgramSales);
+        processTransactionData(leaderTransactions);
       } catch (err) {
         console.error('Error fetching transaction data:', err);
         setError(t('common.error'));
@@ -90,6 +80,7 @@ const LeaderDetailPage: React.FC = () => {
   // Process transaction data to get statistics
   const processTransactionData = (leaderTransactions: any[] ) => {
     if (!leaderTransactions.length) {
+      console.log('no transactions')
       setLeaderStats(null);
       setColporterStats([]);
       setMonthlyData({});
@@ -232,7 +223,7 @@ const LeaderDetailPage: React.FC = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
@@ -255,7 +246,7 @@ const LeaderDetailPage: React.FC = () => {
       </div>
     );
   }
-
+  console.log(leaderStats, colporterStats)
   if (!leaderStats || colporterStats.length === 0) {
     return (
       <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg text-warning-700">
@@ -272,9 +263,13 @@ const LeaderDetailPage: React.FC = () => {
     );
   }
 
-  const leaderEarnings = (programTotalSales * (program?.financialConfig?.leader_percentage 
+  // Calculate leader earnings based on their team's sales
+  const leaderPercentage = program?.financialConfig?.leader_percentage 
     ? parseFloat(program.financialConfig.leader_percentage) / 100 
-    : 0.15)) / totalLeadersCount;
+    : 0.15;
+  
+  // Calculate leader earnings based on their team's sales, not the entire program
+  const leaderEarnings = leaderStats.totalSales * leaderPercentage;
 
   return (
     <div className="space-y-6">
@@ -363,13 +358,13 @@ const LeaderDetailPage: React.FC = () => {
               </div>
               <div className="text-right">
                 <p className="text-sm text-purple-600">{t('dashboard.basedOnSales')}</p>
-                <p className="text-lg font-semibold text-purple-700">{formatCurrency(programTotalSales)}</p>
+                <p className="text-lg font-semibold text-purple-700">{formatCurrency(leaderStats.totalSales)}</p>
               </div>
             </div>
             
             <div className="mt-4 p-3 bg-white rounded-lg border border-purple-100">
               <p className="text-sm text-purple-800">
-                <strong>{t('confirmationStep.importantNotes')}:</strong> {t('programSettings.leaderPercentage')} {t('reports.distributionExpenses')} ({formatCurrency(programTotalSales)}), {t('common.totals')} ({totalLeadersCount} {t('common.leaders')}).
+                <strong>{t('confirmationStep.importantNotes')}:</strong> {t('programSettings.leaderPercentage')} {t('reports.distributionExpenses')} ({formatCurrency(leaderStats.totalSales)}) {t('reports.totalSales')}.
               </p>
             </div>
           </div>
@@ -378,10 +373,10 @@ const LeaderDetailPage: React.FC = () => {
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="text-sm font-medium text-gray-700">{t('confirmationStep.programPeople')}</p>
               <p className="text-lg font-bold text-gray-900">
-                {((leaderStats.totalSales / programTotalSales) * 100).toFixed(1)}%
+                {leaderStats.colporterCount}
               </p>
               <p className="text-xs text-gray-500">
-                {formatCurrency(leaderStats.totalSales)} {t('common.of')} {formatCurrency(programTotalSales)}
+                {t('common.colporters')}
               </p>
             </div>
             
@@ -458,8 +453,7 @@ const LeaderDetailPage: React.FC = () => {
                     <div className="text-xs text-gray-500">
                       {colporter.bestDay.date ? new Date(colporter.bestDay.date).toLocaleDateString('es-ES', {
                         month: 'short',
-                        day: 'numeric',
-                        timeZone: 'UTC'
+                        day: 'numeric'
                       }) : 'N/A'}
                     </div>
                     <div className="font-medium text-success-600">

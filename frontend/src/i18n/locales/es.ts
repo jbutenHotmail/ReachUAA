@@ -852,6 +852,8 @@ export default {
     export: "Exportar",
     print: "Imprimir",
     period: "Período",
+    teamSales: "Ventas del equipo",
+    avgTeamSales: "Promedio de ventas del equipo",
     from: "Desde",
     to: "Hasta",
     distributionExpenses: "Distribución de Ingresos y Gastos",
@@ -1044,7 +1046,7 @@ export default {
       "Las ganancias del líder se calculan basándose en las ventas totales del programa y el número de líderes en el equipo.",
     totalProgramSales: "Ventas Totales del Programa",
     reportDetails: "Detalles del Reporte",
-    percentageLabel: "{{personType}}: {{percentage}}% ({{count}} leaders)",
+    percentageLabel: "{{personType}}: {{percentage}}%",
     deductions: "Deducciones",
   },
   expenses: {

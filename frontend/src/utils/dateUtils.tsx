@@ -14,6 +14,12 @@ const getDateFromUTC = (dateString: string): Date => {
   return new Date(year, month, day)
 }
 
+export const createLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  // Create date with time set to noon (12:00) to avoid timezone issues
+  return new Date(year, month - 1, day, 12, 0, 0);
+};
+
 /**
  * Parses a date string consistently, handling both YYYY-MM-DD and ISO formats
  */

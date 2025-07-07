@@ -26,7 +26,7 @@ export const getDailyReport = async (req, res) => {
     const transactionBooks = await Promise.all(
       transactions.map(async (transaction) => {
         const books = await db.query(
-          `SELECT tb.book_id, b.title, tb.quantity, tb.price
+          `SELECT tb.book_id, b.title, b.size, tb.quantity, tb.price
            FROM transaction_books tb
            JOIN books b ON tb.book_id = b.id
            WHERE tb.transaction_id = ?`,
@@ -162,7 +162,7 @@ export const getWeeklyReport = async (req, res) => {
         const transaction = dailyTransactions[date].transactions[i];
         
         const books = await db.query(
-          `SELECT tb.book_id, b.title, tb.quantity, tb.price
+          `SELECT tb.book_id, b.title, b.size, tb.quantity, tb.price
            FROM transaction_books tb
            JOIN books b ON tb.book_id = b.id
            WHERE tb.transaction_id = ?`,
@@ -177,7 +177,7 @@ export const getWeeklyReport = async (req, res) => {
           } else {
             dailyTransactions[date].bookTotals.small += book.quantity;
           }
-          dailyTransactions[date].bookTotals.total += book.quantity;
+          dailyTransactions[date].bookTotals.total = dailyTransactions[date].bookTotals.large + dailyTransactions[date].bookTotals.small;
         });
       }
     }
@@ -293,7 +293,7 @@ export const getMonthlyReport = async (req, res) => {
         const transaction = weeklyTransactions[weekKey].transactions[i];
         
         const books = await db.query(
-          `SELECT tb.book_id, b.title, tb.quantity, tb.price
+          `SELECT tb.book_id, b.title, b.size, tb.quantity, tb.price
            FROM transaction_books tb
            JOIN books b ON tb.book_id = b.id
            WHERE tb.transaction_id = ?`,
@@ -404,7 +404,7 @@ export const getColporterReport = async (req, res) => {
     const transactionBooks = await Promise.all(
       transactions.map(async (transaction) => {
         const books = await db.query(
-          `SELECT tb.book_id, b.title, b.category, b.price, tb.quantity
+          `SELECT tb.book_id, b.title, b.category, b.size, b.price, tb.quantity
            FROM transaction_books tb
            JOIN books b ON tb.book_id = b.id
            WHERE tb.transaction_id = ?`,
@@ -565,7 +565,7 @@ export const getLeaderReport = async (req, res) => {
     const transactionBooks = await Promise.all(
       transactions.map(async (transaction) => {
         const books = await db.query(
-          `SELECT tb.book_id, b.title, b.category, b.price, tb.quantity
+          `SELECT tb.book_id, b.title, b.category, b.size, b.price, tb.quantity
            FROM transaction_books tb
            JOIN books b ON tb.book_id = b.id
            WHERE tb.transaction_id = ?`,
@@ -678,6 +678,7 @@ export const getLeaderReport = async (req, res) => {
              b.id,
              b.title,
              b.price,
+             b.size,
              SUM(tb.quantity) as quantity
            FROM transaction_books tb
            JOIN books b ON tb.book_id = b.id
@@ -798,6 +799,7 @@ export const getProgramReport = async (req, res) => {
          b.id,
          b.title,
          b.category,
+         b.size,
          b.price,
          SUM(tb.quantity) as quantity
        FROM transaction_books tb
@@ -980,7 +982,7 @@ export const getProgramReport = async (req, res) => {
 // Get individual earnings report
 export const getIndividualEarningsReport = async (req, res) => {
   try {
-    const { id } = req.params; // This is now userId
+    const { id } = req.params; // This is the user ID
     const { startDate, endDate } = req.query;
     
     // Calculate default dates if not provided
@@ -1012,7 +1014,7 @@ export const getIndividualEarningsReport = async (req, res) => {
     );
     
     if (!person) {
-      return res.status(404).json({ message: 'Person not found' });
+      return res.status(404).json({ message: 'Person not found for this user' });
     }
     
     // Get financial configuration
@@ -1244,6 +1246,19 @@ export const getSalesHistory = async (req, res) => {
     } else {
       // For other users, return empty data
       salesData = [];
+      // Get books for each transaction
+      for (let i = 0; i < transactions.length; i++) {
+        const books = await db.query(
+          `SELECT tb.book_id as id, b.title, b.size, tb.quantity, tb.price
+           FROM transaction_books tb
+           JOIN books b ON tb.book_id = b.id
+           WHERE tb.transaction_id = ?`,
+          [transactions[i].id]
+        );
+        
+        transactions[i].books = books;
+      }
+      
     }
     
     // Ensure we have data for every day in the range
@@ -1396,4 +1411,16 @@ export const getFinancialSummary = async (req, res) => {
     console.error('Error getting financial summary:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
+};
+
+export default {
+  getDailyReport,
+  getWeeklyReport,
+  getMonthlyReport,
+  getColporterReport,
+  getLeaderReport,
+  getProgramReport,
+  getIndividualEarningsReport,
+  getSalesHistory,
+  getFinancialSummary
 };

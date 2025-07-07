@@ -4,6 +4,7 @@ import * as db from '../config/database.js';
 export const getTransactions = async (req, res) => {
   try {
     const { date, studentId, leaderId, status, programId } = req.query;
+    console.log(date, studentId, leaderId, status, programId)
     let query = `
       SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
       t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
@@ -63,6 +64,7 @@ export const getTransactions = async (req, res) => {
       
       transaction.books = books;
     }
+    console.log(query)
     res.json(transactions);
   } catch (error) {
     console.error('Error getting transactions:', error);
