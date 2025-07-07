@@ -151,7 +151,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
-        <Card>
+        <Card className="overflow-visible">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">
@@ -245,7 +245,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                     )}
                   </div>
                   {isPersonDropdownOpen && !selectedPerson && (
-                    <div className="absolute z-50 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200">
+                    <div className="absolute z-[1000] w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200">
                       <div className="max-h-60 overflow-y-auto py-1">
                         {filteredPeople.length > 0 ? (
                           filteredPeople.map((person) => (
@@ -287,7 +287,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                   <div className="flex items-start gap-3">
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900">{initialData.personName}</p>
-                      <p className="text-xs text-gray-500">{initialData.email}</p>
+                      <p className="text-xs text-space-500">{initialData.email}</p>
                     </div>
                     <Badge 
                       variant={initialData.personType === 'COLPORTER' ? 'primary' : 'success'}
