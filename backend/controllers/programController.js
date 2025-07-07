@@ -229,8 +229,8 @@ export const createProgram = async (req, res) => {
 export const getProgram = async (req, res) => {
   try {
     // Obtener el ID del programa del usuario actual
-    const programId = req.user?.currentProgramId;
-    console.log('programId', programId)
+    const programId = req.params.id || req.user?.currentProgramId;
+    console.log('programId', req.params.id)
     // Si no hay un programa seleccionado, buscar el programa activo
     let program;
     if (programId) {
@@ -398,6 +398,7 @@ export const switchProgram = async (req, res) => {
 export const updateProgram = async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('id', id)
     const { name, motto, startDate, endDate, goal, logo, isActive } = req.body;
 
     // Update program
@@ -463,6 +464,7 @@ export const updateProgramWorkingDay = async (req, res) => {
 export const addCustomProgramDay = async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('id', id)
     const { date, isWorkingDay } = req.body;
     // Check if custom day already exists
     const existingDay = await db.getOne(

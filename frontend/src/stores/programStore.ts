@@ -48,7 +48,7 @@ interface ProgramState {
 interface ProgramStore extends ProgramState {
   createProgram: (programData: any) => Promise<void>;
   updateProgram: (id: number, programData: any) => Promise<void>;
-  fetchProgram: () => Promise<void>;
+  fetchProgram: (id?: number) => Promise<void>;
   fetchAvailablePrograms: () => Promise<void>;
   switchProgram: (programId: number) => Promise<void>;
   updateFinancialConfig: (id: number, configData: any) => Promise<void>;
@@ -88,8 +88,21 @@ export const useProgramStore = create<ProgramStore>()(
         set({ isLoading: true, error: null });
         try {
           await api.put(`/program/${id}`, programData);
-          await get().fetchProgram();
-          set({ isLoading: false });
+          
+          // Update local state instead of fetching from API
+          set(state => {
+            if (state.program) {
+              return {
+                program: {
+                  ...state.program,
+                  ...programData,
+                  updated_at: new Date().toISOString()
+                },
+                isLoading: false
+              };
+            }
+            return { isLoading: false };
+          });
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : 'An unknown error occurred', 
@@ -99,21 +112,12 @@ export const useProgramStore = create<ProgramStore>()(
         }
       },
 
-      fetchProgram: async () => {
+      fetchProgram: async (id?: number) => {
         set({ isLoading: true, error: null });
         try {
-          // Verificar si el usuario es ADMIN antes de intentar obtener el programa
-          const { user } = useAuthStore.getState();
-          // if (user?.role !== 'ADMIN') {
-          //   set({ 
-          //     program: null, 
-          //     isLoading: false,
-          //     wasProgramFetched: true
-          //   });
-          //   return;
-          // }
-          
-          const response = await api.get('/program');
+          let params; 
+          id && (params = id);
+          const response = params ? await api.get(`/program/${params}`) : await api.get('/program');
           if (response) {
             set({ 
               program: response, 
@@ -248,10 +252,23 @@ export const useProgramStore = create<ProgramStore>()(
         try {
           await api.put(`/program/${id}/financial-config`, configData);
           
-          // Fetch fresh data from API instead of updating local state
-          await get().fetchProgram();
+          // Update local state instead of fetching from API
+          set(state => {
+            if (state.program) {
+              return {
+                program: {
+                  ...state.program,
+                  financialConfig: {
+                    ...state.program.financialConfig,
+                    ...configData
+                  }
+                },
+                isLoading: false
+              };
+            }
+            return { isLoading: false };
+          });
           
-          set({ isLoading: false });
         } catch (error) {
           console.error('Error updating financial config:', error);
           set({ 
@@ -268,10 +285,26 @@ export const useProgramStore = create<ProgramStore>()(
         try {
           await api.put(`/program/${id}/working-days/${day}`, { isWorkingDay });
           
-          // Fetch fresh data from API instead of updating local state
-          await get().fetchProgram();
+          // Update local state instead of fetching from API
+          set(state => {
+            if (state.program && state.program.workingDays) {
+              const updatedWorkingDays = state.program.workingDays.map(wd => 
+                wd.day_of_week === day 
+                  ? { ...wd, is_working_day: isWorkingDay }
+                  : wd
+              );
+              
+              return {
+                program: {
+                  ...state.program,
+                  workingDays: updatedWorkingDays
+                },
+                isLoading: false
+              };
+            }
+            return { isLoading: false };
+          });
           
-          set({ isLoading: false });
         } catch (error) {
           console.error('Error updating working day:', error);
           set({ 
@@ -286,12 +319,48 @@ export const useProgramStore = create<ProgramStore>()(
       addCustomDay: async (id, date, isWorkingDay) => {
         set({ isLoading: true, error: null });
         try {
-          await api.post(`/program/${id}/custom-days`, { date, isWorkingDay });
+          const response = await api.post(`/program/${id}/custom-days`, { date, isWorkingDay });
           
-          // Fetch fresh data from API instead of updating local state
-          await get().fetchProgram();
+          // Update local state instead of fetching from API
+          set(state => {
+            if (state.program && state.program.customDays) {
+              // Check if this date already exists in customDays
+              const existingCustomDayIndex = state.program.customDays.findIndex(
+                cd => new Date(cd.date).toISOString().split('T')[0] === date
+              );
+              
+              let updatedCustomDays;
+              
+              if (existingCustomDayIndex >= 0) {
+                // Update existing custom day
+                updatedCustomDays = state.program.customDays.map((cd, index) => 
+                  index === existingCustomDayIndex
+                    ? { ...cd, is_working_day: isWorkingDay }
+                    : cd
+                );
+              } else {
+                // Add new custom day
+                const newCustomDay = {
+                  id: response.id || Date.now(), // Use response ID if available, otherwise generate a temporary one
+                  program_id: id,
+                  date,
+                  is_working_day: isWorkingDay
+                };
+                
+                updatedCustomDays = [...state.program.customDays, newCustomDay];
+              }
+              
+              return {
+                program: {
+                  ...state.program,
+                  customDays: updatedCustomDays
+                },
+                isLoading: false
+              };
+            }
+            return { isLoading: false };
+          });
           
-          set({ isLoading: false });
         } catch (error) {
           console.error('Error adding custom day:', error);
           set({ 
