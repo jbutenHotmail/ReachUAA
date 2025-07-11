@@ -25,7 +25,6 @@ const NewTransaction: React.FC = () => {
   const { books, fetchBooks, wereBooksLoaded } = useInventoryStore();
   const { fetchProgram, wasProgramFetched } = useProgramStore();
   const { user } = useAuthStore();
-
   const [leaderSearch, setLeaderSearch] = useState('');
   const [colporterSearch, setColporterSearch] = useState('');
   const [selectedLeader, setSelectedLeader] = useState<{ id: string; name: string } | null>(null);
@@ -39,6 +38,7 @@ const NewTransaction: React.FC = () => {
   const [bookQuantities, setBookQuantities] = useState<Record<string, number>>({});
   const [stayOnPage, setStayOnPage] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bookTotal, setBookTotal] = useState<number>(0);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(!wereBooksLoaded || !wasProgramFetched || !werePeopleFetched);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -103,6 +103,16 @@ const nextColportableDay = useMemo(() => getNextColportableDay(today), [today]);
   const total = cash + checks + atmMobile + paypal;
   const totalBooks = Object.values(bookQuantities).reduce((sum, qty) => sum + qty, 0);
 
+  // Calculate total value of books
+  useEffect(() => {
+    let total = 0;
+    activeBooks.forEach(book => {
+      const quantity = bookQuantities[book.id] || 0;
+      total += book.price * quantity;
+    });
+    setBookTotal(total);
+  }, [bookQuantities]);
+
   const formattedDate = today.toLocaleDateString(undefined, {
     weekday: 'long',
     year: 'numeric',
@@ -136,7 +146,7 @@ const nextColportableDay = useMemo(() => getNextColportableDay(today), [today]);
         books: Object.entries(bookQuantities)
           .filter(([_, quantity]) => quantity > 0)
           .map(([id, quantity]) => {
-            const book = books.find(b => b.id === id);
+            const book = books.find(b => Number(b.id) === Number(id));
             return {
               id,
               quantity,
@@ -561,8 +571,13 @@ const nextColportableDay = useMemo(() => getNextColportableDay(today), [today]);
                 ))
               )}
               <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-                <span className="font-medium text-gray-700">{t('transactions.totalBooks')}</span>
-                <Badge variant="primary" size="lg">{totalBooks}</Badge>
+                <div>
+                  <span className="font-medium text-gray-700">{t('transactions.totalBooks')}</span>
+                  <span className="text-sm text-gray-500 ml-2">({totalBooks})</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="primary" size="lg">${bookTotal.toFixed(2)}</Badge>
+                </div>
               </div>
             </div>
           </Card>

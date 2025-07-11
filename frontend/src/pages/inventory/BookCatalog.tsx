@@ -128,6 +128,35 @@ const BookCatalog: React.FC = () => {
         </div>
       )}
 
+      {/* Inventory Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <div className="text-center">
+            <div className="flex items-center justify-center mb-2">
+              <Package className="text-primary-600" size={24} />
+            </div>
+            <p className="text-sm font-medium text-gray-500">{t('inventory.stock')}</p>
+            <p className="mt-1 text-2xl font-bold text-primary-600">
+              {books.reduce((sum, book) => sum + book.stock, 0)}
+            </p>
+            <p className="text-xs text-gray-500">{t('inventory.available')} {t('inventory.books')}</p>
+          </div>
+        </Card>
+        
+        <Card>
+          <div className="text-center">
+            <div className="flex items-center justify-center mb-2">
+              <DollarSign className="text-success-600" size={24} />
+            </div>
+            <p className="text-sm font-medium text-gray-500">{t('inventory.sold')}</p>
+            <p className="mt-1 text-2xl font-bold text-success-600">
+              {books.reduce((sum, book) => sum + book.sold, 0)}
+            </p>
+            <p className="text-xs text-gray-500">{t('reports.delivered')} {t('inventory.books')}</p>
+          </div>
+        </Card>
+      </div>
+
       <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">

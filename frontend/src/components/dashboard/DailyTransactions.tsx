@@ -33,7 +33,6 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
   // Check if user is admin (only admins can approve/reject)
   const isAdmin = user?.role === UserRole.ADMIN;
 
-  // Formatear la fecha según el idioma
   // Filter transactions based on status filter
   const filteredTransactions = statusFilter 
     ? transactions.filter(t => t.status === statusFilter)
@@ -96,6 +95,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
       setTimeout(() => setActionError(null), 5000);
     }
   };
+
   const getStatusBadge = (status: Transaction['status']) => {
     switch (status) {
       case 'PENDING':
@@ -106,9 +106,11 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
         return <Badge variant="danger" leftIcon={<XCircle size={14} />}>{t('transactions.rejected')}</Badge>;
     }
   };
- if(isLoading){
-   return <LoadingScreen message={t('transactions.preparingTransactionForm')} />;
- }
+
+  if (isLoading) {
+    return <LoadingScreen message={t('transactions.preparingTransactionForm')} />;
+  }
+
   return (
     <Card
       title={t('dashboard.dailyTransactions')}
@@ -207,26 +209,27 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                     )}
                   </div>
                   
-                  {transaction.status === 'PENDING' && isAdmin ? (
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="success"
-                        size="sm"
-                        onClick={() => handleStatusChange(transaction.id, 'APPROVED')}
-                        isLoading={isLoading}
-                      >
-                        <CheckCircle size={14} />
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleStatusChange(transaction.id, 'REJECTED')}
-                        isLoading={isLoading}
-                      >
-                        <XCircle size={14} />
-                      </Button>
-                    </div>
-                  ) : (
+                  <div className="flex space-x-2">
+                    {transaction.status === 'PENDING' && isAdmin && (
+                      <>
+                        <Button
+                          variant="success"
+                          size="sm"
+                          onClick={() => handleStatusChange(transaction.id, 'APPROVED')}
+                          isLoading={isLoading}
+                        >
+                          <CheckCircle size={14} />
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleStatusChange(transaction.id, 'REJECTED')}
+                          isLoading={isLoading}
+                        >
+                          <XCircle size={14} />
+                        </Button>
+                      </>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -234,7 +237,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                     >
                       <ChevronRight size={16} />
                     </Button>
-                  )}
+                  </div>
                 </div>
               </div>
             ))
@@ -347,26 +350,27 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                         {getStatusBadge(transaction.status)}
                       </td>
                       <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center">
-                        {transaction.status === 'PENDING' && isAdmin ? (
-                          <div className="flex items-center justify-center space-x-2">
-                            <Button
-                              variant="success"
-                              size="sm"
-                              onClick={() => handleStatusChange(transaction.id, 'APPROVED')}
-                              isLoading={isLoading}
-                            >
-                              <CheckCircle size={16} />
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => handleStatusChange(transaction.id, 'REJECTED')}
-                              isLoading={isLoading}
-                            >
-                              <XCircle size={16} />
-                            </Button>
-                          </div>
-                        ) : (
+                        <div className="flex items-center justify-center space-x-2">
+                          {transaction.status === 'PENDING' && isAdmin && (
+                            <>
+                              <Button
+                                variant="success"
+                                size="sm"
+                                onClick={() => handleStatusChange(transaction.id, 'APPROVED')}
+                                isLoading={isLoading}
+                              >
+                                <CheckCircle size={16} />
+                              </Button>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                onClick={() => handleStatusChange(transaction.id, 'REJECTED')}
+                                isLoading={isLoading}
+                              >
+                                <XCircle size={16} />
+                              </Button>
+                            </>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
@@ -374,7 +378,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                           >
                             <ChevronRight size={16} />
                           </Button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -445,7 +449,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
 
           <div className="bg-primary-50 p-3 sm:p-4 rounded-lg">
             <div className="flex items-center">
-              <DollarSign className="text-primary-600 mr-2 sm:mr-3 flex-shrink-0" size={18} />
+              <DollarSign className="text-primary-600 mr-2 sm:mr-3 flex-shrink- Crusoe} size={18}" />
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm text-primary-600 truncate">{t('transactions.atmMobile')}</p>
                 <p className="text-sm sm:text-lg font-semibold text-primary-700 truncate">
@@ -455,7 +459,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
             </div>
           </div>
 
-          <div className="bg-cta-50 p-3 sm:p-4 rounded-lg">
+          <div className="bg-cta-50 ----------p-4 rounded-lg">
             <div className="flex items-center">
               <DollarSign className="text-cta-600 mr-2 sm:mr-3 flex-shrink-0" size={18} />
               <div className="min-w-0">
