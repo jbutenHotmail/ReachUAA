@@ -5,7 +5,7 @@ import * as db from '../config/database.js';
 export const getUsers = async (req, res) => {
   try {
     const { programId } = req.query;
-    console.log(programId)
+    
     // Base query to get users with their associated person
     let query = `
       SELECT u.id, u.person_id as personId, u.email, u.role, u.status, u.last_login as lastLogin,
@@ -20,7 +20,8 @@ export const getUsers = async (req, res) => {
     // Add program filter if programId is provided
     if (programId) {
       query += `
-        WHERE (p.program_id = ?)
+        JOIN user_programs up ON u.id = up.user_id
+        WHERE up.program_id = ?
       `;
       params.push(programId);
     }
@@ -70,7 +71,17 @@ export const getUserById = async (req, res) => {
 // Create new user
 export const createUser = async (req, res) => {
   try {
-    const { personId, email, password, role } = req.body;
+    const { personId, email, password, role, programId } = req.body;
+    
+    // Get the current program from user_programs table
+    let currentProgramId = programId;
+    if (!currentProgramId) {
+      const userProgram = await db.getOne(
+        'SELECT program_id FROM user_programs WHERE user_id = ? AND is_current = TRUE',
+        [req.user.id]
+      );
+      currentProgramId = userProgram?.program_id;
+    }
     
     // Check if email already exists
     const existingUser = await db.getOne(
@@ -79,7 +90,53 @@ export const createUser = async (req, res) => {
     );
     
     if (existingUser) {
-      return res.status(400).json({ message: 'Email already in use' });
+      // Check if user is already in this program
+      const existingUserProgram = await db.getOne(
+        'SELECT * FROM user_programs WHERE user_id = ? AND program_id = ?',
+        [existingUser.id, currentProgramId]
+      );
+      
+      if (existingUserProgram) {
+        return res.status(400).json({ message: 'User already exists in this program' });
+      }
+      
+      // Start transaction to add user to new program
+      await db.transaction(async (connection) => {
+        // Add user to the new program
+        await connection.execute(
+          'INSERT INTO user_programs (user_id, program_id, is_current) VALUES (?, ?, ?)',
+          [existingUser.id, currentProgramId, false]
+        );
+        
+        // Update person_id if provided and different
+        if (personId && personId !== existingUser.person_id) {
+          await connection.execute(
+            'UPDATE users SET person_id = ?, updated_at = NOW() WHERE id = ?',
+            [personId, existingUser.id]
+          );
+        }
+        
+        // Update role if different
+        if (role && role !== existingUser.role) {
+          await connection.execute(
+            'UPDATE users SET role = ?, updated_at = NOW() WHERE id = ?',
+            [role, existingUser.id]
+          );
+        }
+      });
+      
+      // Get the updated user
+      const updatedUser = await db.getOne(
+        `SELECT u.id, u.person_id as personId, u.email, u.role, u.status, u.last_login as lastLogin,
+         u.created_at as createdAt, u.updated_at as updatedAt,
+         CONCAT(p.first_name, ' ', p.last_name) as personName, p.person_type as personType
+         FROM users u
+         LEFT JOIN people p ON u.person_id = p.id
+         WHERE u.id = ?`,
+        [existingUser.id]
+      );
+      
+      return res.status(201).json(updatedUser);
     }
     
     // Check if person exists
@@ -107,11 +164,24 @@ export const createUser = async (req, res) => {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
     
-    // Insert user
-    const userId = await db.insert(
-      'INSERT INTO users (person_id, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)',
-      [personId || null, email, passwordHash, role, 'ACTIVE']
-    );
+    // Start transaction
+    const result = await db.transaction(async (connection) => {
+      // Insert user
+      const [userResult] = await connection.execute(
+        'INSERT INTO users (person_id, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)',
+        [personId || null, email, passwordHash, role, 'ACTIVE']
+      );
+      
+      const userId = userResult.insertId;
+      
+      // Add user to program
+      await connection.execute(
+        'INSERT INTO user_programs (user_id, program_id, is_current) VALUES (?, ?, ?)',
+        [userId, currentProgramId, false]
+      );
+      
+      return { userId };
+    });
     
     // Get the created user
     const user = await db.getOne(
@@ -121,7 +191,7 @@ export const createUser = async (req, res) => {
        FROM users u
        LEFT JOIN people p ON u.person_id = p.id
        WHERE u.id = ?`,
-      [userId]
+      [result.userId]
     );
     
     res.status(201).json(user);
@@ -147,7 +217,7 @@ export const updateUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    // Check if email already exists (if changing email)
+    // Check if email already exists in the same program (if changing email)
     if (email && email !== existingUser.email) {
       const existingEmail = await db.getOne(
         'SELECT * FROM users WHERE email = ? AND id != ?',

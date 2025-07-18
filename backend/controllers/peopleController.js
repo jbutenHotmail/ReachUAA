@@ -5,7 +5,7 @@ import * as db from '../config/database.js';
 export const getPeople = async (req, res) => {
   try {
     const { programId } = req.query;
-    console.log('get people', programId);
+    
     let query = `SELECT p.id, p.first_name as name, p.last_name as apellido, p.email, p.phone, 
               p.address, p.profile_image_url as profileImage, p.status, p.person_type as personType,
               p.school, p.age, p.institution, p.program_id as programId, p.created_at as createdAt, 
@@ -104,7 +104,7 @@ export const createColporter = async (req, res) => {
       programId
     } = req.body;
     
-    // Check if email already exists in the same program
+    // Check if email already exists in the same program for this person type
     const existingPerson = await db.getOne(
       'SELECT * FROM people WHERE email = ? AND program_id = ? AND person_type = ?',
       [email, programId, 'COLPORTER']
@@ -128,10 +128,51 @@ export const createColporter = async (req, res) => {
       if (createUser) {
         const passwordHash = await bcrypt.hash(`${name.toLowerCase()}.${apellido.toLowerCase()}`, 10);
         
-        await connection.execute(
-          'INSERT INTO users (person_id, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)',
-          [personId, email, passwordHash, 'VIEWER', 'ACTIVE']
+        // Check if user already exists
+        const [existingUsers] = await connection.execute(
+          'SELECT id FROM users WHERE email = ?',
+          [email]
         );
+        
+        let userId;
+        
+        if (existingUsers.length > 0) {
+          // User exists, update person_id and add to program
+          userId = existingUsers[0].id;
+          
+          // Update person_id
+          await connection.execute(
+            'UPDATE users SET person_id = ? WHERE id = ?',
+            [personId, userId]
+          );
+          
+          // Check if user is already in this program
+          const [existingUserPrograms] = await connection.execute(
+            'SELECT id FROM user_programs WHERE user_id = ? AND program_id = ?',
+            [userId, programId]
+          );
+          
+          if (existingUserPrograms.length === 0) {
+            // Add user to program
+            await connection.execute(
+              'INSERT INTO user_programs (user_id, program_id, is_current) VALUES (?, ?, ?)',
+              [userId, programId, false]
+            );
+          }
+        } else {
+          // Create new user
+          const [userResult] = await connection.execute(
+            'INSERT INTO users (person_id, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)',
+            [personId, email, passwordHash, 'VIEWER', 'ACTIVE']
+          );
+          userId = userResult.insertId;
+          
+          // Add user to program
+          await connection.execute(
+            'INSERT INTO user_programs (user_id, program_id, is_current) VALUES (?, ?, ?)',
+            [userId, programId, false]
+          );
+        }
       }
       
       return { personId };
@@ -252,7 +293,7 @@ export const deleteColporter = async (req, res) => {
       [id]
     );
     
-    if (transactions.length > 0 && transactions[0].count > 0) {
+    if (transactions[0].count > 0) {
       return res.status(400).json({ 
         message: 'Cannot delete colporter with transactions. Consider deactivating instead.' 
       });
@@ -353,12 +394,12 @@ export const createLeader = async (req, res) => {
       programId
     } = req.body;
     
-    // Check if email already exists in the same program
+    // Check if email already exists in the same program for this person type
     const existingPerson = await db.getOne(
       'SELECT * FROM people WHERE email = ? AND program_id = ? AND person_type = ?',
       [email, programId, 'LEADER']
     );
-    console.log(existingPerson)
+    
     if (existingPerson) {
       return res.status(400).json({ message: 'Email already in use for a leader in this program' });
     }
@@ -377,10 +418,51 @@ export const createLeader = async (req, res) => {
       if (createUser) {
         const passwordHash = await bcrypt.hash(`${name.toLowerCase()}.${apellido.toLowerCase()}`, 10);
         
-        await connection.execute(
-          'INSERT INTO users (person_id, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)',
-          [personId, email, passwordHash, 'SUPERVISOR', 'ACTIVE']
+        // Check if user already exists
+        const [existingUsers] = await connection.execute(
+          'SELECT id FROM users WHERE email = ?',
+          [email]
         );
+        
+        let userId;
+        
+        if (existingUsers.length > 0) {
+          // User exists, update person_id and add to program
+          userId = existingUsers[0].id;
+          
+          // Update person_id
+          await connection.execute(
+            'UPDATE users SET person_id = ? WHERE id = ?',
+            [personId, userId]
+          );
+          
+          // Check if user is already in this program
+          const [existingUserPrograms] = await connection.execute(
+            'SELECT id FROM user_programs WHERE user_id = ? AND program_id = ?',
+            [userId, programId]
+          );
+          
+          if (existingUserPrograms.length === 0) {
+            // Add user to program
+            await connection.execute(
+              'INSERT INTO user_programs (user_id, program_id, is_current) VALUES (?, ?, ?)',
+              [userId, programId, false]
+            );
+          }
+        } else {
+          // Create new user
+          const [userResult] = await connection.execute(
+            'INSERT INTO users (person_id, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)',
+            [personId, email, passwordHash, 'SUPERVISOR', 'ACTIVE']
+          );
+          userId = userResult.insertId;
+          
+          // Add user to program
+          await connection.execute(
+            'INSERT INTO user_programs (user_id, program_id, is_current) VALUES (?, ?, ?)',
+            [userId, programId, false]
+          );
+        }
       }
       
       return { personId };
@@ -500,7 +582,7 @@ export const deleteLeader = async (req, res) => {
       [id]
     );
     
-    if (transactions.length > 0 && transactions[0].count > 0) {
+    if (transactions[0].count > 0) {
       return res.status(400).json({ 
         message: 'Cannot delete leader with transactions. Consider deactivating instead.' 
       });

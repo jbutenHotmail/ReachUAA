@@ -17,7 +17,6 @@ const TransactionDetails: React.FC = () => {
   const { transactions, approveTransaction, rejectTransaction, isLoading } = useTransactionStore();
   const { user } = useAuthStore();
   if (transactions.length === 0) {
-    console.log('transactions', transactions)
     return navigate('/transactions/finances');
   }
 

@@ -6,6 +6,7 @@ export const getDashboardStats = async (req, res) => {
     // Use the date from the request if provided, otherwise use server date
     const today = req.query.date || new Date().toISOString().split('T')[0];
     const programId = req.query.programId || req.user.currentProgramId;
+    
     // Calculate start dates for week and month
     // Modified to use Sunday as start of week and Saturday as end of week
     const currentDate = new Date(today);
@@ -30,8 +31,7 @@ export const getDashboardStats = async (req, res) => {
     
     // Get active program
     const program = await db.getOne(
-      'SELECT * FROM programs WHERE is_active = TRUE AND id = ?',
-      [programId]
+      'SELECT * FROM programs WHERE is_active = TRUE'
     );
     
     if (!program) {
@@ -140,11 +140,11 @@ export const getDashboardStats = async (req, res) => {
       [program.start_date, today, ...programParams]
     );
     
-    // Get sales chart data (last 60 days) - only APPROVED transactions
+    // Get sales chart data (last 30 days) - only APPROVED transactions
     const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 60);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
-    console.log(thirtyDaysAgoStr)
+    
     const salesChart = await db.query(
       `SELECT transaction_date as date, COALESCE(SUM(total), 0) as amount
        FROM transactions t
@@ -177,7 +177,7 @@ export const getDashboardStats = async (req, res) => {
         books: {
           large: weeklyLargeBooks,
           small: weeklySmallBooks,
-          total: Number(weeklyLargeBooks) + Number(weeklySmallBooks)
+          total: weeklyLargeBooks + weeklySmallBooks
         }
       },
       month: {
@@ -185,7 +185,7 @@ export const getDashboardStats = async (req, res) => {
         books: {
           large: monthlyLargeBooks,
           small: monthlySmallBooks,
-          total: Number(monthlyLargeBooks) + Number(monthlySmallBooks)
+          total: monthlyLargeBooks + monthlySmallBooks
         }
       },
       program: {

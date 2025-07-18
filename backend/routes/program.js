@@ -19,10 +19,10 @@ const router = express.Router();
 router.get('/', authenticateToken, getProgram);
 
 // Get all available programs (for admin users)
-router.get('/available', authenticateToken, authorizeRoles(['ADMIN']), getAvailablePrograms);
+router.get('/available', authenticateToken, getAvailablePrograms);
 
 // Switch to a different program (admin only)
-router.post('/switch/:id', authenticateToken, authorizeRoles(['ADMIN']), switchProgram);
+router.post('/switch/:id', authenticateToken, switchProgram);
 
 // Create new program (admin only)
 router.post('/', authenticateToken, authorizeRoles(['ADMIN']), createProgram);

@@ -157,6 +157,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
         isLoading: false,
       }));
     } catch (error) {
+      console.log(error);
       set({
         error:
           error instanceof Error ? error.message : "An unknown error occurred",

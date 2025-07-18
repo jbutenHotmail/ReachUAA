@@ -1,4 +1,3 @@
-// src/pages/program/ProgramSelectionPage.tsx
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -30,22 +29,11 @@ const ProgramSelectionPage: React.FC = () => {
   const showBackButton = isFromLayout && program;
 
   useEffect(() => {
-    // Asegurarse de que el store de programa esté limpio al cargar esta página
-    // Esto evita problemas con programas almacenados en localStorage
-    // if (!isFromLayout) {
-    //   resetStore();
-    // }
-    
     const loadPrograms = async () => {
       setIsLoading(true);
       try {
-        // Solo cargar programas si el usuario es ADMIN
-        if (user?.role === 'ADMIN') {
-          await fetchAvailablePrograms();
-        } else {
-          // Si no es ADMIN, redirigir al dashboard
-          navigate('/dashboard');
-        }
+        // Cargar programas disponibles para cualquier usuario autenticado
+        await fetchAvailablePrograms();
       } catch (err) {
         setError('Failed to load available programs');
         console.error('Error loading programs:', err);
@@ -57,12 +45,12 @@ const ProgramSelectionPage: React.FC = () => {
     loadPrograms();
   }, [fetchAvailablePrograms, navigate, user, isFromLayout, resetStore]);
 
-  // Si hay solo un programa disponible y el usuario es ADMIN, seleccionarlo automáticamente
+  // Si hay solo un programa disponible, seleccionarlo automáticamente
   useEffect(() => {
-    if (user?.role === 'ADMIN' && availablePrograms && availablePrograms.length === 1 && !program && !isFromLayout) {
+    if (availablePrograms && availablePrograms.length === 1 && !program && !isFromLayout) {
       handleProgramSwitch(availablePrograms[0].id);
     }
-  }, [availablePrograms, program, isFromLayout, user]);
+  }, [availablePrograms, program, isFromLayout]);
 
   const handleProgramSwitch = async (programId: number) => {
     setSwitching(true);
@@ -110,24 +98,22 @@ const ProgramSelectionPage: React.FC = () => {
     return <LoadingScreen message={switchingMessage} />;
   }
 
-  // For non-admin users, redirect to dashboard
-  if (user && user.role !== 'ADMIN') {
-    navigate('/dashboard');
-    return <LoadingScreen message={t('common.loading')} />;
-  }
-
   const renderAddNewProgramCard = () => (
-    <Card className="border-dashed border-2 border-gray-300 hover:border-primary-300 transition-colors">
-      <div className="flex flex-col items-center justify-center h-full py-8 cursor-pointer" onClick={() => navigate('/setup')}>
-        <div className="bg-primary-100 rounded-full p-4 mb-4">
-          <Plus size={32} className="text-primary-600" />
+    user?.role === 'ADMIN' && (
+      <Card className="border-dashed border-2 border-gray-300 hover:border-primary-300 transition-colors">
+        <div className="flex flex-col items-center justify-center h-full py-8 cursor-pointer" onClick={() => navigate('/setup')}>
+          <div className="bg-primary-100 rounded-full p-4 mb-4">
+            <Plus size={32} className="text-primary-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900">Add New Program</h3>
+          <p className="text-sm text-gray-500 text-center mt-2">
+            Create a new program to manage colportage activities
+          </p>
         </div>
-        <h3 className="text-lg font-semibold text-gray-900">{t('programSetup.addProgram')}</h3>
-        <p className="text-sm text-gray-500 text-center mt-2">{t('programSetup.addProgramDescription')}</p>
-      </div>
-    </Card>
+      </Card>
+    )
   );
-
+  {console.log(availablePrograms)}
   if (!availablePrograms || availablePrograms.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">

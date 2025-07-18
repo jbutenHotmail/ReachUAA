@@ -1,4 +1,3 @@
-// Actualización para src/pages/admin/people/AddPersonForm.tsx
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, AlertCircle, User, UserCog } from 'lucide-react';
@@ -50,15 +49,12 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
     e.preventDefault();
     
     try {
-      
-      // Llamar al manejador onSubmit del padre
       onSubmit({
         ...formData,
         personType
       });
     } catch (error) {
       console.error('Error saving person:', error);
-      // Podrías agregar manejo de errores aquí, como mostrar un mensaje de error
     }
   };
 
@@ -101,9 +97,9 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
     : '';
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <Card>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex min-h-screen items-start justify-center p-6 sm:p-8 overflow-y-auto z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl min-h-fit overflow-y-auto">
+        <Card className="p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">

@@ -195,7 +195,7 @@ export const approveCashAdvance = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    
+    const currentProgramId = programId || req.user.currentProgramId;
     // Check if advance exists
     const existingAdvance = await db.getOne(
       'SELECT * FROM cash_advances WHERE id = ?',

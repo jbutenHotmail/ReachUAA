@@ -215,6 +215,12 @@ export const createProgram = async (req, res) => {
       return { programId };
     });
 
+    // Add the user who created the program to user_programs table
+    await db.insert(
+      'INSERT INTO user_programs (user_id, program_id, is_current) VALUES (?, ?, ?)',
+      [req.user.id, result.programId, true]
+    );
+
     res.status(201).json({
       message: "Program created successfully",
       programId: result.programId,
@@ -228,21 +234,36 @@ export const createProgram = async (req, res) => {
 // Get active program
 export const getProgram = async (req, res) => {
   try {
-    // Obtener el ID del programa del usuario actual
-    const programId = req.params.id || req.user?.currentProgramId;
-    console.log('programId', req.params.id)
-    // Si no hay un programa seleccionado, buscar el programa activo
+    // Get the current program for the user
+    const currentUserProgram = await db.getOne(
+      'SELECT program_id FROM user_programs WHERE user_id = ? AND is_current = TRUE',
+      [req.user.id]
+    );
+    
+    const programId = currentUserProgram?.program_id;
+    
+    // If no current program selected, find the first available program for the user
     let program;
     if (programId) {
-      // Buscar el programa específico por ID
+      // Get the specific program by ID
       program = await db.getOne(
         "SELECT * FROM programs WHERE id = ?",
         [programId]
       );
+    } else {
+      // Get the first available program for the user
+      program = await db.getOne(
+        `SELECT p.* FROM programs p
+         JOIN user_programs up ON p.id = up.program_id
+         WHERE up.user_id = ?
+         ORDER BY p.is_active DESC, p.start_date DESC
+         LIMIT 1`,
+        [req.user.id]
+      );
     }
 
     if (!program) {
-      return res.status(404).json({ message: "No active program found" });
+      return res.status(404).json({ message: "No program found for user" });
     }
 
     // Get financial config
@@ -295,22 +316,17 @@ export const getProgram = async (req, res) => {
 // Get all available programs
 export const getAvailablePrograms = async (req, res) => {
   try {
-    // Get user ID from the authenticated request
     const userId = req.user.id;
+    const userRole = req.user.role;
 
-    // For admin users, get all programs
-    // For other users, get only the active program
-    let programs;
-
-    if (req.user.role === "ADMIN") {
-      programs = await db.query(
-        "SELECT * FROM programs ORDER BY is_active DESC, start_date DESC"
-      );
-    } else {
-      programs = await db.query(
-        "SELECT * FROM programs WHERE is_active = true"
-      );
-    }
+    // Get programs the user has access to through user_programs table
+    const programs = await db.query(
+      `SELECT DISTINCT p.* FROM programs p
+       JOIN user_programs up ON p.id = up.program_id
+       WHERE up.user_id = ?
+       ORDER BY p.is_active DESC, p.start_date DESC`,
+      [userId]
+    );
 
     res.json(programs);
   } catch (error) {
@@ -324,13 +340,7 @@ export const switchProgram = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    
-    // Only admin users can switch programs
-    if (req.user.role !== "ADMIN") {
-      return res
-        .status(403)
-        .json({ message: "Only administrators can switch programs" });
-    }
+    const userRole = req.user.role;
 
     // Check if program exists
     const program = await db.getOne("SELECT * FROM programs WHERE id = ?", [
@@ -340,7 +350,32 @@ export const switchProgram = async (req, res) => {
     if (!program) {
       return res.status(404).json({ message: "Program not found" });
     }
+    
+    // Verify that the user has access to this program through user_programs
+    const hasAccess = await db.getOne(
+      'SELECT 1 FROM user_programs WHERE user_id = ? AND program_id = ?',
+      [userId, id]
+    );
+    
+    if (!hasAccess) {
+      return res.status(403).json({ message: "You don't have access to this program" });
+    }
 
+    // Update current program for user (set all to false, then set selected to true)
+    await db.transaction(async (connection) => {
+      // Set all programs to not current for this user
+      await connection.execute(
+        'UPDATE user_programs SET is_current = FALSE WHERE user_id = ?',
+        [userId]
+      );
+      
+      // Set selected program as current
+      await connection.execute(
+        'UPDATE user_programs SET is_current = TRUE WHERE user_id = ? AND program_id = ?',
+        [userId, id]
+      );
+    });
+    
     // Get the complete program data to return
     const updatedProgram = await db.getOne(
       "SELECT * FROM programs WHERE id = ?",
@@ -398,7 +433,6 @@ export const switchProgram = async (req, res) => {
 export const updateProgram = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log('id', id)
     const { name, motto, startDate, endDate, goal, logo, isActive } = req.body;
 
     // Update program
@@ -464,7 +498,6 @@ export const updateProgramWorkingDay = async (req, res) => {
 export const addCustomProgramDay = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log('id', id)
     const { date, isWorkingDay } = req.body;
     // Check if custom day already exists
     const existingDay = await db.getOne(

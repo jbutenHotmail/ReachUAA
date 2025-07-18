@@ -16,14 +16,14 @@ router.post('/create-admin', async (req, res) => {
     }
     
     // Check if any admin users already exist
-    const existingAdmins = await db.query(
-      'SELECT COUNT(*) as count FROM users WHERE role = ?',
-      ['ADMIN']
-    );
+    // const existingAdmins = await db.query(
+    //   'SELECT COUNT(*) as count FROM users WHERE role = ?',
+    //   ['ADMIN']
+    // );
     
-    if (existingAdmins[0].count > 0) {
-      return res.status(400).json({ message: 'Admin users already exist' });
-    }
+    // if (existingAdmins[0].count > 0) {
+    //   return res.status(400).json({ message: 'Admin users already exist' });
+    // }
     // Check if person already exists
     const existingPerson = await db.getOne(
       'SELECT * FROM people WHERE email = ?',

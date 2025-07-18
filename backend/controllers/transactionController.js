@@ -4,6 +4,7 @@ import * as db from '../config/database.js';
 export const getTransactions = async (req, res) => {
   try {
     const { date, studentId, leaderId, status, programId } = req.query;
+    
     let query = `
       SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
       t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
@@ -36,6 +37,7 @@ export const getTransactions = async (req, res) => {
       conditions.push('t.status = ?');
       params.push(status);
     }
+    
     if (programId) {
       conditions.push('t.program_id = ?');
       params.push(programId);
@@ -51,6 +53,7 @@ export const getTransactions = async (req, res) => {
     query += ' ORDER BY t.transaction_date DESC, t.created_at DESC';
     
     const transactions = await db.query(query, params);
+    
     // Get books for each transaction
     for (const transaction of transactions) {
       const books = await db.query(
@@ -60,8 +63,10 @@ export const getTransactions = async (req, res) => {
          WHERE tb.transaction_id = ?`,
         [transaction.id]
       );
+      
       transaction.books = books;
     }
+    
     res.json(transactions);
   } catch (error) {
     console.error('Error getting transactions:', error);
@@ -143,6 +148,7 @@ export const createTransaction = async (req, res) => {
     
     // Calculate total
     const total = (cash || 0) + (checks || 0) + (atmMobile || 0) + (paypal || 0);
+    
     // Start transaction
     const result = await db.transaction(async (connection) => {
       // Insert transaction
