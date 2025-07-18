@@ -120,16 +120,6 @@ export const createProgram = async (req, res) => {
       // Insert colporters
       if (colporters && colporters.length > 0) {
         for (const colporter of colporters) {
-          // Check if colporter already exists in this program
-          const [existingColporters] = await connection.execute(
-            "SELECT id FROM people WHERE email = ? AND program_id = ? AND person_type = 'COLPORTER'",
-            [colporter.email, programId]
-          );
-
-          if (existingColporters.length > 0) {
-            continue; // Skip this colporter if already exists in this program
-          }
-
           // Insert person
           const [personResult] = await connection.execute(
             "INSERT INTO people (first_name, last_name, email, phone, address, profile_image_url, person_type, status, school, age, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -157,9 +147,36 @@ export const createProgram = async (req, res) => {
               10
             );
 
+            // Check if user already exists
+            const [existingUsers] = await connection.execute(
+              'SELECT id FROM users WHERE email = ?',
+              [colporter.email]
+            );
+            
+            let userId;
+            
+            if (existingUsers.length > 0) {
+              // User exists, update person_id and add to program
+              userId = existingUsers[0].id;
+              
+              // Update person_id
+              await connection.execute(
+                'UPDATE users SET person_id = ? WHERE id = ?',
+                [personId, userId]
+              );
+            } else {
+              // Create new user
+              const [userResult] = await connection.execute(
+                "INSERT INTO users (person_id, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)",
+                [personId, colporter.email, passwordHash, "VIEWER", "ACTIVE"]
+              );
+              userId = userResult.insertId;
+            }
+            
+            // Add user to program
             await connection.execute(
-              "INSERT INTO users (person_id, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)",
-              [personId, colporter.email, passwordHash, "VIEWER", "ACTIVE"]
+              'INSERT INTO user_programs (user_id, program_id, is_current) VALUES (?, ?, ?)',
+              [userId, programId, false]
             );
           }
         }
@@ -168,16 +185,6 @@ export const createProgram = async (req, res) => {
       // Insert leaders
       if (leaders && leaders.length > 0) {
         for (const leader of leaders) {
-          // Check if leader already exists in this program
-          const [existingLeaders] = await connection.execute(
-            "SELECT id FROM people WHERE email = ? AND program_id = ? AND person_type = 'LEADER'",
-            [leader.email, programId]
-          );
-
-          if (existingLeaders.length > 0) {
-            continue; // Skip this leader if already exists in this program
-          }
-
           // Insert person
           const [personResult] = await connection.execute(
             "INSERT INTO people (first_name, last_name, email, phone, address, profile_image_url, person_type, status, institution, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -204,9 +211,36 @@ export const createProgram = async (req, res) => {
               10
             );
 
+            // Check if user already exists
+            const [existingUsers] = await connection.execute(
+              'SELECT id FROM users WHERE email = ?',
+              [leader.email]
+            );
+            
+            let userId;
+            
+            if (existingUsers.length > 0) {
+              // User exists, update person_id and add to program
+              userId = existingUsers[0].id;
+              
+              // Update person_id
+              await connection.execute(
+                'UPDATE users SET person_id = ? WHERE id = ?',
+                [personId, userId]
+              );
+            } else {
+              // Create new user
+              const [userResult] = await connection.execute(
+                "INSERT INTO users (person_id, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)",
+                [personId, leader.email, passwordHash, "SUPERVISOR", "ACTIVE"]
+              );
+              userId = userResult.insertId;
+            }
+            
+            // Add user to program
             await connection.execute(
-              "INSERT INTO users (person_id, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)",
-              [personId, leader.email, passwordHash, "SUPERVISOR", "ACTIVE"]
+              'INSERT INTO user_programs (user_id, program_id, is_current) VALUES (?, ?, ?)',
+              [userId, programId, false]
             );
           }
         }
