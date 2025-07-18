@@ -944,6 +944,7 @@ export default {
     successUpdated: "¡Perfil actualizado exitosamente!",
     passwordSuccess: "¡Contraseña cambiada exitosamente!",
     error: "Error",
+    securityDescription: "Actualiza tu contraseña para mantener tu cuenta segura",
     errorUpdate: "No se pudo actualizar el perfil",
     errorPassword: "No se pudo cambiar la contraseña",
     passwordMismatch: "Las nuevas contraseñas no coinciden",

@@ -24,7 +24,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
   initialPersonType
 }) => {
   const { t } = useTranslation();
-  const { isLoading } = useUserStore();
+  const { createPerson, updatePerson, isLoading } = useUserStore();
   const { program } = useProgramStore();
   const [personType, setPersonType] = useState<'COLPORTER' | 'LEADER'>(
     initialData?.personType || initialPersonType || 'COLPORTER'
@@ -49,12 +49,26 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
     e.preventDefault();
     
     try {
-      onSubmit({
+      // Asegurarse de que el programId esté incluido
+      const dataWithProgram = {
         ...formData,
-        personType
-      });
+        personType,
+        programId: formData.programId || (program ? program.id : null)
+      };
+      
+      // Si tenemos initialData, estamos actualizando una persona existente
+      if (initialData) {
+        await updatePerson(initialData.id, dataWithProgram);
+      } else {
+        // De lo contrario, estamos creando una nueva persona
+        await createPerson(dataWithProgram);
+      }
+      
+      // Llamar al manejador onSubmit del padre
+      onSubmit(dataWithProgram);
     } catch (error) {
       console.error('Error saving person:', error);
+      // Podrías agregar manejo de errores aquí, como mostrar un mensaje de error
     }
   };
 
@@ -97,9 +111,9 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
     : '';
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex min-h-screen items-start justify-center p-6 sm:p-8 overflow-y-auto z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl min-h-fit overflow-y-auto">
-        <Card className="p-6">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[95vh] overflow-y-auto">
+        <Card>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">
@@ -172,7 +186,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t('leaderForm.profileImage')}
@@ -257,6 +271,20 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
                 />
               )}
 
+              {program && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('navigation.program')}
+                  </label>
+                  <div className="p-3 bg-primary-50 rounded-lg border border-primary-200">
+                    <p className="text-sm text-primary-700">
+                      {t('programSettings.noteProgramInformation')}: <strong>{program.name}</strong>
+                    </p>
+                    <input type="hidden" name="programId" value={program.id} />
+                  </div>
+                </div>
+              )}
+
               {!initialData && (
                 <div className="flex items-center space-x-2">
                   <input
@@ -284,7 +312,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
               </div>
 
               {!initialData && formData.createUser && formData.name && formData.apellido && formData.email && (
-                <div className="md:col-span-2 p-4 bg-primary-50 rounded-lg">
+                <div className="md:col-span-2 p-3 bg-primary-50 rounded-lg">
                   <p className="text-sm text-primary-700">
                     <strong>{t('programSettings.importantNotes')}:</strong> {t('leaderForm.accountCreationNote')}
                     <br />
@@ -296,7 +324,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
               )}
             </div>
 
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 bg-white sticky bottom-0">
               <Button
                 type="button"
                 variant="outline"

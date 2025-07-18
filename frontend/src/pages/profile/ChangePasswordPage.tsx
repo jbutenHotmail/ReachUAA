@@ -63,7 +63,7 @@ const ChangePasswordPage: React.FC = () => {
           {t('profile.changePassword')}
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Update your password to keep your account secure
+          {t('profile.securityDescription')}
         </p>
       </div>
 
@@ -95,6 +95,7 @@ const ChangePasswordPage: React.FC = () => {
                 label={t('profile.currentPassword')}
                 type={showCurrentPassword ? 'text' : 'password'}
                 value={currentPassword}
+                showPasswordToggle
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 required
                 rightIcon={
@@ -116,6 +117,7 @@ const ChangePasswordPage: React.FC = () => {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
+                showPasswordToggle
                 rightIcon={
                   <button
                     type="button"
@@ -138,6 +140,7 @@ const ChangePasswordPage: React.FC = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
+                showPasswordToggle
                 rightIcon={
                   <button
                     type="button"
@@ -171,12 +174,12 @@ const ChangePasswordPage: React.FC = () => {
       </Card>
       
       <div className="p-4 bg-primary-50 border border-primary-200 rounded-lg">
-        <h3 className="text-sm font-medium text-primary-700 mb-2">Password Security Tips</h3>
+        <h3 className="text-sm font-medium text-primary-700 mb-2">{t('profile.passwordSecurityTips')}</h3>
         <ul className="text-sm text-primary-600 space-y-1 list-disc list-inside">
-          <li>Use a combination of letters, numbers, and special characters</li>
-          <li>Avoid using easily guessable information like birthdays</li>
-          <li>Use a different password than other websites</li>
-          <li>Consider using a password manager for secure storage</li>
+          <li>{t('profile.tipCombination')}</li>
+          <li>{t('profile.tipAvoidPersonalInfo')}</li>
+          <li>{t('profile.tipUniquePassword')}</li>
+          <li>{t('profile.tipPasswordManager')}</li>
         </ul>
       </div>
     </div>

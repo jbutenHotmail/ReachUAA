@@ -65,6 +65,7 @@ const LoginForm: React.FC = () => {
           leftIcon={<Lock size={18} className="text-[#0052B4]" />}
           fullWidth
           error={errors.password?.message}
+          showPasswordToggle 
           {...register('password', { 
             required: 'Password is required',
             minLength: {

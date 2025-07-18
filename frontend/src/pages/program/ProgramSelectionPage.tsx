@@ -8,7 +8,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import LoadingScreen from '../../components/ui/LoadingScreen';
-import logoReach from '../../assets/logo_reach.webp';
+import logoReach from '../../assets/logo_reach_1.webp';
 
 const ProgramSelectionPage: React.FC = () => {
   const { t } = useTranslation();
@@ -113,14 +113,11 @@ const ProgramSelectionPage: React.FC = () => {
       </Card>
     )
   );
-  {console.log(availablePrograms)}
   if (!availablePrograms || availablePrograms.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <img src={logoReach} alt="Reach UAA" className="h-24 mx-auto mb-4" />
-            
             {/* Language and Logout buttons */}
             <div className="absolute top-4 right-4 flex gap-2">
               <Button
@@ -143,6 +140,8 @@ const ProgramSelectionPage: React.FC = () => {
                 {t('auth.logout')}
               </Button>
             </div>
+            
+            <img src={logoReach} alt="Reach UAA" className="h-24 mx-auto mb-4" />
           </div>
           
           <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg text-warning-700 mb-6">
@@ -164,24 +163,7 @@ const ProgramSelectionPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-4xl">
         <div className="text-center mb-8 relative">
-          <img src={logoReach} alt="Reach UAA" className="h-24 mx-auto mb-4" />
-          
-          {/* Back button if coming from layout */}
-          {showBackButton && (
-            <div className="absolute top-0 left-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleBack}
-                leftIcon={<ArrowLeft size={16} />}
-                className="bg-white"
-              >
-                Back
-              </Button>
-            </div>
-          )}
-          
-          {/* Language and Logout buttons */}
+          {/* Language and Logout buttons - moved higher for mobile */}
           <div className="absolute top-0 right-0 flex gap-2">
             <Button
               variant="outline"
@@ -203,6 +185,25 @@ const ProgramSelectionPage: React.FC = () => {
               {t('auth.logout')}
             </Button>
           </div>
+          
+        {showBackButton && (
+            <div className="absolute top-0 left-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBack}
+                leftIcon={<ArrowLeft size={16} />}
+                className="bg-white"
+              >
+                Back
+              </Button>
+            </div>
+          )}
+          {/* Language and Logout buttons - moved higher for mobile */}
+          <div className="absolute top-4 right-4 flex gap-2">
+          </div>
+          
+          <img src={logoReach} alt="Reach UAA" className="h-24 mx-auto mb-4" />
           
           <h1 className="text-3xl font-bold text-gray-900 flex items-center justify-center gap-2">
             <Building className="text-primary-600" size={32} />
