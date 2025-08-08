@@ -130,10 +130,10 @@ export const createCashAdvance = async (req, res) => {
       return res.status(404).json({ message: 'Person not found' });
     }
     
-    // Check if advance already exists for this week
+    // Check if advance already exists for this week that is pendding or approved
     const existingAdvance = await db.getOne(
-      'SELECT * FROM cash_advances WHERE person_id = ? AND week_start_date = ? AND week_end_date = ? AND program_id = ?',
-      [personId, weekStartDate, weekEndDate, currentProgramId]
+      'SELECT * FROM cash_advances WHERE person_id = ? AND week_start_date = ? AND week_end_date = ? AND status IN (?, ?)',
+      [personId, weekStartDate, weekEndDate, 'PENDING', 'APPROVED']
     );
     
     if (existingAdvance) {
@@ -144,7 +144,8 @@ export const createCashAdvance = async (req, res) => {
     
     // Get financial configuration
     const financialConfig = await db.getOne(
-      'SELECT * FROM program_financial_config WHERE program_id = (SELECT id FROM programs WHERE is_active = TRUE LIMIT 1)'
+      'SELECT * FROM program_financial_config WHERE program_id = ?',
+      [currentProgramId]
     );
     
     // Calculate maximum advance amount
