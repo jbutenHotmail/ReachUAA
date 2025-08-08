@@ -169,7 +169,7 @@ export const getDashboardStats = async (req, res) => {
         books: {
           large: todayLargeBooks,
           small: todaySmallBooks,
-          total: todayLargeBooks + todaySmallBooks
+          total: Number(todayLargeBooks) + Number(todaySmallBooks)
         }
       },
       week: {
@@ -177,7 +177,7 @@ export const getDashboardStats = async (req, res) => {
         books: {
           large: weeklyLargeBooks,
           small: weeklySmallBooks,
-          total: weeklyLargeBooks + weeklySmallBooks
+          total: Number(weeklyLargeBooks) + Number(weeklySmallBooks)
         }
       },
       month: {
@@ -185,7 +185,7 @@ export const getDashboardStats = async (req, res) => {
         books: {
           large: monthlyLargeBooks,
           small: monthlySmallBooks,
-          total: monthlyLargeBooks + monthlySmallBooks
+          total: Number(monthlyLargeBooks) + Number(monthlySmallBooks)
         }
       },
       program: {
@@ -196,7 +196,6 @@ export const getDashboardStats = async (req, res) => {
       },
       salesChart
     };
-    
     res.json(stats);
   } catch (error) {
     console.error('Error getting dashboard stats:', error);

@@ -24,7 +24,7 @@ import LoadingScreen from '../../components/ui/LoadingScreen';
 const CashAdvanceOverview: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const { advances, isLoading, error, fetchAdvances, approveAdvance, rejectAdvance, wereAdvancesFetched } = useCashAdvanceStore();
+  const { advances, isLoading, fetchAdvances, approveAdvance, rejectAdvance, wereAdvancesFetched } = useCashAdvanceStore();
   const [selectedAdvance, setSelectedAdvance] = useState<CashAdvance | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -145,14 +145,14 @@ const CashAdvanceOverview: React.FC = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
-        <p className="font-medium">{t('cashAdvance.errorLoading')}</p>
-        <p>{error}</p>
-      </div>
-    );
-  }
+  // if (error) {
+  //   return (
+  //     <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
+  //       <p className="font-medium">{t('cashAdvance.errorLoading')}</p>
+  //       <p>{error}</p>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="space-y-6">

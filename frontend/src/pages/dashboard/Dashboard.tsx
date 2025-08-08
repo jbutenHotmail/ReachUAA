@@ -14,7 +14,6 @@ import Spinner from '../../components/ui/Spinner';
 import { useProgramStore } from '../../stores/programStore';
 import { BookSize } from '../../types';
 import DashboardTabs from '../../components/dashboard/DashboardTabs';
-
 const Dashboard: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
@@ -48,14 +47,13 @@ const Dashboard: React.FC = () => {
 
   const { program, fetchProgram, wasProgramFetched, isLoading: isProgramLoading } = useProgramStore();
   
-  const [selectedPeriod, setSelectedPeriod] = useState('30d');
   const [booksData, setBooksData] = useState<Array<{date: string; large: number; small: number}>>([]);
   const [totalBooks, setTotalBooks] = useState({ large: 0, small: 0, total: 0 });
   
   useEffect(() => {
     if (user) {
       !wasSummaryFetched && fetchSummary(user.id);
-      !wasSalesHistoryFetched && fetchSalesHistory(user.id, selectedPeriod);
+      !wasSalesHistoryFetched && fetchSalesHistory(user.id, 'all');
       !wereStatsFetched && fetchDashboardStats();
       !wereAdvancesFetched && fetchAdvances();
       !wasProgramFetched && fetchProgram();
@@ -228,20 +226,7 @@ const Dashboard: React.FC = () => {
           <p className="text-gray-600 mt-1 text-sm sm:text-base">
             {t('dashboard.welcome')}, {user?.name}!
           </p>
-        </div>
-        
-        <div className="mt-4 md:mt-0 flex items-center space-x-2">
-          <select
-            value={selectedPeriod}
-            onChange={(e) => setSelectedPeriod(e.target.value)}
-            className="block rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-          >
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="90d">Last 90 days</option>
-            <option value="all">All time</option>
-          </select>
-        </div>
+        </div>        
       </div>
       {stats && (
         <DashboardTabs 
