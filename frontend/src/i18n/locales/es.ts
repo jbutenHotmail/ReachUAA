@@ -882,7 +882,9 @@ export default {
   reports: {
     title: "Reporte del programa",
     daily: "Diario",
+    leaderEarningsBasedOnTeam: 'Ganancias del Líder basadas en el equipo',
     weekly: "Semanal",
+    avgPerLeader: 'Promedio por Líder',
     monthly: "Mensual",
     yearly: "Anual",
     custom: "Personalizado",

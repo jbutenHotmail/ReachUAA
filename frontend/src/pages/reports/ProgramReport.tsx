@@ -79,7 +79,7 @@ const ProgramReport: React.FC = () => {
   const { charges, fetchCharges, wereChargesFetched } = useChargeStore()
   const { advances, fetchAdvances, wereAdvancesFetched } = useCashAdvanceStore()
   const { program, fetchProgram, wasProgramFetched } = useProgramStore()
-
+  const approvedExpenses = expenses.filter((e)=> e.status === 'APPROVED')
   useEffect(() => {
     const loadReportData = async () => {
       setIsLoading(true)
@@ -121,7 +121,7 @@ const ProgramReport: React.FC = () => {
       const filteredAdvances = advances.filter((advance) => advance.status === "APPROVED")
       const totalAdvances = filteredAdvances.reduce((sum, a) => sum + a.advanceAmount, 0)
 
-      const programExpenses = expenses.filter((e)=> e.status === 'APPROVED').reduce((sum, e) => sum + e.amount, 0)
+      const programExpenses = approvedExpenses.reduce((sum, e) => sum + e.amount, 0)
       const colporterAmount = totalDonations * (colporterPercentage / 100)
 
       // Crear mapa de colportores
@@ -282,7 +282,7 @@ const ProgramReport: React.FC = () => {
         backgroundColor: "rgba(59, 130, 246, 0.8)",
       },
       {
-        label: t("dashboard.revenueDistribution"),
+        label: `${t("dashboard.revenueDistribution")} (${t("common.colporters")})`,
         data: uniqueLeaders.map((leader) => {
           // Calcular ganancias basado en ventas del equipo específico
           const teamSales = colporterFinancials
@@ -411,7 +411,7 @@ const ProgramReport: React.FC = () => {
     leader.leaderEarnings = leader.totalDonations * (leader.leaderPercentage / 100)
   })
 
-  const totalProgramExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
+  const totalProgramExpenses = approvedExpenses.reduce((sum, e) => sum + e.amount, 0)
 
   return (
     <div className="space-y-6">
@@ -504,7 +504,8 @@ const ProgramReport: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 gap-4 mt-6">
               <div className="p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm font-medium text-blue-700">{t("dashboard.revenueDistribution")}</p>
+                <p className="text-sm font-medium text-blue-700">{`${t("dashboard.revenueDistribution")} (${t("common.colporters")})`
+}</p>
                 <p className="text-lg font-bold text-blue-800 mt-1">
                   {formatCurrency(programFinancials.distribution.colporterAmount)}
                 </p>
@@ -513,7 +514,8 @@ const ProgramReport: React.FC = () => {
                 </p>
               </div>
               <div className="p-3 bg-purple-50 rounded-lg">
-                <p className="text-sm font-medium text-purple-700">{t("dashboard.revenueDistribution")}</p>
+                <p className="text-sm font-medium text-purple-700">{`${t("dashboard.revenueDistribution")} (${t("common.leaders")})`
+}</p>
                 <p className="text-lg font-bold text-purple-800 mt-1">
                   {formatCurrency(programFinancials.distribution.leaderAmount)}
                 </p>
@@ -620,7 +622,7 @@ const ProgramReport: React.FC = () => {
           </div>
 
           <Card title={t("expenses.program")} icon={<Receipt size={20} />}>
-            {expenses.length > 0 ? (
+            {approvedExpenses.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead>
@@ -635,7 +637,7 @@ const ProgramReport: React.FC = () => {
                         {t("inventory.description")}
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t("common.amount")}
+                        {t("charges.amount")}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         {t("programSetup.created")}
@@ -643,7 +645,7 @@ const ProgramReport: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {expenses.map((expense) => (
+                    {approvedExpenses.map((expense) => (
                       <tr key={expense.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                           {new Date(expense.date).toLocaleDateString()}
@@ -795,7 +797,7 @@ const ProgramReport: React.FC = () => {
                 <div>
                   <div className="flex items-center">
                     <div className="w-3 h-3 bg-orange-500 rounded-full mr-1"></div>
-                    <span className="text-gray-600">{t("expenses.program")}</span>
+                    <span className="text-gray-600">{t("expenses.title")}</span>
                   </div>
                   <span className="font-medium">
                     {(

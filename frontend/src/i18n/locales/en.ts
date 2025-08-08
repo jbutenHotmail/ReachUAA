@@ -1031,6 +1031,8 @@ export default {
   reports: {
     title: "Program Reports",
     daily: "Daily",
+    avgPerLeader: 'Average per Leader',
+    leaderEarningsBasedOnTeam: 'Leader Earnings Based on Team',
     weekly: "Weekly",
     monthly: "Monthly",
     yearly: "Yearly",
