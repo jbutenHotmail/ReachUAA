@@ -121,7 +121,7 @@ const ProgramReport: React.FC = () => {
       const filteredAdvances = advances.filter((advance) => advance.status === "APPROVED")
       const totalAdvances = filteredAdvances.reduce((sum, a) => sum + a.advanceAmount, 0)
 
-      const programExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
+      const programExpenses = expenses.filter((e)=> e.status === 'APPROVED').reduce((sum, e) => sum + e.amount, 0)
       const colporterAmount = totalDonations * (colporterPercentage / 100)
 
       // Crear mapa de colportores
