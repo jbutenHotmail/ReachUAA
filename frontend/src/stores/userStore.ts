@@ -336,7 +336,8 @@ export const useUserStore = create<UserStore>((set, get) => ({
       isLoading: false,
       error: null,
       werePeopleFetched: false,
-      isCreatingPerson: false
+      isCreatingPerson: false,
+      users: []
     });
   },
 }));
