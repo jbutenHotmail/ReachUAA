@@ -29,14 +29,12 @@ const LeaderDetailPage: React.FC = () => {
     const getLeaderId = async () => {
       try {
         const people: Leader[] = await api.get('/people/leaders');
-        console.log(name, people)
         const leader = people.find((p: any) => 
           `${p.name} ${p.apellido}` === name || 
           p.name === name
         );
         
         if (leader) {
-          console.log(leader)
           setLeaderId(leader.id);
         } else {
           setError(t('common.error'));
@@ -246,7 +244,6 @@ const LeaderDetailPage: React.FC = () => {
       </div>
     );
   }
-  console.log(leaderStats, colporterStats)
   if (!leaderStats || colporterStats.length === 0) {
     return (
       <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg text-warning-700">

@@ -354,10 +354,11 @@ export const getAvailablePrograms = async (req, res) => {
     const userRole = req.user.role;
 
     // Get programs the user has access to through user_programs table
+    // Only include programs where the user is ACTIVE
     const programs = await db.query(
       `SELECT DISTINCT p.* FROM programs p
        JOIN user_programs up ON p.id = up.program_id
-       WHERE up.user_id = ?
+       WHERE up.user_id = ? AND up.status = 'ACTIVE'
        ORDER BY p.is_active DESC, p.start_date DESC`,
       [userId]
     );
@@ -545,7 +546,6 @@ export const addCustomProgramDay = async (req, res) => {
         "UPDATE program_custom_days SET is_working_day = ? WHERE program_id = ? AND date = ?",
         [isWorkingDay, id, date]
       );
-      console.log("custom day updated");
     } else {
       // Insert new custom day
       await db.insert(

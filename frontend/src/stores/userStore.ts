@@ -153,11 +153,10 @@ export const useUserStore = create<UserStore>((set, get) => ({
     try {
       await api.delete(`/users/${id}`);
       set((state) => ({
-        users: state.users.filter((user) => Number(user.id) !== Number(id)),
+        users: state.users.filter((user) => user.id !== id),
         isLoading: false,
       }));
     } catch (error) {
-      console.log(error);
       set({
         error:
           error instanceof Error ? error.message : "An unknown error occurred",
@@ -235,8 +234,10 @@ export const useUserStore = create<UserStore>((set, get) => ({
   createPerson: async (personData) => {
     // Verificar si ya está en proceso de creación
     if (get().isCreatingPerson) {
+      console.log("Creation already in progress, preventing duplicate call");
       throw new Error("Creation already in progress");
     }
+    console.log("Creando persona");
     set({ isLoading: true, error: null, isCreatingPerson: true });
     try {
       let newPerson;
@@ -335,7 +336,6 @@ export const useUserStore = create<UserStore>((set, get) => ({
       isLoading: false,
       error: null,
       werePeopleFetched: false,
-      wereUsersFetched: false,
       isCreatingPerson: false
     });
   },

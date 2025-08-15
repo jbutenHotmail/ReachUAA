@@ -10,7 +10,8 @@ import {
   getUserProfile,
   updateProfile,
   getRolePermissions,
-  updateRolePermissions
+  updateRolePermissions,
+  searchUserByEmail
 } from '../controllers/userController.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
 
@@ -18,6 +19,9 @@ const router = express.Router();
 
 // Get all users (admin only)
 router.get('/', authenticateToken, authorizeRoles(['ADMIN']), getUsers);
+
+// Search user by email (admin only)
+router.get('/search', authenticateToken, authorizeRoles(['ADMIN']), searchUserByEmail);
 
 // Get user by ID - Allow users to get their own data
 router.get('/:id', authenticateToken, getUserById);

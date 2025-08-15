@@ -77,10 +77,8 @@ const ViewerDashboard: React.FC = () => {
     return personalStats.transactions.reduce((acc, transaction) => {
       transaction.books?.forEach(book => {
         if (book.size === 'LARGE') {
-          console.log(book)
           acc.large += book.quantity;
         } else {
-          console.log(book)
           acc.small += book.quantity;
         }
       });

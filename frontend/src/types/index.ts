@@ -20,6 +20,7 @@ export interface User {
   personId?: string; // ID de la persona asociada
   lastLogin?: string;
   status: 'ACTIVE' | 'INACTIVE';
+  programStatus?: 'ACTIVE' | 'INACTIVE'; // Estado específico del programa
   currentProgramId?: number; // ID del programa actual
 }
 
@@ -305,4 +306,41 @@ export interface AppSettings {
   language: string;
   theme: string;
   notifications: boolean;
+}
+
+// Bible Study interface
+export interface BibleStudy {
+  id: string;
+  colporterId: string;
+  colporterName: string;
+  name: string;
+  phone: string;
+  address?: string;
+  location?: string;
+  municipalityId?: number;
+  municipalityName?: string;
+  countryName?: string;
+  studyType: 'Estudio Bíblico' | 'Grupo de Oración' | 'Matrimonio y Familia';
+  interestTopic?: string;
+  physicalDescription?: string;
+  photoUrl?: string;
+  notes?: string;
+  programId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Municipality interface
+export interface Municipality {
+  id: number;
+  name: string;
+  countryId: number;
+  countryName: string;
+}
+
+// Country interface
+export interface Country {
+  id: number;
+  name: string;
+  code: string;
 }

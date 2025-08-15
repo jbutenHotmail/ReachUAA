@@ -1,6 +1,37 @@
 import bcrypt from 'bcryptjs';
 import * as db from '../config/database.js';
 
+// Search user by email
+export const searchUserByEmail = async (req, res) => {
+  try {
+    const { email } = req.query;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email parameter is required' });
+    }
+    console.log(email);
+    // Search for user by email
+    const user = await db.getOne(
+      `SELECT u.id, u.person_id as personId, u.email, u.role, u.status, u.last_login as lastLogin,
+       u.created_at as createdAt, u.updated_at as updatedAt,
+       CONCAT(p.first_name, ' ', p.last_name) as name, p.person_type as personType
+       FROM users u
+       LEFT JOIN people p ON u.person_id = p.id
+       WHERE u.email = ?`,
+      [email]
+    );
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json(user);
+  } catch (error) {
+    console.error('Error searching user by email:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 // Get all users
 export const getUsers = async (req, res) => {
   try {
@@ -10,7 +41,8 @@ export const getUsers = async (req, res) => {
     let query = `
       SELECT u.id, u.person_id as personId, u.email, u.role, u.status, u.last_login as lastLogin,
       u.created_at as createdAt, u.updated_at as updatedAt,
-      CONCAT(p.first_name, ' ', p.last_name) as personName, p.person_type as personType
+      CONCAT(p.first_name, ' ', p.last_name) as name, p.person_type as personType,
+      up.status as programStatus
       FROM users u
       LEFT JOIN people p ON u.person_id = p.id
     `;
@@ -24,6 +56,10 @@ export const getUsers = async (req, res) => {
         WHERE up.program_id = ?
       `;
       params.push(programId);
+    } else {
+      query += `
+        LEFT JOIN user_programs up ON u.id = up.user_id AND up.is_current = TRUE
+      `;
     }
     
     query += ` ORDER BY u.created_at DESC`;
@@ -104,8 +140,8 @@ export const createUser = async (req, res) => {
       await db.transaction(async (connection) => {
         // Add user to the new program
         await connection.execute(
-          'INSERT INTO user_programs (user_id, program_id, is_current) VALUES (?, ?, ?)',
-          [existingUser.id, currentProgramId, false]
+          'INSERT INTO user_programs (user_id, program_id, is_current, status) VALUES (?, ?, ?, ?)',
+          [existingUser.id, currentProgramId, false, 'ACTIVE']
         );
         
         // Update person_id if provided and different
@@ -129,7 +165,8 @@ export const createUser = async (req, res) => {
       const updatedUser = await db.getOne(
         `SELECT u.id, u.person_id as personId, u.email, u.role, u.status, u.last_login as lastLogin,
          u.created_at as createdAt, u.updated_at as updatedAt,
-         CONCAT(p.first_name, ' ', p.last_name) as personName, p.person_type as personType
+         CONCAT(p.first_name, ' ', p.last_name) as personName, p.person_type as personType,
+         'ACTIVE' as programStatus
          FROM users u
          LEFT JOIN people p ON u.person_id = p.id
          WHERE u.id = ?`,
@@ -176,8 +213,8 @@ export const createUser = async (req, res) => {
       
       // Add user to program
       await connection.execute(
-        'INSERT INTO user_programs (user_id, program_id, is_current) VALUES (?, ?, ?)',
-        [userId, currentProgramId, false]
+        'INSERT INTO user_programs (user_id, program_id, is_current, status) VALUES (?, ?, ?, ?)',
+        [userId, currentProgramId, false, 'ACTIVE']
       );
       
       return { userId };
@@ -187,7 +224,8 @@ export const createUser = async (req, res) => {
     const user = await db.getOne(
       `SELECT u.id, u.person_id as personId, u.email, u.role, u.status, u.last_login as lastLogin,
        u.created_at as createdAt, u.updated_at as updatedAt,
-       CONCAT(p.first_name, ' ', p.last_name) as personName, p.person_type as personType
+       CONCAT(p.first_name, ' ', p.last_name) as name, p.person_type as personType,
+       'ACTIVE' as programStatus
        FROM users u
        LEFT JOIN people p ON u.person_id = p.id
        WHERE u.id = ?`,
@@ -205,7 +243,20 @@ export const createUser = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { email, role, status, personId } = req.body;
+    const { email, role, status, personId, programStatus } = req.body;
+    
+    // Prevent users from updating their own account
+    if (parseInt(id) === req.user.id) {
+      return res.status(403).json({ message: 'You cannot edit your own account. Use the profile page instead.' });
+    }
+    
+    // Get the current program from the requesting user
+    const currentUserProgram = await db.getOne(
+      'SELECT program_id FROM user_programs WHERE user_id = ? AND is_current = TRUE',
+      [req.user.id]
+    );
+    
+    const currentProgramId = currentUserProgram?.program_id;
     
     // Check if user exists
     const existingUser = await db.getOne(
@@ -251,27 +302,48 @@ export const updateUser = async (req, res) => {
       }
     }
     
-    // Update user
-    await db.update(
-      'UPDATE users SET email = ?, role = ?, status = ?, person_id = ?, updated_at = NOW() WHERE id = ?',
-      [
-        email || existingUser.email,
-        role || existingUser.role,
-        status || existingUser.status,
-        personId !== undefined ? personId : existingUser.person_id,
-        id
-      ]
-    );
+    // Start transaction to update both users and user_programs tables
+    await db.transaction(async (connection) => {
+      // Update user table (only if email, role, or personId changed)
+      if (email || role || personId !== undefined) {
+        await connection.execute(
+          'UPDATE users SET email = ?, role = ?, person_id = ?, updated_at = NOW() WHERE id = ?',
+          [
+            email || existingUser.email,
+            role || existingUser.role,
+            personId !== undefined ? personId : existingUser.person_id,
+            id
+          ]
+        );
+      }
+      
+      // Update program-specific status if programStatus is provided
+      if (programStatus && currentProgramId) {
+        await connection.execute(
+          'UPDATE user_programs SET status = ?, updated_at = NOW() WHERE user_id = ? AND program_id = ?',
+          [programStatus, id, currentProgramId]
+        );
+      }
+      
+      // Update global user status if status is provided
+      if (status) {
+        await connection.execute(
+          'UPDATE users SET status = ?, updated_at = NOW() WHERE id = ?',
+          [status, id]
+        );
+      }
+    });
     
     // Get the updated user
     const updatedUser = await db.getOne(
       `SELECT u.id, u.person_id as personId, u.email, u.role, u.status, u.last_login as lastLogin,
        u.created_at as createdAt, u.updated_at as updatedAt,
-       CONCAT(p.first_name, ' ', p.last_name) as personName, p.person_type as personType
+       CONCAT(p.first_name, ' ', p.last_name) as name, p.person_type as personType,
+       COALESCE((SELECT up.status FROM user_programs up WHERE up.user_id = u.id AND up.program_id = ? LIMIT 1), 'ACTIVE') as programStatus
        FROM users u
        LEFT JOIN people p ON u.person_id = p.id
        WHERE u.id = ?`,
-      [id]
+      [currentProgramId, id]
     );
     
     res.json(updatedUser);
@@ -285,6 +357,12 @@ export const updateUser = async (req, res) => {
 export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
+    const requestingUserId = req.user.id;
+    
+    // Prevent users from deleting their own account
+    if (parseInt(id) === requestingUserId) {
+      return res.status(403).json({ message: 'You cannot delete your own account' });
+    }
     
     // Check if user exists
     const existingUser = await db.getOne(
@@ -296,13 +374,38 @@ export const deleteUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    // Delete user
-    await db.remove(
-      'DELETE FROM users WHERE id = ?',
-      [id]
+    // Get the current program from the requesting user
+    const currentUserProgram = await db.getOne(
+      'SELECT program_id FROM user_programs WHERE user_id = ? AND is_current = TRUE',
+      [requestingUserId]
     );
     
-    res.json({ message: 'User deleted successfully' });
+    if (!currentUserProgram) {
+      return res.status(400).json({ message: 'No current program found for requesting user' });
+    }
+    
+    const currentProgramId = currentUserProgram.program_id;
+    
+    // Check if user is associated with the current program
+    const userProgramRelation = await db.getOne(
+      'SELECT * FROM user_programs WHERE user_id = ? AND program_id = ?',
+      [id, currentProgramId]
+    );
+    
+    if (!userProgramRelation) {
+      return res.status(400).json({ message: 'User is not associated with the current program' });
+    }
+    
+    // Start transaction
+    await db.transaction(async (connection) => {
+      // Set user as inactive in current program instead of deleting the relation
+      await connection.execute(
+        'UPDATE user_programs SET status = ?, updated_at = NOW() WHERE user_id = ? AND program_id = ?',
+        ['INACTIVE', id, currentProgramId]
+      );
+    });
+    
+    res.json({ message: 'User deactivated from current program successfully' });
   } catch (error) {
     console.error('Error deleting user:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -601,6 +704,7 @@ export const updateRolePermissions = async (req, res) => {
 };
 
 export default {
+  searchUserByEmail,
   getUsers,
   getUserById,
   createUser,

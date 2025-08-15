@@ -1,68 +1,84 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import { config } from './config/config.js';
+import { dirname, join } from 'path';
+import { testConnection } from './config/database.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
-import booksRoutes from './routes/books.js';
+import userRoutes from './routes/users.js';
 import peopleRoutes from './routes/people.js';
-import transactionsRoutes from './routes/transactions.js';
-import expensesRoutes from './routes/expenses.js';
+import bookRoutes from './routes/books.js';
+import transactionRoutes from './routes/transactions.js';
+import expenseRoutes from './routes/expenses.js';
+import chargeRoutes from './routes/charges.js';
 import cashAdvanceRoutes from './routes/cashAdvance.js';
-import chargesRoutes from './routes/charges.js';
-import reportsRoutes from './routes/reports.js';
-import usersRoutes from './routes/users.js';
+import bibleStudyRoutes from './routes/bibleStudies.js';
 import programRoutes from './routes/program.js';
-import setupRoutes from './routes/setup.js';
+import reportRoutes from './routes/reports.js';
 import dashboardRoutes from './routes/dashboard.js';
-
+import setupRoutes from './routes/setup.js';
 // Get current directory
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-console.log(process.env.NODE_ENV);
-// Initialize express app
+
+// Load environment variables
+dotenv.config({ path: join(__dirname, '.env') });
+
+// Create Express app
 const app = express();
-// Configure CORS with credentials
+
+// Set up middleware
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://reachuaa.com', 'http://localhost:5173'] // Production frontend URL
-    : ['http://localhost:5173', 'https://l9sxxsf4-3000.usw2.devtunnels.ms'],
-    credentials: true // Allow cookies to be sent with requests
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  credentials: true
 }));
 
 // Increase payload size limit to 50MB
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(cookieParser());
 
-// Middleware
-app.use(cookieParser()); // Parse cookies
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Test database connection
+testConnection()
+  .then(connected => {
+    if (!connected) {
+      console.error('Database connection failed. Exiting...');
+      process.exit(1);
+    }
+  })
+  .catch(error => {
+    console.error('Database connection error:', error);
+    process.exit(1);
+  });
 
-// Routes
+// Set up routes
 app.use('/api/auth', authRoutes);
-app.use('/api/books', booksRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api/people', peopleRoutes);
-app.use('/api/transactions', transactionsRoutes);
-app.use('/api/expenses', expensesRoutes);
+app.use('/api/books', bookRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/expenses', expenseRoutes);
+app.use('/api/charges', chargeRoutes);
 app.use('/api/cash-advance', cashAdvanceRoutes);
-app.use('/api/charges', chargesRoutes);
-app.use('/api/reports', reportsRoutes);
-app.use('/api/users', usersRoutes);
+app.use('/api/bible-studies', bibleStudyRoutes);
 app.use('/api/program', programRoutes);
-app.use('/api/setup', setupRoutes);
+app.use('/api/reports', reportRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-
-// Root route
-app.get('/', (req, res) => {
-  res.json({ message: 'Welcome to Reach UAA API' });
+app.use('/api/setup', setupRoutes);
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    message: err.message || 'Internal Server Error',
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
 });
 
 // Start server
-const PORT = config.PORT;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

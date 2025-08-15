@@ -55,7 +55,7 @@ export const login = async (req, res) => {
       'UPDATE users SET last_login = NOW() WHERE id = ?',
       [user.id]
     );
-    
+    console.log(process.env.NODE_ENV);
     // Set refresh token as HttpOnly cookie
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,

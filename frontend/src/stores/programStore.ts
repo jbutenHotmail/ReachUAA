@@ -10,6 +10,7 @@ import { useExpenseStore } from './expenseStore';
 import { useChargeStore } from './chargeStore';
 import { useUserStore } from './userStore';
 import { useDashboardStore } from './dashboardStore';
+import { useBibleStudyStore } from './bibleStudyStore';
 
 interface ProgramConfig {
   id: number;
@@ -153,7 +154,6 @@ export const useProgramStore = create<ProgramStore>()(
         try {
           // Check if user is admin before fetching
           const { user } = useAuthStore.getState();
-          console.log(user)
           // if (user?.role !== 'ADMIN') {
           //   set({ 
           //     availablePrograms: [], 
@@ -245,6 +245,10 @@ export const useProgramStore = create<ProgramStore>()(
         // Reset dashboard store
         const dashboardStore = useDashboardStore.getState();
         dashboardStore.resetStore && dashboardStore.resetStore();
+        
+        // Reset bible study store
+        const bibleStudyStore = useBibleStudyStore.getState();
+        bibleStudyStore.resetStore && bibleStudyStore.resetStore();
       },
 
       // New method to update financial config

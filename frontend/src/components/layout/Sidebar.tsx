@@ -9,8 +9,7 @@ import {
   Fuel, Users, UserPlus, BookOpen, UserCog, UsersRound,
   Package, TrendingUp, Calendar, AlertTriangle, FileText, Plus, Lock
 } from 'lucide-react';
-import logoReach from '../../assets/logo_reach.webp';
-import logoReach1 from '../../assets/logo_reach_1.webp';
+
 import { UserRole } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -61,6 +60,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
       return [
         dashboardItem,
         newTransactionItem,
+        {
+          path: '/bible-studies',
+          label: 'Estudios Bíblicos',
+          icon: <BookOpen size={20} />,
+        },
         settingsItem
       ];
     }
@@ -86,6 +90,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
             path: '/transactions/new',
             label: t('navigation.newTransaction'),
             icon: <Plus size={20} />,
+          },
+          {
+            path: '/bible-studies',
+            label: 'Estudios Bíblicos',
+            icon: <BookOpen size={20} />,
           }
         ],
       },
@@ -417,7 +426,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
               className="flex-1 flex justify-center cursor-pointer w-full"
               onClick={toggleCollapse}
             >
-              <img src={logoReach} alt="Reach UAA" className="h-12 sm:h-16 w-auto" />
+              <img src="/src/assets/logo_reach.webp" alt="Reach UAA" className="h-12 sm:h-16 w-auto" />
             </div>
           ) : (
             <div 
@@ -425,7 +434,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
               onClick={toggleCollapse}
             >
               <img 
-                src={logoReach1}
+                src="/src/assets/logo_reach_1.webp" 
                 alt="Reach UAA" 
                 className="h-10 sm:h-12 w-10 sm:w-12 object-contain rounded-full" 
               />

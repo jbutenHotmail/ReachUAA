@@ -1,58 +1,75 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { useProgramStore } from './stores/programStore';
 import ProtectedRoute from './utils/ProtectedRoute';
 import { UserRole } from './types';
 import Layout from './components/layout/Layout';
-import Login from './pages/auth/Login';
-import Dashboard from './pages/dashboard/Dashboard';
-import InventoryLayout from './pages/inventory/InventoryLayout';
-import BookCatalog from './pages/inventory/BookCatalog';
-import InventoryTracking from './pages/inventory/InventoryTracking';
-import Transactions from './pages/transactions/Transactions';
-import TransactionDetails from './pages/transactions/TransactionDetails';
-import NewTransaction from './pages/transactions/NewTransaction';
-import DeliveredBooks from './pages/books/DeliveredBooks';
-import ExpenseLayout from './pages/expenses/ExpenseLayout';
-import AllExpenses from './pages/expenses/AllExpenses';
-import FoodExpenses from './pages/expenses/FoodExpenses';
-import HealthExpenses from './pages/expenses/HealthExpenses';
-import SuppliesExpenses from './pages/expenses/SuppliesExpenses';
-import MaintenanceExpenses from './pages/expenses/MaintenanceExpenses';
-import FuelExpenses from './pages/expenses/FuelExpenses';
-import CashAdvanceLayout from './pages/cash-advance/CashAdvanceLayout';
-import AdminCashAdvance from './pages/cash-advance/AdminCashAdvance';
-import CashAdvanceOverview from './pages/cash-advance/CashAdvanceOverview';
-import ChargesPage from './pages/charges/ChargesPage';
-import DonationsReport from './pages/reports/DonationsReport';
-import ProgramReport from './pages/reports/ProgramReport';
-import ColporterReport from './pages/reports/ColporterReport';
-import SummerColporterReport from './pages/reports/SummerColporterReport';
-import LeaderDetailPage from './pages/reports/LeaderDetailPage';
-import IndividualReports from './pages/reports/IndividualReports';
-import AdminLayout from './pages/admin/AdminLayout';
-import ColportersPage from './pages/admin/people/ColportersPage';
-import LeadersPage from './pages/admin/people/LeadersPage';
-import AllPeoplePage from './pages/admin/people/AllPeoplePage';
-import UsersPage from './pages/admin/users/UsersPage';
-// import ManageRolesPage from './pages/admin/users/ManageRolesPage';
-import ProgramSettings from './pages/admin/settings/ProgramSettings';
-import ProgramSelectionPage from './pages/program/ProgramSelectionPage';
-import ProgramSetup from './pages/admin/setup/ProgramSetup';
-import ProfilePage from './pages/profile/ProfilePage';
-import AccessDeniedPage from './pages/reports/AccessDeniedPage';
-import ViewerDashboard from './pages/dashboard/ViewerDashboard';
-import SettingsPage from './pages/settings/SettingsPage';
-import ChangePasswordPage from './pages/profile/ChangePasswordPage';
-import VersionChecker from './components/layout/VersionChecker';
+import LoadingScreen from './components/ui/LoadingScreen';
+
+// Lazy load components
+const Login = lazy(() => import('./pages/auth/Login'));
+const Dashboard = lazy(() => import('./pages/dashboard/Dashboard'));
+const ViewerDashboard = lazy(() => import('./pages/dashboard/ViewerDashboard'));
+const InventoryLayout = lazy(() => import('./pages/inventory/InventoryLayout'));
+const BookCatalog = lazy(() => import('./pages/inventory/BookCatalog'));
+const InventoryTracking = lazy(() => import('./pages/inventory/InventoryTracking'));
+const Transactions = lazy(() => import('./pages/transactions/Transactions'));
+const TransactionDetails = lazy(() => import('./pages/transactions/TransactionDetails'));
+const NewTransaction = lazy(() => import('./pages/transactions/NewTransaction'));
+const DeliveredBooks = lazy(() => import('./pages/books/DeliveredBooks'));
+const ExpenseLayout = lazy(() => import('./pages/expenses/ExpenseLayout'));
+const AllExpenses = lazy(() => import('./pages/expenses/AllExpenses'));
+const FoodExpenses = lazy(() => import('./pages/expenses/FoodExpenses'));
+const HealthExpenses = lazy(() => import('./pages/expenses/HealthExpenses'));
+const SuppliesExpenses = lazy(() => import('./pages/expenses/SuppliesExpenses'));
+const MaintenanceExpenses = lazy(() => import('./pages/expenses/MaintenanceExpenses'));
+const FuelExpenses = lazy(() => import('./pages/expenses/FuelExpenses'));
+const CashAdvanceLayout = lazy(() => import('./pages/cash-advance/CashAdvanceLayout'));
+const AdminCashAdvance = lazy(() => import('./pages/cash-advance/AdminCashAdvance'));
+const CashAdvanceOverview = lazy(() => import('./pages/cash-advance/CashAdvanceOverview'));
+const ChargesPage = lazy(() => import('./pages/charges/ChargesPage'));
+const DonationsReport = lazy(() => import('./pages/reports/DonationsReport'));
+const ProgramReport = lazy(() => import('./pages/reports/ProgramReport'));
+const ColporterReport = lazy(() => import('./pages/reports/ColporterReport'));
+const SummerColporterReport = lazy(() => import('./pages/reports/SummerColporterReport'));
+const LeaderDetailPage = lazy(() => import('./pages/reports/LeaderDetailPage'));
+const IndividualReports = lazy(() => import('./pages/reports/IndividualReports'));
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
+const ColportersPage = lazy(() => import('./pages/admin/people/ColportersPage'));
+const LeadersPage = lazy(() => import('./pages/admin/people/LeadersPage'));
+const AllPeoplePage = lazy(() => import('./pages/admin/people/AllPeoplePage'));
+const UsersPage = lazy(() => import('./pages/admin/users/UsersPage'));
+const ProgramSettings = lazy(() => import('./pages/admin/settings/ProgramSettings'));
+const ProgramSelectionPage = lazy(() => import('./pages/program/ProgramSelectionPage'));
+const ProgramSetup = lazy(() => import('./pages/admin/setup/ProgramSetup'));
+const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
+const AccessDeniedPage = lazy(() => import('./pages/reports/AccessDeniedPage'));
+const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
+const ChangePasswordPage = lazy(() => import('./pages/profile/ChangePasswordPage'));
+const BibleStudiesPage = lazy(() => import('./pages/bible-studies/BibleStudiesPage'));
+const BibleStudyDetails = lazy(() => import('./pages/bible-studies/BibleStudyDetails'));
+const VersionChecker = lazy(() => import('./components/layout/VersionChecker'));
 
 function App() {
   const { isAuthenticated, user, refreshToken, checkStorageAndLogout } = useAuthStore();
-  const { program } = useProgramStore();
+  const { program, fetchProgram, wasProgramFetched, resetStore } = useProgramStore();
 
   // Check if admin user needs to set up program
   const needsProgramSetup = isAuthenticated && user?.role === UserRole.ADMIN && !program;
+  
+  // Fetch program data on app load if authenticated and admin
+  useEffect(() => {
+    // Solo cargar el programa si el usuario es ADMIN y no se ha cargado ya
+    if (isAuthenticated && !wasProgramFetched && user?.role === UserRole.ADMIN) {
+      fetchProgram();
+    }
+    
+    // Si el usuario no es ADMIN pero hay un programa en localStorage, resetear el store
+    if (isAuthenticated && user?.role !== UserRole.ADMIN && program) {
+      resetStore();
+    }
+  }, [isAuthenticated, fetchProgram, wasProgramFetched, user, program, resetStore]);
 
   // Try to refresh token on app load
   useEffect(() => {
@@ -99,12 +116,18 @@ function App() {
   return (
     <>
       {/* Componente para verificar actualizaciones */}
-      <VersionChecker />
+      <Suspense fallback={null}>
+        <VersionChecker />
+      </Suspense>
       
       <Routes>
         <Route 
           path="/login" 
-          element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />} 
+          element={
+            <Suspense fallback={<LoadingScreen message="Loading..." />}>
+              {!isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />}
+            </Suspense>
+          } 
         />
         
         {/* Program Selection Page */}
@@ -112,7 +135,9 @@ function App() {
           path="/program-select" 
           element={
             <ProtectedRoute requireProgram={false}>
-              <ProgramSelectionPage />
+              <Suspense fallback={<LoadingScreen message="Loading program selection..." />}>
+                <ProgramSelectionPage />
+              </Suspense>
             </ProtectedRoute>
           } 
         />
@@ -122,7 +147,9 @@ function App() {
           path="/setup" 
           element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN]} requireProgram={false}>
-              <ProgramSetup />
+              <Suspense fallback={<LoadingScreen message="Loading program setup..." />}>
+                <ProgramSetup />
+              </Suspense>
             </ProtectedRoute>
           } 
         />
@@ -145,65 +172,85 @@ function App() {
           
           {/* Dashboard - Different view for Viewer role */}
           <Route path="dashboard" element={
-            user?.role === UserRole.VIEWER ? <ViewerDashboard /> : <Dashboard />
+            <Suspense fallback={<LoadingScreen message="Loading dashboard..." />}>
+              {user?.role === UserRole.VIEWER ? <ViewerDashboard /> : <Dashboard />}
+            </Suspense>
           } />
           
           {/* Inventory - Restricted for Viewer role */}
           <Route path="inventory" element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPERVISOR]}>
-              <InventoryLayout />
+              <Suspense fallback={<LoadingScreen message="Loading inventory..." />}>
+                <InventoryLayout />
+              </Suspense>
             </ProtectedRoute>
           }>
             <Route index element={<Navigate to="catalog" replace />} />
-            <Route path="catalog" element={<BookCatalog />} />
-            <Route path="tracking" element={<InventoryTracking />} />
+            <Route path="catalog" element={<Suspense fallback={<LoadingScreen />}><BookCatalog /></Suspense>} />
+            <Route path="tracking" element={<Suspense fallback={<LoadingScreen />}><InventoryTracking /></Suspense>} />
           </Route>
           
           {/* Transactions - Viewer can only create new transactions */}
           <Route path="transactions">
             <Route index element={<Navigate to="/transactions/finances" replace />} />
             <Route path="finances" element={
-              user?.role === UserRole.VIEWER ? 
-                <AccessDeniedPage message="You don't have permission to view transactions. You can only create new transactions." /> : 
-                <Transactions />
+              <Suspense fallback={<LoadingScreen message="Loading transactions..." />}>
+                {user?.role === UserRole.VIEWER ? 
+                  <AccessDeniedPage message="You don't have permission to view transactions. You can only create new transactions." /> : 
+                  <Transactions />
+                }
+              </Suspense>
             } />
             <Route path="delivered-books" element={
-              user?.role === UserRole.VIEWER ? 
-                <AccessDeniedPage message="You don't have permission to view delivered books. You can only create new transactions." /> : 
-                <Transactions />
+              <Suspense fallback={<LoadingScreen message="Loading delivered books..." />}>
+                {user?.role === UserRole.VIEWER ? 
+                  <AccessDeniedPage message="You don't have permission to view delivered books. You can only create new transactions." /> : 
+                  <Transactions />
+                }
+              </Suspense>
             } />
             <Route path="new" element={
-              user?.role === UserRole.VIEWER ? 
-                <AccessDeniedPage message="This feature is currently not available for your role." /> : 
-                <NewTransaction />
+              <Suspense fallback={<LoadingScreen message="Loading transaction form..." />}>
+                {user?.role === UserRole.VIEWER ? 
+                  <AccessDeniedPage message="This feature is currently not available for your role." /> : 
+                  <NewTransaction />
+                }
+              </Suspense>
             } />
             <Route path=":id" element={
-              user?.role === UserRole.VIEWER ? 
-                <AccessDeniedPage message="You don't have permission to view transaction details." /> : 
-                <TransactionDetails />
+              <Suspense fallback={<LoadingScreen message="Loading transaction details..." />}>
+                {user?.role === UserRole.VIEWER ? 
+                  <AccessDeniedPage message="You don't have permission to view transaction details." /> : 
+                  <TransactionDetails />
+                }
+              </Suspense>
             } />
           </Route>
 
           {/* Delivered Books - Restricted for Viewer role */}
           <Route path="delivered-books" element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPERVISOR]}>
-              <DeliveredBooks />
+              <Suspense fallback={<LoadingScreen message="Loading delivered books..." />}>
+                <DeliveredBooks />
+              </Suspense>
             </ProtectedRoute>
           } />
           
           {/* Expenses - Restricted for Viewer role */}
           <Route path="expenses" element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPERVISOR]}>
-              <ExpenseLayout />
+              <Suspense fallback={<LoadingScreen message="Loading expenses..." />}>
+                <ExpenseLayout />
+              </Suspense>
             </ProtectedRoute>
           }>
             <Route index element={<Navigate to="/expenses/all" replace />} />
-            <Route path="all" element={<AllExpenses />} />
-            <Route path="food" element={<FoodExpenses />} />
-            <Route path="health" element={<HealthExpenses />} />
-            <Route path="supplies" element={<SuppliesExpenses />} />
-            <Route path="maintenance" element={<MaintenanceExpenses />} />
-            <Route path="fuel" element={<FuelExpenses />} />
+            <Route path="all" element={<Suspense fallback={<LoadingScreen />}><AllExpenses /></Suspense>} />
+            <Route path="food" element={<Suspense fallback={<LoadingScreen />}><FoodExpenses /></Suspense>} />
+            <Route path="health" element={<Suspense fallback={<LoadingScreen />}><HealthExpenses /></Suspense>} />
+            <Route path="supplies" element={<Suspense fallback={<LoadingScreen />}><SuppliesExpenses /></Suspense>} />
+            <Route path="maintenance" element={<Suspense fallback={<LoadingScreen />}><MaintenanceExpenses /></Suspense>} />
+            <Route path="fuel" element={<Suspense fallback={<LoadingScreen />}><FuelExpenses /></Suspense>} />
           </Route>
 
           {/* Cash Advance - Restricted for Viewer role */}
@@ -211,13 +258,15 @@ function App() {
             path="cash-advance" 
             element={
               <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPERVISOR]}>
-                <CashAdvanceLayout />
+                <Suspense fallback={<LoadingScreen message="Loading cash advances..." />}>
+                  <CashAdvanceLayout />
+                </Suspense>
               </ProtectedRoute>
             }
           >
             <Route index element={<Navigate to="overview" replace />} />
-            <Route path="overview" element={<CashAdvanceOverview />} />
-            <Route path="new" element={<AdminCashAdvance />} />
+            <Route path="overview" element={<Suspense fallback={<LoadingScreen />}><CashAdvanceOverview /></Suspense>} />
+            <Route path="new" element={<Suspense fallback={<LoadingScreen />}><AdminCashAdvance /></Suspense>} />
           </Route>
 
           {/* Charges - Restricted for Viewer role */}
@@ -225,10 +274,26 @@ function App() {
             path="charges" 
             element={
               <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPERVISOR]}>
-                <ChargesPage />
+                <Suspense fallback={<LoadingScreen message="Loading charges..." />}>
+                  <ChargesPage />
+                </Suspense>
               </ProtectedRoute>
             } 
           />
+
+          {/* Bible Studies - All authenticated users can access */}
+          <Route path="bible-studies">
+            <Route index element={
+              <Suspense fallback={<LoadingScreen message="Loading bible studies..." />}>
+                <BibleStudiesPage />
+              </Suspense>
+            } />
+            <Route path=":id" element={
+              <Suspense fallback={<LoadingScreen message="Loading bible study details..." />}>
+                <BibleStudyDetails />
+              </Suspense>
+            } />
+          </Route>
 
           <Route path="reports">
             {/* Access control for reports - only ADMIN can access reports */}
@@ -246,7 +311,9 @@ function App() {
               path="access-denied" 
               element={
                 <ProtectedRoute allowedRoles={[UserRole.SUPERVISOR, UserRole.VIEWER]}>
-                  <AccessDeniedPage />
+                  <Suspense fallback={<LoadingScreen />}>
+                    <AccessDeniedPage />
+                  </Suspense>
                 </ProtectedRoute>
               } 
             />
@@ -257,7 +324,9 @@ function App() {
               element={
                 user?.role === UserRole.ADMIN ? (
                   <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-                    <DonationsReport />
+                    <Suspense fallback={<LoadingScreen message="Loading donations report..." />}>
+                      <DonationsReport />
+                    </Suspense>
                   </ProtectedRoute>
                 ) : (
                   <Navigate to="/reports/access-denied" replace />
@@ -270,7 +339,9 @@ function App() {
               element={
                 user?.role === UserRole.ADMIN ? (
                   <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-                    <ProgramReport />
+                    <Suspense fallback={<LoadingScreen message="Loading program report..." />}>
+                      <ProgramReport />
+                    </Suspense>
                   </ProtectedRoute>
                 ) : (
                   <Navigate to="/reports/access-denied" replace />
@@ -283,7 +354,9 @@ function App() {
               element={
                 user?.role === UserRole.ADMIN ? (
                   <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-                    <IndividualReports />
+                    <Suspense fallback={<LoadingScreen message="Loading individual reports..." />}>
+                      <IndividualReports />
+                    </Suspense>
                   </ProtectedRoute>
                 ) : (
                   <Navigate to="/reports/access-denied" replace />
@@ -296,7 +369,9 @@ function App() {
               element={
                 user?.role === UserRole.ADMIN ? (
                   <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-                    <ColporterReport />
+                    <Suspense fallback={<LoadingScreen message="Loading colporter report..." />}>
+                      <ColporterReport />
+                    </Suspense>
                   </ProtectedRoute>
                 ) : (
                   <Navigate to="/reports/access-denied" replace />
@@ -309,7 +384,9 @@ function App() {
               element={
                 user?.role === UserRole.ADMIN ? (
                   <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-                    <SummerColporterReport />
+                    <Suspense fallback={<LoadingScreen message="Loading colporter report..." />}>
+                      <SummerColporterReport />
+                    </Suspense>
                   </ProtectedRoute>
                 ) : (
                   <Navigate to="/reports/access-denied" replace />
@@ -322,7 +399,9 @@ function App() {
               element={
                 user?.role === UserRole.ADMIN ? (
                   <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-                    <LeaderDetailPage />
+                    <Suspense fallback={<LoadingScreen message="Loading leader report..." />}>
+                      <LeaderDetailPage />
+                    </Suspense>
                   </ProtectedRoute>
                 ) : (
                   <Navigate to="/reports/access-denied" replace />
@@ -335,28 +414,42 @@ function App() {
             path="admin" 
             element={
               <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-                <AdminLayout />
+                <Suspense fallback={<LoadingScreen message="Loading admin panel..." />}>
+                  <AdminLayout />
+                </Suspense>
               </ProtectedRoute>
             }
           >
             <Route path="users">
               <Route index element={<Navigate to="manage" replace />} />
-              <Route path="manage" element={<UsersPage />} />
-              <Route path="roles" element={<AccessDeniedPage />} />
+              <Route path="manage" element={<Suspense fallback={<LoadingScreen />}><UsersPage /></Suspense>} />
+              <Route path="roles" element={<Suspense fallback={<LoadingScreen />}><AccessDeniedPage /></Suspense>} />
             </Route>
             <Route path="people">
               <Route index element={<Navigate to="all" replace />} />
-              <Route path="all" element={<AllPeoplePage />} />
-              <Route path="colporters" element={<ColportersPage />} />
-              <Route path="leaders" element={<LeadersPage />} />
+              <Route path="all" element={<Suspense fallback={<LoadingScreen />}><AllPeoplePage /></Suspense>} />
+              <Route path="colporters" element={<Suspense fallback={<LoadingScreen />}><ColportersPage /></Suspense>} />
+              <Route path="leaders" element={<Suspense fallback={<LoadingScreen />}><LeadersPage /></Suspense>} />
             </Route>
-            <Route path="settings" element={<ProgramSettings />} />
-            <Route path="programs" element={<ProgramSelectionPage />} />
+            <Route path="settings" element={<Suspense fallback={<LoadingScreen />}><ProgramSettings /></Suspense>} />
+            <Route path="programs" element={<Suspense fallback={<LoadingScreen />}><ProgramSelectionPage /></Suspense>} />
           </Route>
           
-          <Route path="profile" element={<ProfilePage />} />
-          <Route path="change-password" element={<ChangePasswordPage />} />
-          <Route path="settings" element={<SettingsPage />} />
+          <Route path="profile" element={
+            <Suspense fallback={<LoadingScreen message="Loading profile..." />}>
+              <ProfilePage />
+            </Suspense>
+          } />
+          <Route path="change-password" element={
+            <Suspense fallback={<LoadingScreen message="Loading..." />}>
+              <ChangePasswordPage />
+            </Suspense>
+          } />
+          <Route path="settings" element={
+            <Suspense fallback={<LoadingScreen message="Loading settings..." />}>
+              <SettingsPage />
+            </Suspense>
+          } />
         </Route>
       </Routes>
     </>

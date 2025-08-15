@@ -162,7 +162,6 @@ const IndividualReports: React.FC = () => {
 
       // Generate date range using consistent date utilities
       const dateRange = getDateRange(startDate, endDate)
-      console.log("Generated date range:", dateRange)
 
       const personTransactions = fetchedTransactions.filter((t) => {
         // Use consistent date range checking
@@ -175,8 +174,6 @@ const IndividualReports: React.FC = () => {
           t.status === "APPROVED"
         )
       })
-
-      console.log("Person transactions:", personTransactions)
 
       // Only include APPLIED charges (not PENDING or CANCELLED)
       const personCharges = charges.filter((c) => {

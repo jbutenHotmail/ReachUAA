@@ -8,6 +8,7 @@ import Badge from '../../../components/ui/Badge';
 import { UserRole } from '../../../types';
 import { useUserStore } from '../../../stores/userStore';
 import { useProgramStore } from '../../../stores/programStore';
+import api from '../../../api';
 
 interface AddUserFormProps {
   onClose: () => void;
@@ -32,6 +33,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
     role: initialData?.role || UserRole.VIEWER,
     status: initialData?.status || 'ACTIVE',
   });
+const [isPersonFromProgram, setIsPersonFromProgram] = useState(true);
 
   // Person selection state
   const [personSearch, setPersonSearch] = useState('');
@@ -47,7 +49,8 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
   const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
-
+  const [emailSearchResult, setEmailSearchResult] = useState<{ found: boolean; user?: any; message: string } | null>(null);
+  const [isSearchingEmail, setIsSearchingEmail] = useState(false);
   // Fetch people data if not already loaded
   useEffect(() => {
     if (!werePeopleFetched) {
@@ -71,10 +74,8 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
   // Filter people based on search and type
   const filteredPeople = people
     .filter(person => 
-      (person.name.toLowerCase().includes(personSearch.toLowerCase()) ||
-       person.apellido.toLowerCase().includes(personSearch.toLowerCase())) &&
-      person.personType === formData.personType &&
-      !person.hasUser // Only show people without users if creating new
+      person.name.toLowerCase().includes(personSearch.toLowerCase()) ||
+      person.apellido.toLowerCase().includes(personSearch.toLowerCase())
     );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -83,11 +84,12 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
     // Prepare data for submission
     const submitData = {
       ...formData,
-      personId: selectedPerson?.id,
-      personName: selectedPerson?.name,
-      email: selectedPerson?.email,
+      personId: isPersonFromProgram ? selectedPerson?.id : null,
+      personName: isPersonFromProgram ? selectedPerson?.name : null,
+      email: isPersonFromProgram ? selectedPerson?.email : formData.email,
       // Generate default password based on name
-      password: !initialData ? getDefaultPassword(selectedPerson?.name || '') : undefined
+      password: !initialData ? (isPersonFromProgram ? getDefaultPassword(selectedPerson?.name || '') : 'defaultpassword') : undefined,
+      isExistingUser: emailSearchResult?.found || false
     };
     
     onSubmit(submitData);
@@ -145,13 +147,57 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
       setTimeout(() => setResetPasswordError(null), 5000);
     } finally {
       setIsResettingPassword(false);
+            setIsSearchingEmail(false);
+
+    } 
+  };
+
+  // Search for existing user by email
+  const searchUserByEmail = async (email: string) => {
+    if (!email || email.length < 3) {
+      setEmailSearchResult(null);
+      return;
+    }
+
+    setIsSearchingEmail(true);
+    setEmailSearchResult(null);
+
+    try {
+      // Search for user by email using the correct API endpoint
+      const userData = await api.get('/users/search', { params: { email } });
+      
+      setEmailSearchResult({
+        found: true,
+        user: userData,
+        message: `User found: ${userData.name || userData.email}. This user will be added to the current program.`
+      });
+    } catch (error) {
+      if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
+        setEmailSearchResult({
+          found: false,
+          message: `No user found with email "${email}". Only existing users can be added to programs.`
+        });
+      } else {
+        setEmailSearchResult({
+          found: false,
+          message: `Error searching for user. Please try again.`
+        });
+      }
+    } finally {
+      setIsSearchingEmail(false);
     }
   };
 
+  // Manual email search function
+  const handleSearchUser = () => {
+    if (formData.email) {
+      searchUserByEmail(formData.email);
+    }
+  };
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
-        <Card className="overflow-visible">
+        <Card>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">
@@ -187,7 +233,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
               )}
 
               {/* Person Selection Dropdown */}
-              {!initialData && (
+              {!initialData && isPersonFromProgram && (
                 <div className="relative" ref={personDropdownRef}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     {t('userForm.selectPerson')}
@@ -245,7 +291,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                     )}
                   </div>
                   {isPersonDropdownOpen && !selectedPerson && (
-                    <div className="absolute z-[1000] w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200">
+                    <div className="absolute z-50 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200">
                       <div className="max-h-60 overflow-y-auto py-1">
                         {filteredPeople.length > 0 ? (
                           filteredPeople.map((person) => (
@@ -281,13 +327,123 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                 </div>
               )}
 
+              {/* Program Person Checkbox - Only for new users */}
+              {!initialData && (
+                <div className="md:col-span-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="isPersonFromProgram"
+                      checked={isPersonFromProgram}
+                      onChange={(e) => {
+                        setIsPersonFromProgram(e.target.checked);
+                        if (!e.target.checked) {
+                          setSelectedPerson(null);
+                          setPersonSearch('');
+                        }
+                      }}
+                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="isPersonFromProgram" className="text-sm font-medium text-gray-700">
+                      This user is a person from the program (colporter or leader)
+                    </label>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                     Uncheck this if you want to create a user account that is not associated with any colporter or leader in the program.
+                  </p>
+                </div>
+              )}
+
+              {/* Manual Email Input - Only when not a program person */}
+              {!initialData && !isPersonFromProgram && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, email: e.target.value }));
+                    }}
+                    placeholder="Enter email address for the user account"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    required
+                  />
+                  
+                  {/* Email search result */}
+                  {isSearchingEmail && (
+                    <div className="mt-2 p-2 bg-gray-50 rounded border border-gray-200 flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600"></div>
+                      <span className="text-xs text-gray-600">Searching for existing user...</span>
+                    </div>
+                  )}
+                  
+                  {/* Search button */}
+                  <div className="mt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSearchUser}
+                      disabled={!formData.email || isSearchingEmail}
+                      isLoading={isSearchingEmail}
+                    >
+                      Search User
+                    </Button>
+                  </div>
+                  
+                  {emailSearchResult && (
+                    <div className={`mt-2 p-3 rounded border ${
+                      emailSearchResult.found 
+                        ? 'bg-blue-50 border-blue-200' 
+                        : 'bg-red-50 border-red-200'
+                    }`}>
+                      <div className="flex items-start gap-2">
+                        {emailSearchResult.found ? (
+                          <AlertCircle size={16} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertCircle size={16} className="text-red-600 flex-shrink-0 mt-0.5" />
+                        )}
+                        <div>
+                          <p className={`text-xs font-medium ${
+                            emailSearchResult.found ? 'text-blue-700' : 'text-red-700'
+                          }`}>
+                            {emailSearchResult.found ? 'Existing User Found' : 'User Not Found'}
+                          </p>
+                          <p className={`text-xs ${
+                            emailSearchResult.found ? 'text-blue-600' : 'text-red-600'
+                          }`}>
+                            {emailSearchResult.message}
+                          </p>
+                          {emailSearchResult.found && emailSearchResult.user && (
+                            <div className="mt-2 p-2 bg-white rounded border border-blue-100">
+                              <p className="text-xs">
+                                <span className="font-medium">Name:</span> {emailSearchResult.user.name || 'N/A'}
+                              </p>
+                              <p className="text-xs">
+                                <span className="font-medium">Current Role:</span> {emailSearchResult.user.role}
+                              </p>
+                              <p className="text-xs">
+                                <span className="font-medium">Status:</span> {emailSearchResult.user.status}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+
               {/* Display selected person info for editing */}
               {initialData && (
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-start gap-3">
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900">{initialData.personName}</p>
-                      <p className="text-xs text-space-500">{initialData.email}</p>
+                      <p className="text-xs text-gray-500">{initialData.email}</p>
                     </div>
                     <Badge 
                       variant={initialData.personType === 'COLPORTER' ? 'primary' : 'success'}
@@ -311,7 +467,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                   required
                 >
-                  {/* <option value={UserRole.ADMIN}>{t('userForm.roles.admin')}</option> */}
+                  <option value={UserRole.ADMIN}>{t('userForm.roles.admin')}</option>
                   <option value={UserRole.SUPERVISOR}>{t('userForm.roles.supervisor')}</option>
                   <option value={UserRole.VIEWER}>{t('userForm.roles.viewer')}</option>
                 </select>
@@ -347,7 +503,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
               )}
 
               {/* Password Information - Only for new users */}
-              {!initialData && selectedPerson && (
+              {!initialData && isPersonFromProgram && selectedPerson && !emailSearchResult?.found && (
                 <div className="p-4 bg-primary-50 rounded-lg border border-primary-100">
                   <div className="flex items-start gap-3">
                     <Lock size={20} className="text-primary-600 flex-shrink-0 mt-0.5" />
@@ -358,10 +514,10 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
                       </p>
                       <div className="mt-2 p-2 bg-white rounded border border-primary-200">
                         <p className="text-xs">
-                          <span className="font-medium">{t('auth.email')}:</span> {selectedPerson.email}
+                          <span className="font-medium">{t('auth.email')}:</span> {selectedPerson?.email}
                         </p>
                         <p className="text-xs">
-                          <span className="font-medium">{t('auth.password')}:</span> {getDefaultPassword(selectedPerson.name)}
+                          <span className="font-medium">{t('auth.password')}:</span> {getDefaultPassword(selectedPerson?.name || '')}
                         </p>
                       </div>
                       <p className="text-xs text-primary-600 mt-2">
@@ -423,9 +579,19 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
               <Button
                 type="submit"
                 variant="primary"
-                disabled={!initialData && !selectedPerson}
+                disabled={
+                  (!isPersonFromProgram && !emailSearchResult?.found) ||
+                  (isPersonFromProgram && !selectedPerson)
+                }
               >
-                {initialData ? t('leaderForm.saveChanges') : t('userForm.createUser')}
+                {initialData 
+                  ? t('leaderForm.saveChanges') 
+                  : emailSearchResult?.found 
+                    ? 'Add User to Program'
+                    : isPersonFromProgram 
+                      ? t('userForm.createUser')
+                      : 'Search for User'
+                }
               </Button>
             </div>
           </form>
