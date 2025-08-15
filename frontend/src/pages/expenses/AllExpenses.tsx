@@ -216,8 +216,8 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
   }
 
   // Calculate totals by status
-  const pendingTotal = filteredExpenses.filter(e => e.status === 'PENDING').reduce((sum, e) => sum + e.amount, 0);
-  const approvedTotal = filteredExpenses.filter(e => e.status === 'APPROVED' || !e.status).reduce((sum, e) => sum + e.amount, 0);
+  const pendingTotal = filteredExpenses.filter(e => e.status === 'PENDING').reduce((sum, e) => Number(sum) + Number(e.amount), 0);
+  const approvedTotal = filteredExpenses.filter(e => e.status === 'APPROVED' || !e.status).reduce((sum, e) => Number(sum) + Number(e.amount), 0);
 
   return (
     <div className="space-y-6">
@@ -374,7 +374,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
                       {expense.motivo}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                      ${expense.amount.toFixed(2)}
+                      ${Number(expense.amount).toFixed(2)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                       <Badge 
