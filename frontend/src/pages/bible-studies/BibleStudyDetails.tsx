@@ -31,7 +31,7 @@ const BibleStudyDetails: React.FC = () => {
   const [editingStudy, setEditingStudy] = useState<BibleStudy | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const study = bibleStudies.find(s => s.id === id);
+  const study = bibleStudies.find(s => Number(s.id) === Number(id));
   const isViewer = user?.role === UserRole.VIEWER;
   const canEdit = isViewer || user?.role === UserRole.ADMIN;
 
