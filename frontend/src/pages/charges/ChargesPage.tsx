@@ -191,7 +191,7 @@ const ChargesPage: React.FC = () => {
               <AlertTriangle className="text-warning-500" size={24} />
             </div>
             <p className="text-sm font-medium text-gray-500">{t('charges.pending')}</p>
-            <p className="mt-1 text-2xl font-bold text-warning-600">${pendingTotal.toFixed(2)}</p>
+            <p className="mt-1 text-2xl font-bold text-warning-600">${Number(pendingTotal).toFixed(2)}</p>
             <p className="text-xs text-gray-500">{t('charges.awaiting')}</p>
           </div>
         </Card>
