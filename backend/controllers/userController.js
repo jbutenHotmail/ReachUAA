@@ -396,16 +396,36 @@ export const deleteUser = async (req, res) => {
       return res.status(400).json({ message: 'User is not associated with the current program' });
     }
     
+    // Check if user has other program associations
+    const otherProgramAssociations = await db.query(
+      'SELECT COUNT(*) as count FROM user_programs WHERE user_id = ? AND program_id != ?',
+      [id, currentProgramId]
+    );
+    
+    const hasOtherPrograms = otherProgramAssociations[0].count > 0;
+    
     // Start transaction
     await db.transaction(async (connection) => {
-      // Set user as inactive in current program instead of deleting the relation
+      // Remove user from current program
       await connection.execute(
-        'UPDATE user_programs SET status = ?, updated_at = NOW() WHERE user_id = ? AND program_id = ?',
-        ['INACTIVE', id, currentProgramId]
+        'DELETE FROM user_programs WHERE user_id = ? AND program_id = ?',
+        [id, currentProgramId]
       );
+      
+      // If user has no other program associations, delete the user entirely
+      if (!hasOtherPrograms) {
+        await connection.execute(
+          'DELETE FROM users WHERE id = ?',
+          [id]
+        );
+      }
     });
     
-    res.json({ message: 'User deactivated from current program successfully' });
+    res.json({ 
+      message: hasOtherPrograms 
+        ? 'User removed from current program successfully' 
+        : 'User deleted successfully'
+    });
   } catch (error) {
     console.error('Error deleting user:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
