@@ -47,6 +47,8 @@ const BibleStudiesPage: React.FC = () => {
   const [editingStudy, setEditingStudy] = useState<BibleStudy | null>(null);
   const [typeFilter, setTypeFilter] = useState<string>('');
   const [municipalityFilter, setMunicipalityFilter] = useState<string>('');
+  const [dateFilter, setDateFilter] = useState<string>('all');
+  const [colporterFilter, setColporterFilter] = useState<string>('');
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +63,37 @@ const BibleStudiesPage: React.FC = () => {
     }
   }, [fetchBibleStudies, fetchMunicipalities, wereBibleStudiesFetched, wereMunicipalitiesFetched]);
 
+  // Helper function to check if a date is within the filter range
+  const isDateInRange = (dateString: string, filter: string): boolean => {
+    if (filter === 'all') return true;
+    
+    const studyDate = new Date(dateString);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+    
+    switch (filter) {
+      case 'today':
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        return studyDate >= startOfToday && studyDate <= today;
+      
+      case '7days':
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        sevenDaysAgo.setHours(0, 0, 0, 0);
+        return studyDate >= sevenDaysAgo && studyDate <= today;
+      
+      case '30days':
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        thirtyDaysAgo.setHours(0, 0, 0, 0);
+        return studyDate >= thirtyDaysAgo && studyDate <= today;
+      
+      default:
+        return true;
+    }
+  };
+
   const filteredStudies = bibleStudies.filter(study => {
     const matchesSearch = searchTerm
       ? study.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -71,8 +104,10 @@ const BibleStudiesPage: React.FC = () => {
     
     const matchesType = typeFilter ? study.studyType === typeFilter : true;
     const matchesMunicipality = municipalityFilter ? study.municipalityId?.toString() === municipalityFilter : true;
+    const matchesColporter = colporterFilter ? study.colporterId === colporterFilter : true;
+    const matchesDate = isDateInRange(study.createdAt, dateFilter);
     
-    return matchesSearch && matchesType && matchesMunicipality;
+    return matchesSearch && matchesType && matchesMunicipality && matchesColporter && matchesDate;
   });
 
   const handleAddStudy = async (data: any) => {
@@ -126,13 +161,42 @@ const BibleStudiesPage: React.FC = () => {
   };
 
   // Calculate totals by type
-  const totals = filteredStudies.reduce((acc, study) => {
+  const totals = bibleStudies.reduce((acc, study) => {
     acc.total++;
     if (study.studyType === 'Estudio Bíblico') acc.biblico++;
     if (study.studyType === 'Grupo de Oración') acc.oracion++;
     if (study.studyType === 'Matrimonio y Familia') acc.familia++;
     return acc;
   }, { total: 0, biblico: 0, oracion: 0, familia: 0 });
+
+  // Calculate filtered totals for display
+  const filteredTotals = filteredStudies.reduce((acc, study) => {
+    acc.total++;
+    if (study.studyType === 'Estudio Bíblico') acc.biblico++;
+    if (study.studyType === 'Grupo de Oración') acc.oracion++;
+    if (study.studyType === 'Matrimonio y Familia') acc.familia++;
+    return acc;
+  }, { total: 0, biblico: 0, oracion: 0, familia: 0 });
+
+  // Get unique colporters who have registered studies
+  const colportersWithStudies = React.useMemo(() => {
+    const colporterMap = new Map<string, { id: string; name: string; count: number }>();
+    
+    bibleStudies.forEach(study => {
+      const existing = colporterMap.get(study.colporterId);
+      if (existing) {
+        existing.count++;
+      } else {
+        colporterMap.set(study.colporterId, {
+          id: study.colporterId,
+          name: study.colporterName,
+          count: 1
+        });
+      }
+    });
+    
+    return Array.from(colporterMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [bibleStudies]);
 
   if (isLoading) {
     return (
@@ -189,7 +253,10 @@ const BibleStudiesPage: React.FC = () => {
               <BookOpen className="text-primary-600" size={24} />
             </div>
             <p className="text-sm font-medium text-gray-500">Total</p>
-            <p className="mt-1 text-2xl font-bold text-primary-600">{totals.total}</p>
+            <p className="mt-1 text-2xl font-bold text-primary-600">{filteredTotals.total}</p>
+            {dateFilter !== 'all' && (
+              <p className="text-xs text-gray-400">de {totals.total} total</p>
+            )}
           </div>
         </Card>
         
@@ -199,7 +266,7 @@ const BibleStudiesPage: React.FC = () => {
               <BookOpen className="text-blue-500" size={24} />
             </div>
             <p className="text-sm font-medium text-gray-500">Estudio Bíblico</p>
-            <p className="mt-1 text-2xl font-bold text-blue-600">{totals.biblico}</p>
+            <p className="mt-1 text-2xl font-bold text-blue-600">{filteredTotals.biblico}</p>
           </div>
         </Card>
         
@@ -209,7 +276,7 @@ const BibleStudiesPage: React.FC = () => {
               <MessageCircle className="text-success-500" size={24} />
             </div>
             <p className="text-sm font-medium text-gray-500">Grupo de Oración</p>
-            <p className="mt-1 text-2xl font-bold text-success-600">{totals.oracion}</p>
+            <p className="mt-1 text-2xl font-bold text-success-600">{filteredTotals.oracion}</p>
           </div>
         </Card>
         
@@ -219,7 +286,7 @@ const BibleStudiesPage: React.FC = () => {
               <Users className="text-warning-500" size={24} />
             </div>
             <p className="text-sm font-medium text-gray-500">Matrimonio y Familia</p>
-            <p className="mt-1 text-2xl font-bold text-warning-600">{totals.familia}</p>
+            <p className="mt-1 text-2xl font-bold text-warning-600">{filteredTotals.familia}</p>
           </div>
         </Card>
       </div>
@@ -227,7 +294,7 @@ const BibleStudiesPage: React.FC = () => {
       <Card>
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between gap-4">
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
               <Input
                 placeholder="Buscar por nombre, teléfono, lugar o municipio..."
                 value={searchTerm}
@@ -235,6 +302,17 @@ const BibleStudiesPage: React.FC = () => {
                 leftIcon={<Search size={18} />}
                 className="w-full sm:w-64"
               />
+              
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+              >
+                <option value="all">Todos los Tiempos</option>
+                <option value="today">Hoy</option>
+                <option value="7days">Últimos 7 Días</option>
+                <option value="30days">Último Mes</option>
+              </select>
               
               <select
                 value={typeFilter}
@@ -259,6 +337,21 @@ const BibleStudiesPage: React.FC = () => {
                   </option>
                 ))}
               </select>
+
+              {!isViewer && (
+                <select
+                  value={colporterFilter}
+                  onChange={(e) => setColporterFilter(e.target.value)}
+                  className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                >
+                  <option value="">Todos los Colportores</option>
+                  {colportersWithStudies.map(colporter => (
+                    <option key={colporter.id} value={colporter.id}>
+                      {colporter.name} ({colporter.count})
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 
@@ -466,11 +559,13 @@ const BibleStudiesPage: React.FC = () => {
             <div className="text-center py-8">
               <BookOpen size={48} className="mx-auto text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchTerm ? 'No se encontraron estudios' : 'No hay estudios bíblicos registrados'}
+                {searchTerm || dateFilter !== 'all' || typeFilter || municipalityFilter || colporterFilter
+                  ? 'No se encontraron estudios con los filtros aplicados' 
+                  : 'No hay estudios bíblicos registrados'}
               </h3>
               <p className="text-sm text-gray-500 mb-4">
-                {searchTerm 
-                  ? 'Intenta ajustar los términos de búsqueda' 
+                {searchTerm || dateFilter !== 'all' || typeFilter || municipalityFilter || colporterFilter
+                  ? 'Intenta ajustar los filtros de búsqueda' 
                   : isViewer 
                     ? 'Comienza registrando tu primer estudio bíblico'
                     : 'Los colportores pueden registrar estudios bíblicos desde su dashboard'

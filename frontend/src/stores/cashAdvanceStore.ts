@@ -70,7 +70,6 @@ export const useCashAdvanceStore = create<CashAdvanceStore>((set) => ({
         advances: [...state.advances, newAdvance],
         isLoading: false,
       }));
-      return newAdvance;
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred',
@@ -90,7 +89,6 @@ export const useCashAdvanceStore = create<CashAdvanceStore>((set) => ({
         isLoading: false,
       }));
       
-      return advance;
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred',
@@ -110,7 +108,6 @@ export const useCashAdvanceStore = create<CashAdvanceStore>((set) => ({
         ),
         isLoading: false,
       }));
-      return advance;
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred',
@@ -164,7 +161,6 @@ export const useCashAdvanceStore = create<CashAdvanceStore>((set) => ({
       const weeklySales = await api.get<WeeklySales>(`/cash-advance/weekly-sales/${colporterId}`, { params });
       
       set({ weeklySales: [weeklySales], isLoading: false });
-      return weeklySales;
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred',

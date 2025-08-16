@@ -119,7 +119,7 @@ const StatsGrid: React.FC<StatsGridProps> = ({
         secondaryLabel={t('inventory.books')}
       />
       <StatCard
-        title={t('dashboard.goal')}
+        title={t('dashboard.montlygoal')}
         value={`${goalPercentage}%`}
         prefix=""
         icon={<BookText className="h-6 w-6 text-warning-600 bg-warning-100" />}

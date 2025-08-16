@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { 
   ChevronLeft, 
@@ -26,6 +26,7 @@ const BibleStudyDetails: React.FC = () => {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuthStore();
   const { bibleStudies, updateBibleStudy, isLoading } = useBibleStudyStore();
   const [editingStudy, setEditingStudy] = useState<BibleStudy | null>(null);
@@ -34,6 +35,16 @@ const BibleStudyDetails: React.FC = () => {
   const study = bibleStudies.find(s => Number(s.id) === Number(id));
   const isViewer = user?.role === UserRole.VIEWER;
   const canEdit = isViewer || user?.role === UserRole.ADMIN;
+
+  // Determine where to go back based on where we came from
+  const getBackPath = () => {
+    // Check if we came from a daily report
+    if (location.state?.from?.includes('/daily-report/')) {
+      return location.state.from;
+    }
+    // Default to bible studies page
+    return '/bible-studies';
+  };
 
   const handleEditStudy = async (data: any) => {
     if (!editingStudy) return;
@@ -88,7 +99,7 @@ const BibleStudyDetails: React.FC = () => {
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
-            onClick={() => navigate('/bible-studies')}
+            onClick={() => navigate(getBackPath())}
           >
             <ChevronLeft size={20} />
           </Button>

@@ -132,7 +132,7 @@ const SettingsPage: React.FC = () => {
         </div>
       </Card>
 
-      {/* Theme Settings */}
+      {/* Theme Settings
       <Card title={t('settings.theme')} icon={<Sun size={20} />}>
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
@@ -168,7 +168,7 @@ const SettingsPage: React.FC = () => {
             </p>
           </div>
         </div>
-      </Card>
+      </Card> */}
 
       {/* Account Settings Link */}
       <Card>

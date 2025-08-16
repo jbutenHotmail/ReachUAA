@@ -3,6 +3,7 @@ import * as db from '../config/database.js';
 // Get dashboard stats
 export const getDashboardStats = async (req, res) => {
   try {
+    console.log('HOLA DESDE DASHVBOARD')
     // Use the date from the request if provided, otherwise use server date
     const today = req.query.date || new Date().toISOString().split('T')[0];
     const programId = req.query.programId || req.user.currentProgramId;

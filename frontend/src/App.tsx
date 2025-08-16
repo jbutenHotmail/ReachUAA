@@ -50,6 +50,7 @@ const ChangePasswordPage = lazy(() => import('./pages/profile/ChangePasswordPage
 const BibleStudiesPage = lazy(() => import('./pages/bible-studies/BibleStudiesPage'));
 const BibleStudyDetails = lazy(() => import('./pages/bible-studies/BibleStudyDetails'));
 const VersionChecker = lazy(() => import('./components/layout/VersionChecker'));
+const DailyReportPage = lazy(() => import('./pages/dashboard/DailyReportPage'));
 
 function App() {
   const { isAuthenticated, user, refreshToken, checkStorageAndLogout } = useAuthStore();
@@ -448,6 +449,11 @@ function App() {
           <Route path="settings" element={
             <Suspense fallback={<LoadingScreen message="Loading settings..." />}>
               <SettingsPage />
+            </Suspense>
+          } />
+          <Route path="daily-report/:date" element={
+            <Suspense fallback={<LoadingScreen message="Loading daily report..." />}>
+              <DailyReportPage />
             </Suspense>
           } />
         </Route>

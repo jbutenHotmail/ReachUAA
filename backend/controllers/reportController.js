@@ -979,7 +979,7 @@ export const getProgramReport = async (req, res) => {
   }
 };
 
-// Get individual earnings report
+// Enhanced version that includes book details for dashboard
 export const getIndividualEarningsReport = async (req, res) => {
   try {
     const { id } = req.params; // This is the user ID
@@ -1048,6 +1048,19 @@ export const getIndividualEarningsReport = async (req, res) => {
          ORDER BY t.transaction_date, t.created_at DESC`,
         [person.id, reportStartDate, reportEndDate]
       );
+    }
+    
+    // Get books for each transaction
+    for (let i = 0; i < transactions.length; i++) {
+      const books = await db.query(
+        `SELECT tb.book_id as id, b.title, b.size, tb.quantity, tb.price
+         FROM transaction_books tb
+         JOIN books b ON tb.book_id = b.id
+         WHERE tb.transaction_id = ?`,
+        [transactions[i].id]
+      );
+      
+      transactions[i].books = books;
     }
     
     // Calculate totals
