@@ -7,9 +7,11 @@ export default {
     delete: "Eliminar",
     step: "Paso",
     edit: "Editar",
+    today: "Hoy",
     back: "Volver",
     next: "Siguiente",
     search: "Buscar",
+    searchPlaceholder: "Buscar por nombre, teléfono, lugar o municipio...",
     filter: "Filtrar",
     all: "Todos",
     welcome: "Bienvenido",
@@ -641,7 +643,7 @@ export default {
     "interest": "Interés",
     "registeredAt": "Registrado el",
     "registerStudy": "Registrar Estudio",
-    "noTransactionsOrStudies": "No se han registrado {{dashboard.transactions}} ni {{dashboard.bibleStudies}} para este día"
+    "noTransactionsOrStudies": "No se han registrado transacciones ni estudios biblicos para este día"
   },
     transactionDetails: {
     title: "Detalles de la Transacción",
@@ -908,6 +910,8 @@ export default {
     weekly: "Semanal",
     avgPerLeader: 'Promedio por Líder',
     monthly: "Mensual",
+    lastDays: "Últimos {{count}} Días",
+    lastMonth: "Último Mes",
     yearly: "Anual",
     custom: "Personalizado",
     generate: "Generar",

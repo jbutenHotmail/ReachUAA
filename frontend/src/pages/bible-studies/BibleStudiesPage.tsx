@@ -114,10 +114,10 @@ const BibleStudiesPage: React.FC = () => {
     try {
       await createBibleStudy(data);
       setShowAddForm(false);
-      setSuccess('Estudio bíblico creado exitosamente');
+      setSuccess(t('dashboard.bibleStudiesCount', { count: 1, interpolation: { escapeValue: false } }));
       setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
-      setError('Error al crear el estudio bíblico');
+      setError(t('common.error'));
       setTimeout(() => setError(null), 5000);
     }
   };
@@ -127,25 +127,25 @@ const BibleStudiesPage: React.FC = () => {
     try {
       await updateBibleStudy(editingStudy.id, data);
       setEditingStudy(null);
-      setSuccess('Estudio bíblico actualizado exitosamente');
+      setSuccess(t('dashboard.bibleStudiesCount', { count: 1, interpolation: { escapeValue: false } }));
       setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
-      setError('Error al actualizar el estudio bíblico');
+      setError(t('common.error'));
       setTimeout(() => setError(null), 5000);
     }
   };
 
   const handleDeleteStudy = async (id: string) => {
-    if (!window.confirm('¿Estás seguro de que quieres eliminar este estudio bíblico?')) {
+    if (!window.confirm(t('common.confirm'))) {
       return;
     }
     
     try {
       await deleteBibleStudy(id);
-      setSuccess('Estudio bíblico eliminado exitosamente');
+      setSuccess(t('dashboard.bibleStudiesCount', { count: 1, interpolation: { escapeValue: false } }));
       setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
-      setError('Error al eliminar el estudio bíblico');
+      setError(t('common.error'));
       setTimeout(() => setError(null), 5000);
     }
   };
@@ -201,7 +201,7 @@ const BibleStudiesPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <LoadingScreen message="Cargando estudios bíblicos..." />
+        <LoadingScreen message={t('common.loading')} />
       </div>
     );
   }
@@ -224,12 +224,12 @@ const BibleStudiesPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <BookOpen className="text-primary-600" size={28} />
-            Estudios Bíblicos
+            {t('dashboard.bibleStudies')}
           </h1>
           <p className="mt-1 text-sm text-gray-500">
             {isViewer 
-              ? 'Registra personas interesadas en estudios bíblicos'
-              : 'Gestiona todos los estudios bíblicos registrados por los colportores'
+              ? t('dashboard.registerStudy')
+              : t('dashboard.description')
             }
           </p>
         </div>
@@ -240,7 +240,7 @@ const BibleStudiesPage: React.FC = () => {
             leftIcon={<Plus size={18} />}
             onClick={() => setShowAddForm(true)}
           >
-            Nuevo Estudio
+            {t('dashboard.registerStudy')}
           </Button>
         )}
       </div>
@@ -252,10 +252,10 @@ const BibleStudiesPage: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <BookOpen className="text-primary-600" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Total</p>
+            <p className="text-sm font-medium text-gray-500">{t('common.total')}</p>
             <p className="mt-1 text-2xl font-bold text-primary-600">{filteredTotals.total}</p>
             {dateFilter !== 'all' && (
-              <p className="text-xs text-gray-400">de {totals.total} total</p>
+              <p className="text-xs text-gray-400">{t('common.of')} {totals.total} {t('common.total')}</p>
             )}
           </div>
         </Card>
@@ -296,7 +296,7 @@ const BibleStudiesPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
               <Input
-                placeholder="Buscar por nombre, teléfono, lugar o municipio..."
+                placeholder={t('common.searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 leftIcon={<Search size={18} />}
@@ -308,10 +308,10 @@ const BibleStudiesPage: React.FC = () => {
                 onChange={(e) => setDateFilter(e.target.value)}
                 className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               >
-                <option value="all">Todos los Tiempos</option>
-                <option value="today">Hoy</option>
-                <option value="7days">Últimos 7 Días</option>
-                <option value="30days">Último Mes</option>
+                <option value="all">{t('common.all')}</option>
+                <option value="today">{t('common.today')}</option>
+                <option value="7days">{t('reports.lastDays', { count: 7 })}</option>
+                <option value="30days">{t('reports.lastMonth')}</option>
               </select>
               
               <select
@@ -319,7 +319,7 @@ const BibleStudiesPage: React.FC = () => {
                 onChange={(e) => setTypeFilter(e.target.value)}
                 className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               >
-                <option value="">Todos los Tipos</option>
+                <option value="">{t('common.allTypes')}</option>
                 <option value="Estudio Bíblico">Estudio Bíblico</option>
                 <option value="Grupo de Oración">Grupo de Oración</option>
                 <option value="Matrimonio y Familia">Matrimonio y Familia</option>
@@ -330,7 +330,7 @@ const BibleStudiesPage: React.FC = () => {
                 onChange={(e) => setMunicipalityFilter(e.target.value)}
                 className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               >
-                <option value="">Todos los Municipios</option>
+                <option value="">{t('common.all')}</option>
                 {municipalities.map(municipality => (
                   <option key={municipality.id} value={municipality.id}>
                     {municipality.name}
@@ -344,7 +344,7 @@ const BibleStudiesPage: React.FC = () => {
                   onChange={(e) => setColporterFilter(e.target.value)}
                   className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                 >
-                  <option value="">Todos los Colportores</option>
+                  <option value="">{t('common.all')}</option>
                   {colportersWithStudies.map(colporter => (
                     <option key={colporter.id} value={colporter.id}>
                       {colporter.name} ({colporter.count})
@@ -390,7 +390,7 @@ const BibleStudiesPage: React.FC = () => {
                 {!isViewer && (
                   <div className="flex items-center gap-1 text-sm text-gray-500 mb-2">
                     <Users size={14} />
-                    <span>Por: {study.colporterName}</span>
+                    <span>{t('common.leader')}: {study.colporterName}</span>
                   </div>
                 )}
 
@@ -439,27 +439,27 @@ const BibleStudiesPage: React.FC = () => {
               <thead>
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Persona
+                    {t('common.person')}
                   </th>
                   {!isViewer && (
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Colportor
+                      {t('common.colporter')}
                     </th>
                   )}
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Contacto
+                    {t('peoplePage.contact')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Municipio
+                    {t('dashboard.location')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tipo
+                    {t('common.type')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Fecha
+                    {t('common.date')}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acciones
+                    {t('common.actions')}
                   </th>
                 </tr>
               </thead>
@@ -508,7 +508,7 @@ const BibleStudiesPage: React.FC = () => {
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex items-center gap-1">
                         <MapPin size={14} className="text-gray-400" />
-                        {study.municipalityName || 'No especificado'}
+                        {study.municipalityName || t('common.unknown')}
                       </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
@@ -560,15 +560,15 @@ const BibleStudiesPage: React.FC = () => {
               <BookOpen size={48} className="mx-auto text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 {searchTerm || dateFilter !== 'all' || typeFilter || municipalityFilter || colporterFilter
-                  ? 'No se encontraron estudios con los filtros aplicados' 
-                  : 'No hay estudios bíblicos registrados'}
+                  ? t('common.noResults')
+                  : t('dashboard.noTransactionsOrStudies')}
               </h3>
               <p className="text-sm text-gray-500 mb-4">
                 {searchTerm || dateFilter !== 'all' || typeFilter || municipalityFilter || colporterFilter
-                  ? 'Intenta ajustar los filtros de búsqueda' 
+                  ? t('common.adjustSearch')
                   : isViewer 
-                    ? 'Comienza registrando tu primer estudio bíblico'
-                    : 'Los colportores pueden registrar estudios bíblicos desde su dashboard'
+                    ? t('dashboard.registerStudy')
+                    : t('dashboard.description')
                 }
               </p>
               {isViewer && (
@@ -577,7 +577,7 @@ const BibleStudiesPage: React.FC = () => {
                   leftIcon={<Plus size={18} />}
                   onClick={() => setShowAddForm(true)}
                 >
-                  Registrar Estudio
+                  {t('dashboard.registerStudy')}
                 </Button>
               )}
             </div>
