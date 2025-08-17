@@ -2,13 +2,12 @@
 
 import type React from "react"
 import { useTranslation } from "react-i18next"
-import { format } from "date-fns"
+import { format, parseISO, isValid } from "date-fns"
 import { es, enUS } from "date-fns/locale"
 import { TrendingUp, Calendar } from "lucide-react"
 import Card from "../ui/Card"
 import ProgressBar from "../ui/ProgressBar"
 import { formatNumber } from "../../utils/numberUtils"
-import { parseDate } from "../../utils/dateUtils"
 
 interface GoalProgressProps {
   goal: {
@@ -27,11 +26,39 @@ const GoalProgress: React.FC<GoalProgressProps> = ({ goal }) => {
   const remaining = goal.amount - goal.achieved
 
   const formatDate = (date: string) => {
-    return format(parseDate(date), "PP", { locale })
+    try {
+      if (!date || typeof date !== "string") {
+        console.error("Invalid date input:", date)
+        return "Invalid Date"
+      }
+      const parsedDate = parseISO(date) // Use parseISO instead of parseDate
+      if (!isValid(parsedDate)) {
+        console.error("Parsed date is invalid:", date)
+        return "Invalid Date"
+      }
+      return format(parsedDate, "PP", { locale })
+    } catch (error) {
+      console.error(`Error formatting date: ${date}`, error)
+      return "Invalid Date"
+    }
   }
 
   const formatDateShort = (date: string) => {
-    return format(parseDate(date), locale === enUS ? "MMM dd" : "dd MMM", { locale })
+    try {
+      if (!date || typeof date !== "string") {
+        console.error("Invalid date input:", date)
+        return "Invalid Date"
+      }
+      const parsedDate = parseISO(date)
+      if (!isValid(parsedDate)) {
+        console.error("Parsed date is invalid:", date)
+        return "Invalid Date"
+      }
+      return format(parsedDate, locale === enUS ? "MMM dd" : "dd MMM", { locale })
+    } catch (error) {
+      console.error(`Error formatting short date: ${date}`, error)
+      return "Invalid Date"
+    }
   }
 
   let progressVariant: "primary" | "success" | "warning" | "danger" = "primary"
@@ -103,10 +130,10 @@ const GoalProgress: React.FC<GoalProgressProps> = ({ goal }) => {
               percentage >= 100
                 ? "bg-green-100 text-green-800"
                 : percentage >= 75
-                  ? "bg-blue-100 text-blue-800"
-                  : percentage >= 50
-                    ? "bg-yellow-100 text-yellow-800"
-                    : "bg-red-100 text-red-800"
+                ? "bg-blue-100 text-blue-800"
+                : percentage >= 50
+                ? "bg-yellow-100 text-yellow-800"
+                : "bg-red-100 text-red-800"
             }`}
           >
             <div
@@ -114,18 +141,17 @@ const GoalProgress: React.FC<GoalProgressProps> = ({ goal }) => {
                 percentage >= 100
                   ? "bg-green-500"
                   : percentage >= 75
-                    ? "bg-blue-500"
-                    : percentage >= 50
-                      ? "bg-yellow-500"
-                      : "bg-red-500"
+                  ? "bg-blue-500"
+                  : percentage >= 50
+                  ? "bg-yellow-500"
+                  : "bg-red-500"
               }`}
             />
             {percentage >= 100
               ? t("dashboard.goalAchieved")
               : percentage >= 75
-                ? t("dashboard.onTrack")
-                : percentage <75 
-                  && t("dashboard.behindTarget")}
+              ? t("dashboard.onTrack")
+              : t("dashboard.behindTarget")}
           </div>
         </div>
       </div>
