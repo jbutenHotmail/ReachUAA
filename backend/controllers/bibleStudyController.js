@@ -70,7 +70,7 @@ export const getBibleStudies = async (req, res) => {
     query += ' ORDER BY bs.created_at DESC';
     
     const bibleStudies = await db.query(query, params);
-    
+    console.log(bibleStudies)
     res.json(bibleStudies);
   } catch (error) {
     console.error('Error getting bible studies:', error);

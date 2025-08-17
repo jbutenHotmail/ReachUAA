@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { api } from '../api';
 import { getCurrentDate } from '../utils/dateUtils';
 import { useProgramStore } from './programStore';
+import { PersonalStats } from '../types';
 
 interface DashboardStats {
   today: {
@@ -38,38 +39,6 @@ interface DashboardStats {
     date: string;
     amount: number;
   }>;
-}
-
-interface PersonalStats {
-  person: {
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-    personType: string;
-    organization: string;
-  };
-  startDate: string;
-  endDate: string;
-  transactions: any[];
-  totals: {
-    cash: number;
-    checks: number;
-    atmMobile: number;
-    paypal: number;
-    total: number;
-  };
-  earnings: {
-    gross: number;
-    percentage: number;
-    net: number;
-    charges: number;
-    advances: number;
-    final: number;
-  };
-  charges: any[];
-  advances: any[];
-  dailyEarnings: Record<string, number>;
 }
 
 interface DashboardState {
@@ -232,7 +201,6 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         lastPersonalStatsFetchTime: now
       });
       
-      return personalStats;
     } catch (error) {
       console.error('Error fetching personal stats:', error);
       set({ 

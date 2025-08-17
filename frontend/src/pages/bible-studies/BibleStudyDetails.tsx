@@ -38,11 +38,9 @@ const BibleStudyDetails: React.FC = () => {
 
   // Determine where to go back based on where we came from
   const getBackPath = () => {
-    // Check if we came from a daily report
     if (location.state?.from?.includes('/daily-report/')) {
       return location.state.from;
     }
-    // Default to bible studies page
     return '/bible-studies';
   };
 
@@ -51,7 +49,7 @@ const BibleStudyDetails: React.FC = () => {
     try {
       await updateBibleStudy(editingStudy.id, data);
       setEditingStudy(null);
-      setSuccess('Estudio bíblico actualizado exitosamente');
+      setSuccess(t('bibleStudyDetails.successUpdated'));
       setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
       console.error('Error updating bible study:', error);
@@ -60,28 +58,28 @@ const BibleStudyDetails: React.FC = () => {
 
   const getTypeBadge = (type: string) => {
     const variants = {
-      'Estudio Bíblico': 'primary',
-      'Grupo de Oración': 'success',
-      'Matrimonio y Familia': 'warning'
+      [t('bibleStudyDetails.studyTypeBibleStudy')]: 'primary',
+      [t('bibleStudyDetails.studyTypePrayerGroup')]: 'success',
+      [t('bibleStudyDetails.studyTypeMarriageFamily')]: 'warning'
     } as const;
     
     return <Badge variant={variants[type as keyof typeof variants] || 'secondary'}>{type}</Badge>;
   };
 
   if (isLoading) {
-    return <LoadingScreen message="Cargando detalles del estudio..." />;
+    return <LoadingScreen message={t('bibleStudyDetails.loadingMessage')} />;
   }
 
   if (!study) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">Estudio bíblico no encontrado</p>
+        <p className="text-gray-500">{t('bibleStudyDetails.notFound')}</p>
         <Button
           variant="outline"
           className="mt-4"
           onClick={() => navigate('/bible-studies')}
         >
-          Volver
+          {t('common.back')}
         </Button>
       </div>
     );
@@ -106,10 +104,10 @@ const BibleStudyDetails: React.FC = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <BookOpen className="text-primary-600" size={28} />
-              Detalles del Estudio Bíblico
+              {t('bibleStudyDetails.title')}
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              Información completa del estudio registrado
+              {t('bibleStudyDetails.description')}
             </p>
           </div>
         </div>
@@ -120,14 +118,14 @@ const BibleStudyDetails: React.FC = () => {
             leftIcon={<Edit size={16} />}
             onClick={() => setEditingStudy(study)}
           >
-            Editar
+            {t('common.edit')}
           </Button>
         )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card title="Información de la Persona" icon={<Users size={20} />}>
+          <Card title={t('bibleStudyDetails.personInfo')} icon={<Users size={20} />}>
             <div className="space-y-4">
               <div className="flex items-start gap-4">
                 {study.photoUrl ? (
@@ -151,7 +149,7 @@ const BibleStudyDetails: React.FC = () => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Teléfono</p>
+                  <p className="text-sm font-medium text-gray-500">{t('bibleStudyDetails.phoneLabel')}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Phone size={16} className="text-gray-400" />
                     <a 
@@ -164,17 +162,17 @@ const BibleStudyDetails: React.FC = () => {
                 </div>
                 
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Municipio</p>
+                  <p className="text-sm font-medium text-gray-500">{t('bibleStudyDetails.municipalityLabel')}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <MapPin size={16} className="text-gray-400" />
-                    <p className="text-gray-900">{study.municipalityName || 'No especificado'}</p>
+                    <p className="text-gray-900">{study.municipalityName || t('bibleStudyDetails.municipalityNotSpecified')}</p>
                   </div>
                 </div>
               </div>
               
               {study.address && (
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Dirección</p>
+                  <p className="text-sm font-medium text-gray-500">{t('bibleStudyDetails.addressLabel')}</p>
                   <div className="flex items-start gap-2 mt-1">
                     <MapPin size={16} className="text-gray-400 mt-0.5" />
                     <p className="text-gray-900">{study.address}</p>
@@ -184,7 +182,7 @@ const BibleStudyDetails: React.FC = () => {
               
               {study.location && (
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Lugar de Trabajo</p>
+                  <p className="text-sm font-medium text-gray-500">{t('bibleStudyDetails.workplaceLabel')}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <MapPin size={16} className="text-gray-400" />
                     <p className="text-gray-900">{study.location}</p>
@@ -194,10 +192,10 @@ const BibleStudyDetails: React.FC = () => {
             </div>
           </Card>
 
-          <Card title="Información del Estudio" icon={<BookOpen size={20} />}>
+          <Card title={t('bibleStudyDetails.studyInfo')} icon={<BookOpen size={20} />}>
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium text-gray-500">Tipo de Estudio</p>
+                <p className="text-sm font-medium text-gray-500">{t('bibleStudyDetails.studyTypeLabel')}</p>
                 <div className="mt-1">
                   {getTypeBadge(study.studyType)}
                 </div>
@@ -205,14 +203,14 @@ const BibleStudyDetails: React.FC = () => {
               
               {study.interestTopic && (
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Tema de Interés</p>
+                  <p className="text-sm font-medium text-gray-500">{t('bibleStudyDetails.interestTopicLabel')}</p>
                   <p className="text-gray-900 mt-1">{study.interestTopic}</p>
                 </div>
               )}
               
               {study.notes && (
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Notas</p>
+                  <p className="text-sm font-medium text-gray-500">{t('bibleStudyDetails.notesLabel')}</p>
                   <div className="mt-1 p-3 bg-gray-50 rounded-lg">
                     <p className="text-gray-900 whitespace-pre-wrap">{study.notes}</p>
                   </div>
@@ -223,11 +221,11 @@ const BibleStudyDetails: React.FC = () => {
         </div>
 
         <div className="lg:col-span-1">
-          <Card title="Información del Registro" icon={<FileText size={20} />}>
+          <Card title={t('bibleStudyDetails.registrationInfo')} icon={<FileText size={20} />}>
             <div className="space-y-4">
               {!isViewer && (
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Registrado por</p>
+                  <p className="text-sm font-medium text-gray-500">{t('bibleStudyDetails.registeredBy')}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Users size={16} className="text-gray-400" />
                     <p className="text-gray-900">{study.colporterName}</p>
@@ -236,11 +234,11 @@ const BibleStudyDetails: React.FC = () => {
               )}
               
               <div>
-                <p className="text-sm font-medium text-gray-500">Fecha de Registro</p>
+                <p className="text-sm font-medium text-gray-500">{t('bibleStudyDetails.registrationDate')}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <Calendar size={16} className="text-gray-400" />
                   <p className="text-gray-900">
-                    {new Date(study.createdAt).toLocaleDateString('es-ES', {
+                    {new Date(study.createdAt).toLocaleDateString('en-US', {
                       weekday: 'long',
                       year: 'numeric',
                       month: 'long',
@@ -251,11 +249,11 @@ const BibleStudyDetails: React.FC = () => {
               </div>
               
               <div>
-                <p className="text-sm font-medium text-gray-500">Última Actualización</p>
+                <p className="text-sm font-medium text-gray-500">{t('bibleStudyDetails.lastUpdated')}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <Calendar size={16} className="text-gray-400" />
                   <p className="text-gray-900">
-                    {new Date(study.updatedAt).toLocaleDateString('es-ES', {
+                    {new Date(study.updatedAt).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric'
@@ -266,8 +264,7 @@ const BibleStudyDetails: React.FC = () => {
             </div>
           </Card>
 
-          {/* Quick Actions */}
-          <Card title="Acciones Rápidas" className="mt-6">
+          <Card title={t('bibleStudyDetails.quickActions')} className="mt-6">
             <div className="space-y-3">
               <Button
                 variant="outline"
@@ -275,7 +272,7 @@ const BibleStudyDetails: React.FC = () => {
                 leftIcon={<Phone size={16} />}
                 onClick={() => window.open(`tel:${study.phone}`)}
               >
-                Llamar
+                {t('bibleStudyDetails.call')}
               </Button>
               
               <Button
@@ -284,7 +281,7 @@ const BibleStudyDetails: React.FC = () => {
                 leftIcon={<MessageCircle size={16} />}
                 onClick={() => window.open(`sms:${study.phone}`)}
               >
-                Enviar SMS
+                {t('bibleStudyDetails.sendSMS')}
               </Button>
               
               {study.address && (
@@ -294,7 +291,7 @@ const BibleStudyDetails: React.FC = () => {
                   leftIcon={<MapPin size={16} />}
                   onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(study.address || '')}`)}
                 >
-                  Ver en Mapa
+                  {t('bibleStudyDetails.viewOnMap')}
                 </Button>
               )}
             </div>

@@ -389,7 +389,7 @@ export const getColporterReport = async (req, res) => {
     
     // Get transactions for the colporter
     const transactions = await db.query(
-      `SELECT t.*, 
+      `SELECT t.*, t.transaction_date as date,
        CONCAT(lp.first_name, ' ', lp.last_name) as leader_name
        FROM transactions t
        JOIN people lp ON t.leader_id = lp.id
@@ -417,6 +417,68 @@ export const getColporterReport = async (req, res) => {
         };
       })
     );
+    
+    // Get Bible Studies for the colporter
+    const bibleStudies = await db.query(
+      `SELECT bs.id, bs.name, bs.phone, bs.address, bs.location, bs.municipality_id,
+       m.name as municipality_name, bs.study_type, bs.interest_topic,
+       bs.physical_description, bs.photo_url, bs.notes, bs.created_at
+       FROM bible_studies bs
+       LEFT JOIN municipalities m ON bs.municipality_id = m.id
+       WHERE bs.colporter_id = ?
+       AND bs.created_at BETWEEN ? AND ?
+       ORDER BY bs.created_at DESC`,
+      [id, reportStartDate, reportEndDate]
+    );
+    
+    // Calculate book sales statistics
+    const bookSales = new Map();
+    
+    transactionBooks.forEach(transaction => {
+      if (transaction.books && transaction.books.length > 0) {
+        transaction.books.forEach(book => {
+          const bookKey = `${book.book_id}-${book.title}`;
+          
+          if (!bookSales.has(bookKey)) {
+            bookSales.set(bookKey, {
+              id: book.book_id,
+              title: book.title,
+              size: book.size,
+              price: book.price,
+              image_url: null,
+              totalQuantity: 0,
+              totalRevenue: 0
+            });
+          }
+          
+          const bookData = bookSales.get(bookKey);
+          bookData.totalQuantity += book.quantity;
+          bookData.totalRevenue += book.price * book.quantity;
+        });
+      }
+    });
+    
+    // Get book images for the top sellers
+    if (bookSales.size > 0) {
+      const bookIds = Array.from(bookSales.keys()).map(key => key.split('-')[0]);
+      const bookImages = await db.query(
+        `SELECT id, image_url FROM books WHERE id IN (${bookIds.map(() => '?').join(',')})`,
+        bookIds
+      );
+      
+      // Update book sales with image URLs
+      bookImages.forEach(bookImg => {
+        for (const [key, bookData] of bookSales.entries()) {
+          if (bookData.id == bookImg.id) {
+            bookData.image_url = bookImg.image_url;
+          }
+        }
+      });
+    }
+    
+    // Find top selling book by quantity
+    const topSellerBook = Array.from(bookSales.values())
+      .sort((a, b) => b.totalQuantity - a.totalQuantity)[0] || null;
     
     // Calculate totals
     const totals = transactions.reduce((acc, t) => ({
@@ -499,6 +561,8 @@ export const getColporterReport = async (req, res) => {
       transactions: transactionBooks,
       totals,
       bookTotals,
+      bibleStudies,
+      topSellerBook,
       earnings: {
         gross: totals.total,
         percentage: colporterPercentage,
@@ -1114,7 +1178,77 @@ export const getIndividualEarningsReport = async (req, res) => {
     // Calculate net earnings
     const netEarnings = earnings - totalCharges - totalAdvances;
     
-    // Group transactions by day
+    // Calculate book statistics
+    const bookSales = new Map();
+    
+    // Process each transaction to track book sales
+    for (const transaction of transactions) {
+      if (transaction.books && transaction.books.length > 0) {
+        transaction.books.forEach(book => {
+          const bookKey = `${book.id}-${book.title}`;
+          
+          if (!bookSales.has(bookKey)) {
+            bookSales.set(bookKey, {
+              id: book.id,
+              title: book.title,
+              size: book.size,
+              price: book.price,
+              image_url: null, // Will be populated below
+              totalQuantity: 0,
+              totalRevenue: 0
+            });
+          }
+          
+          const bookData = bookSales.get(bookKey);
+          bookData.totalQuantity += book.quantity;
+          bookData.totalRevenue += book.price * book.quantity;
+        });
+      }
+    }
+    
+    // Get book images for the top sellers
+    if (bookSales.size > 0) {
+      const bookIds = Array.from(bookSales.keys()).map(key => key.split('-')[0]);
+      const bookImages = await db.query(
+        `SELECT id, image_url FROM books WHERE id IN (${bookIds.map(() => '?').join(',')})`,
+        bookIds
+      );
+      
+      // Update book sales with image URLs
+      bookImages.forEach(bookImg => {
+        for (const [key, bookData] of bookSales.entries()) {
+          if (bookData.id == bookImg.id) {
+            bookData.image_url = bookImg.image_url;
+          }
+        }
+      });
+    }
+    
+    // Find top selling book by quantity
+    const topSellerBook = Array.from(bookSales.values())
+      .sort((a, b) => b.totalQuantity - a.totalQuantity)[0] || null;
+    
+    // Calculate book totals by size
+    const bookTotals = {
+      large: 0,
+      small: 0,
+      total: 0
+    };
+    
+    transactions.forEach(transaction => {
+      if (transaction.books && transaction.books.length > 0) {
+        transaction.books.forEach(book => {
+          if (book.size === 'LARGE') {
+            bookTotals.large += book.quantity;
+          } else {
+            bookTotals.small += book.quantity;
+          }
+          bookTotals.total += book.quantity;
+        });
+      }
+    });
+    
+    // Group transactions by day and calculate daily sales
     const dailyEarnings = transactions.reduce((acc, transaction) => {
       const date = transaction.transaction_date;
       
@@ -1126,6 +1260,35 @@ export const getIndividualEarningsReport = async (req, res) => {
       
       return acc;
     }, {});
+    
+    // Calculate best and worst day from daily earnings
+    const dailySalesEntries = Object.entries(dailyEarnings);
+    let bestDay = { date: '', amount: 0 };
+    let worstDay = { date: '', amount: Infinity };
+    
+    if (dailySalesEntries.length > 0) {
+      // Find best day (highest sales)
+      bestDay = dailySalesEntries.reduce((best, [date, amount]) => 
+        amount > best.amount ? { date, amount } : best, 
+        { date: '', amount: 0 }
+      );
+      
+      // Find worst day (lowest sales, but greater than 0)
+      const daysWithSales = dailySalesEntries.filter(([_, amount]) => amount > 0);
+      if (daysWithSales.length > 0) {
+        worstDay = daysWithSales.reduce((worst, [date, amount]) => 
+          amount < worst.amount ? { date, amount } : worst, 
+          { date: '', amount: Infinity }
+        );
+      } else {
+        worstDay = { date: '', amount: 0 };
+      }
+      
+      // If worstDay still has Infinity, reset it
+      if (worstDay.amount === Infinity) {
+        worstDay = { date: '', amount: 0 };
+      }
+    }
     
     res.json({
       person,
@@ -1143,7 +1306,11 @@ export const getIndividualEarningsReport = async (req, res) => {
       },
       charges,
       advances,
-      dailyEarnings
+      dailyEarnings,
+      bookTotals,
+      topSellerBook,
+      bestDay,
+      worstDay
     });
   } catch (error) {
     console.error('Error getting individual earnings report:', error);
@@ -1259,19 +1426,6 @@ export const getSalesHistory = async (req, res) => {
     } else {
       // For other users, return empty data
       salesData = [];
-      // Get books for each transaction
-      for (let i = 0; i < transactions.length; i++) {
-        const books = await db.query(
-          `SELECT tb.book_id as id, b.title, b.size, tb.quantity, tb.price
-           FROM transaction_books tb
-           JOIN books b ON tb.book_id = b.id
-           WHERE tb.transaction_id = ?`,
-          [transactions[i].id]
-        );
-        
-        transactions[i].books = books;
-      }
-      
     }
     
     // Ensure we have data for every day in the range

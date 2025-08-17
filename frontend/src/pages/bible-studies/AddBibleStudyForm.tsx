@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, BookOpen, Phone, MapPin, MessageCircle, User, Camera } from 'lucide-react';
+import { X, BookOpen, Phone, MapPin, User } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -14,27 +14,27 @@ interface AddBibleStudyFormProps {
   initialData?: BibleStudy;
 }
 
-const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({ 
-  onClose, 
+const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
+  onClose,
   onSubmit,
-  initialData 
+  initialData,
 }) => {
   const { t } = useTranslation();
-  const { 
-    municipalities, 
-    fetchMunicipalities, 
+  const {
+    municipalities,
+    fetchMunicipalities,
     fetchCountries,
     wereMunicipalitiesFetched,
-    wereCountriesFetched
+    wereCountriesFetched,
   } = useBibleStudyStore();
-  
+
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
     phone: initialData?.phone || '',
     address: initialData?.address || '',
     location: initialData?.location || '',
     municipalityId: initialData?.municipalityId || '',
-    studyType: initialData?.studyType || 'Estudio Bíblico',
+    studyType: initialData?.studyType || t('bibleStudyForm.studyTypeBibleStudy'),
     interestTopic: initialData?.interestTopic || '',
     physicalDescription: initialData?.physicalDescription || '',
     photoUrl: initialData?.photoUrl || '',
@@ -46,8 +46,7 @@ const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
       fetchCountries();
     }
     if (!wereMunicipalitiesFetched) {
-      // Fetch municipalities for Puerto Rico (country_id = 1)
-      fetchMunicipalities(1);
+      fetchMunicipalities(1); // Puerto Rico (country_id = 1)
     }
   }, []);
 
@@ -70,22 +69,22 @@ const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
       reader.onloadend = () => {
         setFormData(prev => ({
           ...prev,
-          photoUrl: reader.result as string
+          photoUrl: reader.result as string,
         }));
       };
       reader.readAsDataURL(file);
     } else {
       setFormData(prev => ({
         ...prev,
-        photoUrl: ''
+        photoUrl: '',
       }));
     }
   };
 
   const studyTypes = [
-    { value: 'Estudio Bíblico', label: 'Estudio Bíblico' },
-    { value: 'Grupo de Oración', label: 'Grupo de Oración' },
-    { value: 'Matrimonio y Familia', label: 'Matrimonio y Familia' },
+    { value: t('bibleStudyForm.studyTypeBibleStudy'), label: t('bibleStudyForm.studyTypeBibleStudy') },
+    { value: t('bibleStudyForm.studyTypePrayerGroup'), label: t('bibleStudyForm.studyTypePrayerGroup') },
+    { value: t('bibleStudyForm.studyTypeMarriageFamily'), label: t('bibleStudyForm.studyTypeMarriageFamily') },
   ];
 
   return (
@@ -96,7 +95,7 @@ const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                 <BookOpen className="text-primary-600" size={24} />
-                {initialData ? 'Editar Estudio Bíblico' : 'Nuevo Estudio Bíblico'}
+                {initialData ? t('bibleStudyForm.editTitle') : t('bibleStudyForm.title')}
               </h2>
               <button
                 type="button"
@@ -108,10 +107,9 @@ const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              {/* Photo Upload */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Foto de la Persona (Opcional)
+                  {t('bibleStudyForm.personPhoto')}
                 </label>
                 <ImageUpload
                   value={formData.photoUrl}
@@ -121,7 +119,7 @@ const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
               </div>
 
               <Input
-                label="Nombre de la Persona"
+                label={t('bibleStudyForm.personName')}
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
@@ -130,7 +128,7 @@ const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
               />
 
               <Input
-                label="Teléfono"
+                label={t('bibleStudyForm.phone')}
                 name="phone"
                 type="tel"
                 value={formData.phone}
@@ -141,7 +139,7 @@ const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
 
               <div className="md:col-span-2">
                 <Input
-                  label="Dirección"
+                  label={t('bibleStudyForm.address')}
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
@@ -151,18 +149,18 @@ const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
 
               <div className="md:col-span-2">
                 <Input
-                  label="Lugar de Trabajo (Ej: un negocio, una casa, etc.)"
+                  label={t('bibleStudyForm.workplace')}
                   name="location"
                   value={formData.location}
                   onChange={handleChange}
-                  placeholder="Ej: Walmart, Casa de María, Oficina médica"
+                  placeholder={t('bibleStudyForm.workplacePlaceholder')}
                   leftIcon={<MapPin size={18} />}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Municipio/Ciudad
+                  {t('bibleStudyForm.municipality')}
                 </label>
                 <select
                   name="municipalityId"
@@ -170,7 +168,7 @@ const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
                   onChange={handleChange}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                 >
-                  <option value="">Seleccionar municipio...</option>
+                  <option value="">{t('bibleStudyForm.municipalityPlaceholder')}</option>
                   {municipalities.map(municipality => (
                     <option key={municipality.id} value={municipality.id}>
                       {municipality.name}
@@ -181,7 +179,7 @@ const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tipo de Estudio
+                  {t('bibleStudyForm.studyType')}
                 </label>
                 <select
                   name="studyType"
@@ -199,16 +197,16 @@ const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
               </div>
 
               <Input
-                label="Tema de Interés"
+                label={t('bibleStudyForm.interestTopic')}
                 name="interestTopic"
                 value={formData.interestTopic}
                 onChange={handleChange}
-                placeholder="Ej: Profecías, Salud, Familia"
+                placeholder={t('bibleStudyForm.interestTopicPlaceholder')}
               />
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Descripción Física de la Persona
+                  {t('bibleStudyForm.physicalDescription')}
                 </label>
                 <textarea
                   name="physicalDescription"
@@ -216,13 +214,13 @@ const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
                   value={formData.physicalDescription}
                   onChange={handleChange}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  placeholder="Ej: Mujer joven, cabello largo, usa lentes, etc."
+                  placeholder={t('bibleStudyForm.physicalDescriptionPlaceholder')}
                 />
               </div>
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notas Adicionales
+                  {t('bibleStudyForm.notes')}
                 </label>
                 <textarea
                   name="notes"
@@ -230,7 +228,7 @@ const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
                   value={formData.notes}
                   onChange={handleChange}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  placeholder="Información adicional sobre la persona o el estudio..."
+                  placeholder={t('bibleStudyForm.notesPlaceholder')}
                 />
               </div>
             </div>
@@ -247,7 +245,7 @@ const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
                 type="submit"
                 variant="primary"
               >
-                {initialData ? 'Actualizar Estudio' : 'Crear Estudio'}
+                {initialData ? t('bibleStudyForm.updateStudy') : t('bibleStudyForm.createStudy')}
               </Button>
             </div>
           </form>

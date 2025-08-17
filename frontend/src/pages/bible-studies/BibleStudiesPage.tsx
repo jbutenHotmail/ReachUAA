@@ -114,7 +114,7 @@ const BibleStudiesPage: React.FC = () => {
     try {
       await createBibleStudy(data);
       setShowAddForm(false);
-      setSuccess(t('dashboard.bibleStudiesCount', { count: 1, interpolation: { escapeValue: false } }));
+      setSuccess('Estudio bíblico creado exitosamente');
       setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
       setError(t('common.error'));
@@ -127,7 +127,7 @@ const BibleStudiesPage: React.FC = () => {
     try {
       await updateBibleStudy(editingStudy.id, data);
       setEditingStudy(null);
-      setSuccess(t('dashboard.bibleStudiesCount', { count: 1, interpolation: { escapeValue: false } }));
+      setSuccess('Estudio bíblico actualizado exitosamente');
       setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
       setError(t('common.error'));
@@ -142,7 +142,7 @@ const BibleStudiesPage: React.FC = () => {
     
     try {
       await deleteBibleStudy(id);
-      setSuccess(t('dashboard.bibleStudiesCount', { count: 1, interpolation: { escapeValue: false } }));
+      setSuccess('Estudio bíblico eliminado exitosamente');
       setTimeout(() => setSuccess(null), 5000);
     } catch (error) {
       setError(t('common.error'));

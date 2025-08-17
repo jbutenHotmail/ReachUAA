@@ -12,7 +12,14 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0
 });
-
+// Set session timezone on connection
+pool.on('connection', (connection) => {
+  connection.query("SET time_zone = '-05:00';", (err) => {
+    if (err) {
+      console.error('Error setting session timezone:', err.message);
+    }
+  });
+});
 // Helper function to check if a value is a valid date
 const isValidDate = (value) => {
   if (value instanceof Date && !isNaN(value.getTime())) {
