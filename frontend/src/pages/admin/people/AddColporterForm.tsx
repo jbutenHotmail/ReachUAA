@@ -4,21 +4,23 @@ import { X, AlertCircle } from 'lucide-react';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
-import { Person } from '../../../types';
+import { Colporter } from '../../../types';
 import ImageUpload from '../../../components/ui/ImageUpload';
+import { useProgramStore } from '../../../stores/programStore';
 
 interface AddColporterFormProps {
   onClose: () => void;
   onSubmit: (data: any) => void;
-  initialData?: Person;
+  initialData?: Colporter;
 }
 
-const AddColporterForm: React.FC<AddColporterFormProps> = ({
-  onClose,
+const AddColporterForm: React.FC<AddColporterFormProps> = ({ 
+  onClose, 
   onSubmit,
-  initialData,
+  initialData 
 }) => {
   const { t } = useTranslation();
+  const { program } = useProgramStore();
   const [formData, setFormData] = React.useState({
     name: initialData?.name || '',
     apellido: initialData?.apellido || '',
@@ -28,18 +30,44 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
     address: initialData?.address || '',
     age: initialData?.age || '',
     createUser: !initialData,
-    profileImage: initialData?.profile_image_url,
-    personType: 'COLPORTER',
+    profileImage: initialData?.profileImage || initialData?.profile_image_url,
+    programId: initialData?.programId || program?.id || null
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    const submitData = async () => {
+      let finalImageUrl = formData.profileImage;
+      
+      // If there's a file to upload (base64 data URL), upload it first
+      if (formData.profileImage && formData.profileImage.startsWith('data:')) {
+        try {
+          // Convert base64 to file
+          const response = await fetch(formData.profileImage);
+          const blob = await response.blob();
+          const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
+          
+          finalImageUrl = await uploadImage(file);
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          // Continue without image if upload fails
+          finalImageUrl = '';
+        }
+      }
+      
+      onSubmit({
+        ...formData,
+        profile_image_url: finalImageUrl // Send the URL from upload
+      });
+    };
+    
+    submitData();
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
@@ -49,108 +77,105 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData((prev) => ({
+        setFormData(prev => ({
           ...prev,
-          profileImage: reader.result as string,
+          profileImage: reader.result as string
         }));
       };
       reader.readAsDataURL(file);
     } else {
-      setFormData((prev) => ({
+      setFormData(prev => ({
         ...prev,
-        profileImage: undefined,
+        profileImage: undefined
       }));
     }
   };
 
-  const defaultPassword = formData.name && formData.apellido
+  const uploadImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/upload/profile`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+      credentials: 'include',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error('Upload failed');
+    }
+    
+    const data = await response.json();
+    return data.imageUrl;
+  };
+
+  const defaultPassword = formData.name && formData.apellido 
     ? `${formData.name.toLowerCase()}.${formData.apellido.toLowerCase()}`
     : '';
 
   return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="colporter-form-title"
-    >
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[95vh] overflow-y-auto">
         <Card>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2
-                id="colporter-form-title"
-                className="text-xl font-semibold text-gray-900"
-              >
-                {initialData
-                  ? t('colporter.editColporter')
-                  : t('colporter.addColporter')}
+              <h2 className="text-xl font-semibold text-gray-900">
+                {initialData ? t('personForm.editPerson') : t('personForm.addNewPerson')}
               </h2>
               <button
                 type="button"
                 onClick={onClose}
                 className="text-gray-400 hover:text-gray-500"
-                aria-label={t('common.close')}
               >
                 <X size={20} />
               </button>
             </div>
 
             {initialData?.hasUser && (
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-3">
-                <AlertCircle
-                  className="text-yellow-500 flex-shrink-0 mt-0.5"
-                  size={20}
-                />
-                <div className="text-sm text-yellow-700">
-                  <p className="font-medium">{t('colporter.userExistsTitle')}</p>
-                  <p>{t('colporter.userExistsMessage')}</p>
+              <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg flex items-start gap-3">
+                <AlertCircle className="text-warning-500 flex-shrink-0 mt-0.5" size={20} />
+                <div className="text-sm text-warning-700">
+                  <p className="font-medium">{t('leaderForm.userAccountExists')}</p>
+                  <p>{t('leaderForm.userAccountExistsWarning')}</p>
                 </div>
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div className="md:col-span-2">
-                <label
-                  htmlFor="profileImage"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  {t('colporter.profileImage')}
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('leaderForm.profileImage')}
                 </label>
                 <ImageUpload
                   value={formData.profileImage}
                   onChange={handleImageChange}
                   className="max-w-sm mx-auto"
-                  id="profileImage"
-                  aria-describedby="profileImage-help"
                 />
-                <p id="profileImage-help" className="text-xs text-gray-500 mt-1">
-                  {t('colporter.profileImageHelp')}
-                </p>
               </div>
 
               <Input
-                label={t('common.name')}
+                label={t('leaderForm.name')}
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
                 required
                 disabled={initialData?.hasUser}
-                placeholder={t('colporter.namePlaceholder')}
               />
 
               <Input
-                label={t('common.lastName')}
+                label={t('leaderForm.lastName')}
                 name="apellido"
                 value={formData.apellido}
                 onChange={handleChange}
                 required
                 disabled={initialData?.hasUser}
-                placeholder={t('colporter.lastNamePlaceholder')}
               />
 
               <Input
-                label={t('common.age')}
+                label={t('personForm.age')}
                 type="number"
                 name="age"
                 value={formData.age}
@@ -158,37 +183,34 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
                 min="16"
                 max="99"
                 required
-                placeholder={t('colporter.agePlaceholder')}
               />
 
               <Input
-                label={t('common.email')}
+                label={t('leaderForm.email')}
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
                 required
                 disabled={initialData?.hasUser}
-                placeholder={t('colporter.emailPlaceholder')}
               />
 
               <Input
-                label={t('common.phone')}
+                label={t('leaderForm.phone')}
                 type="tel"
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
                 required
-                placeholder={t('colporter.phonePlaceholder')}
               />
 
               <Input
-                label={t('colporter.school')}
+                label={t('personForm.schoolInstitution')}
                 name="school"
                 value={formData.school}
                 onChange={handleChange}
+                placeholder={t('personForm.schoolInstitutionPlaceholder')}
                 required
-                placeholder={t('colporter.schoolPlaceholder')}
               />
 
               {!initialData && (
@@ -199,52 +221,64 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
                     name="createUser"
                     checked={formData.createUser}
                     onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                   />
-                  <label
-                    htmlFor="createUser"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    {t('colporter.createUser')}
+                  <label htmlFor="createUser" className="text-sm font-medium text-gray-700">
+                    {t('leaderForm.createUserAccount')}
                   </label>
                 </div>
               )}
 
               <div className="md:col-span-2">
                 <Input
-                  label={t('common.address')}
+                  label={t('leaderForm.address')}
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
                   required
-                  placeholder={t('colporter.addressPlaceholder')}
                 />
               </div>
 
-              {!initialData &&
-                formData.createUser &&
-                formData.name &&
-                formData.apellido &&
-                formData.email && (
-                  <div className="md:col-span-2 p-4 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-blue-700">
-                      <strong>{t('common.note')}:</strong>{' '}
-                      {t('colporter.userCredentialsNote')}
-                      <br />
-                      <strong>{t('auth.username')}:</strong> {formData.email}
-                      <br />
-                      <strong>{t('auth.password')}:</strong> {defaultPassword}
+              {program && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Program
+                  </label>
+                  <div className="p-3 bg-primary-50 rounded-lg border border-primary-200">
+                    <p className="text-sm text-primary-700">
+                      This person will be associated with the current program: <strong>{program.name}</strong>
                     </p>
+                    <input type="hidden" name="programId" value={program.id} />
                   </div>
-                )}
+                </div>
+              )}
+
+              {!initialData && formData.createUser && formData.name && formData.apellido && formData.email && (
+                <div className="md:col-span-2 p-3 bg-primary-50 rounded-lg">
+                  <p className="text-sm text-primary-700">
+                    <strong>{t('programSettings.importantNotes')}:</strong> {t('leaderForm.accountCreationNote')}
+                    <br />
+                    <strong>{t('auth.email')}:</strong> {formData.email}
+                    <br />
+                    <strong>{t('auth.password')}:</strong> {defaultPassword}
+                  </p>
+                </div>
+              )}
             </div>
 
-            <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={onClose}>
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 bg-white sticky bottom-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+              >
                 {t('common.cancel')}
               </Button>
-              <Button type="submit" variant="primary">
-                {initialData ? t('common.save') : t('colporter.addColporter')}
+              <Button
+                type="submit"
+                variant="primary"
+              >
+                {initialData ? t('leaderForm.saveChanges') : t('personForm.addNewPerson')}
               </Button>
             </div>
           </form>

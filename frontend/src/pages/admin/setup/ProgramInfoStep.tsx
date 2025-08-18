@@ -1,10 +1,14 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Calendar, BookText } from 'lucide-react';
+import { Calendar, BookText, Globe } from 'lucide-react';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import ImageUpload from '../../../components/ui/ImageUpload';
+import { useSettingsStore } from '../../../stores/settingsStore';
+
+// Import logo
+const logoReach = '/src/assets/logo_reach.webp';
 
 interface ProgramFormData {
   name: string;
@@ -28,6 +32,7 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
   onNext 
 }) => {
   const { t } = useTranslation();
+  const { settings, changeLanguage } = useSettingsStore();
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -44,15 +49,16 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
   };
 
   const handleLogoChange = (file: File | null) => {
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        onChange({ logo: reader.result as string });
-      };
-      reader.readAsDataURL(file);
-    } else {
-      onChange({ logo: undefined });
-    }
+    // File handling is now done by ImageUpload component
+  };
+
+  const handleLogoUpload = (url: string) => {
+    onChange({ logo: url });
+  };
+
+  const toggleLanguage = () => {
+    const newLang = settings.language === 'en' ? 'es' : 'en';
+    changeLanguage(newLang);
   };
 
   const isFormValid = () => {
@@ -66,33 +72,52 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
   };
 
   const days = [
-    { id: 'monday', label: t('programSettings.days.monday') },
-    { id: 'tuesday', label: t('programSettings.days.tuesday') },
-    { id: 'wednesday', label: t('programSettings.days.wednesday') },
-    { id: 'thursday', label: t('programSettings.days.thursday') },
-    { id: 'friday', label: t('programSettings.days.friday') },
-    { id: 'saturday', label: t('programSettings.days.saturday') },
-    { id: 'sunday', label: t('programSettings.days.sunday') },
+    { id: 'monday', label: 'Monday' },
+    { id: 'tuesday', label: 'Tuesday' },
+    { id: 'wednesday', label: 'Wednesday' },
+    { id: 'thursday', label: 'Thursday' },
+    { id: 'friday', label: 'Friday' },
+    { id: 'saturday', label: 'Saturday' },
+    { id: 'sunday', label: 'Sunday' },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-          <Calendar className="text-primary-600" size={24} />
-          {t('programSettings.programInformation')}
-        </h2>
-        <Button
-          variant="primary"
-          onClick={onNext}
-          disabled={!isFormValid()}
-        >
-          {t('common.next')}
-        </Button>
+        <div className="flex items-center gap-4">
+          <img 
+            src={logoReach} 
+            alt={t('common.logoAlt')} 
+            className="h-12 w-auto"
+          />
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+              <Calendar className="text-primary-600" size={24} />
+              Program Information
+            </h2>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleLanguage}
+            leftIcon={<Globe size={16} />}
+          >
+            {settings.language === 'en' ? 'Español' : 'English'}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={onNext}
+            disabled={!isFormValid()}
+          >
+            Next
+          </Button>
+        </div>
       </div>
 
       <p className="text-gray-600">
-        {t('programSettings.noteProgramInformation')}
+        Enter the basic information about your colportage program.
       </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -102,25 +127,25 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-6">
                 <Input
-                  label={t('programSettings.programName')}
+                  label="Program Name"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
                   required
-                  placeholder={t('programSettings.programNamePlaceholder')}
+                  placeholder="Summer Colportage Program 2025"
                 />
                 
                 <Input
-                  label={t('confirmationStep.motto')}
+                  label="Program Motto (Optional)"
                   name="motto"
                   value={formData.motto}
                   onChange={handleChange}
-                  placeholder={t('programSettings.mottoPlaceholder')}
+                  placeholder="Reaching hearts and minds through literature"
                 />
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
-                    label={t('programSettings.startDate')}
+                    label="Start Date"
                     type="date"
                     name="startDate"
                     value={formData.startDate}
@@ -129,7 +154,7 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
                   />
                   
                   <Input
-                    label={t('programSettings.endDate')}
+                    label="End Date"
                     type="date"
                     name="endDate"
                     value={formData.endDate}
@@ -139,7 +164,7 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
                 </div>
                 
                 <Input
-                  label={t('confirmationStep.financialGoal')}
+                  label="Financial Goal ($)"
                   type="number"
                   name="goal"
                   value={formData.goal || ''}
@@ -147,7 +172,7 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
                   min="0"
                   step="0.01"
                   required
-                  placeholder={t('programSettings.financialGoalPlaceholder')}
+                  placeholder="100000"
                 />
               </div>
             </div>
@@ -156,15 +181,17 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
 
         {/* Logo Upload */}
         <div className="lg:col-span-1">
-          <Card title={t('programSettings.programLogo')} icon={<BookText size={20} />}>
+          <Card title="Program Logo" icon={<BookText size={20} />}>
             <div className="space-y-4">
               <ImageUpload
                 value={formData.logo}
                 onChange={handleLogoChange}
+                onUpload={handleLogoUpload}
+                uploadEndpoint="/upload/program-logo"
                 className="w-full"
               />
               <p className="text-sm text-gray-500 text-center">
-                {t('programSettings.programLogoDescription')}
+                Upload a logo for your program (optional)
               </p>
             </div>
           </Card>
@@ -172,10 +199,10 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
 
         {/* Working Days */}
         <div className="lg:col-span-3">
-          <Card title={t('programSettings.workingDays')} icon={<Calendar size={20} />}>
+          <Card title="Working Days" icon={<Calendar size={20} />}>
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                {t('programSettings.workingDaysDescription')}
+                Select the days of the week that will be working days in your program.
               </p>
               
               <div className="flex flex-wrap gap-3">
@@ -194,14 +221,15 @@ const ProgramInfoStep: React.FC<ProgramInfoStepProps> = ({
                       checked={formData.workingDays.includes(day.id)}
                       onChange={() => handleWorkingDaysChange(day.id)}
                     />
-                    {day.label}
+                    {t(`programSettings.days.${day.id}`)}
                   </label>
                 ))}
               </div>
               
               <div className="p-4 bg-primary-50 rounded-lg mt-4">
                 <p className="text-sm text-primary-700">
-                  <strong>{t('programSettings.importantNotes')}:</strong> {t('programSettings.workingDaysNote')}
+                  <strong>Note:</strong> Working days will be used to calculate program statistics and financial projections. 
+                  You can override specific dates later in the program settings.
                 </p>
               </div>
             </div>

@@ -846,6 +846,7 @@ export default {
     title: "Inventario",
     description: "Descripción",
     bookCatalog: "Catálogo de Libros",
+    unknownAuthor: "Autor Desconocido",
     inventoryTracking: "Seguimiento de Inventario",
     books: "Libros",
     bookTitle: "Título del libro",

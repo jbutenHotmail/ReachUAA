@@ -557,9 +557,10 @@ export const getUserProfile = async (req, res) => {
 
 // Update user profile
 export const updateProfile = async (req, res) => {
+  console.log('profileImage');
   try {
     const userId = req.user.id;
-    const { name, phone, address, profileImage } = req.body;
+    const { name, phone, address, profileImage, profile_image_url } = req.body;
     // Get user
     const user = await db.getOne(
       'SELECT * FROM users WHERE id = ?',
@@ -567,6 +568,7 @@ export const updateProfile = async (req, res) => {
     );
     
     if (!user) {
+      console.log('user not found');
       return res.status(404).json({ message: 'User not found' });
     }
     
@@ -582,6 +584,7 @@ export const updateProfile = async (req, res) => {
     );
     
     if (!person) {
+      console.log('person not found');
       return res.status(404).json({ message: 'Person record not found' });
     }
     
@@ -603,7 +606,7 @@ export const updateProfile = async (req, res) => {
     // Update person
     await db.update(
       'UPDATE people SET first_name = ?, last_name = ?, phone = ?, address = ?, profile_image_url = ?, updated_at = NOW() WHERE id = ?',
-      [firstName, lastName, phone || person.phone, address || person.address, profileImage || person.profile_image_url, user.person_id]
+      [firstName, lastName, phone || person.phone, address || person.address, profileImage || profile_image_url || person.profile_image_url, user.person_id]
     );
     
     // Get updated user profile

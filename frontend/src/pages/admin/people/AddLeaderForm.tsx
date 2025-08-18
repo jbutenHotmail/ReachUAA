@@ -29,13 +29,39 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
     institution: initialData?.institution || '',
     address: initialData?.address || '',
     createUser: !initialData,
-    profileImage: initialData?.profile_image_url,
+    profileImage: initialData?.profileImage || initialData?.profile_image_url,
     programId: initialData?.programId || program?.id || null
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    const submitData = async () => {
+      let finalImageUrl = formData.profileImage;
+      
+      // If there's a file to upload (base64 data URL), upload it first
+      if (formData.profileImage && formData.profileImage.startsWith('data:')) {
+        try {
+          // Convert base64 to file
+          const response = await fetch(formData.profileImage);
+          const blob = await response.blob();
+          const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
+          
+          finalImageUrl = await uploadImage(file);
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          // Continue without image if upload fails
+          finalImageUrl = '';
+        }
+      }
+      
+      onSubmit({
+        ...formData,
+        profile_image_url: finalImageUrl // Send the URL from upload
+      });
+    };
+    
+    submitData();
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -64,13 +90,34 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
     }
   };
 
+  const uploadImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/upload/profile`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+      credentials: 'include',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error('Upload failed');
+    }
+    
+    const data = await response.json();
+    return data.imageUrl;
+  };
+
   const defaultPassword = formData.name && formData.apellido 
     ? `${formData.name.toLowerCase()}.${formData.apellido.toLowerCase()}`
     : '';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[95vh] overflow-y-auto">
         <Card>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between">
@@ -96,7 +143,7 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t('leaderForm.profileImage')}
@@ -183,8 +230,22 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
                 />
               </div>
 
+              {program && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Program
+                  </label>
+                  <div className="p-3 bg-primary-50 rounded-lg border border-primary-200">
+                    <p className="text-sm text-primary-700">
+                      This person will be associated with the current program: <strong>{program.name}</strong>
+                    </p>
+                    <input type="hidden" name="programId" value={program.id} />
+                  </div>
+                </div>
+              )}
+
               {!initialData && formData.createUser && formData.name && formData.apellido && formData.email && (
-                <div className="md:col-span-2 p-4 bg-primary-50 rounded-lg">
+                <div className="md:col-span-2 p-3 bg-primary-50 rounded-lg">
                   <p className="text-sm text-primary-700">
                     <strong>{t('programSettings.importantNotes')}:</strong> {t('leaderForm.accountCreationNote')}
                     <br />
@@ -196,7 +257,7 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
               )}
             </div>
 
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 bg-white sticky bottom-0">
               <Button
                 type="button"
                 variant="outline"

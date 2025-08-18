@@ -49,11 +49,30 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
     e.preventDefault();
     
     try {
+      let finalImageUrl = formData.profileImage;
+      
+      // If there's a file to upload (base64 data URL), upload it first
+      if (formData.profileImage && formData.profileImage.startsWith('data:')) {
+        try {
+          // Convert base64 to file
+          const response = await fetch(formData.profileImage);
+          const blob = await response.blob();
+          const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
+          
+          finalImageUrl = await uploadImage(file);
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          // Continue without image if upload fails
+          finalImageUrl = '';
+        }
+      }
+      
       // Asegurarse de que el programId esté incluido
       const dataWithProgram = {
         ...formData,
         personType,
-        programId: formData.programId || (program ? program.id : null)
+        programId: formData.programId || (program ? program.id : null),
+        profile_image_url: finalImageUrl // Use the URL returned from upload
       };
       
       // Si tenemos initialData, estamos actualizando una persona existente
@@ -70,6 +89,27 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
       console.error('Error saving person:', error);
       // Podrías agregar manejo de errores aquí, como mostrar un mensaje de error
     }
+  };
+
+  const uploadImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/upload/profile`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+      credentials: 'include',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error('Upload failed');
+    }
+    
+    const data = await response.json();
+    return data.imageUrl;
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -93,7 +133,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
     } else {
       setFormData(prev => ({
         ...prev,
-        profileImage: undefined
+        profileImage: ''
       }));
     }
   };
@@ -194,6 +234,7 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
                 <ImageUpload
                   value={formData.profileImage}
                   onChange={handleImageChange}
+                  isUploading={isLoading}
                   className="max-w-sm mx-auto"
                 />
               </div>
@@ -269,20 +310,6 @@ const AddPersonForm: React.FC<AddPersonFormProps> = ({
                   required={personType === 'LEADER'}
                   className="md:col-span-2"
                 />
-              )}
-
-              {program && (
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('navigation.program')}
-                  </label>
-                  <div className="p-3 bg-primary-50 rounded-lg border border-primary-200">
-                    <p className="text-sm text-primary-700">
-                      {t('programSettings.noteProgramInformation')}: <strong>{program.name}</strong>
-                    </p>
-                    <input type="hidden" name="programId" value={program.id} />
-                  </div>
-                </div>
               )}
 
               {!initialData && (

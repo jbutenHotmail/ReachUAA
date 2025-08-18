@@ -48,11 +48,37 @@ const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
     if (!wereMunicipalitiesFetched) {
       fetchMunicipalities(1); // Puerto Rico (country_id = 1)
     }
-  }, []);
+  }, [fetchCountries, fetchMunicipalities, wereCountriesFetched, wereMunicipalitiesFetched]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+
+    const submitData = async () => {
+      let finalImageUrl = formData.photoUrl;
+
+      // If there's a file to upload (base64 data URL), upload it first
+      if (formData.photoUrl && formData.photoUrl.startsWith('data:')) {
+        try {
+          // Convert base64 to file
+          const response = await fetch(formData.photoUrl);
+          const blob = await response.blob();
+          const file = new File([blob], 'bible-study-photo.jpg', { type: 'image/jpeg' });
+
+          finalImageUrl = await uploadImage(file);
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          // Continue without image if upload fails
+          finalImageUrl = '';
+        }
+      }
+
+      onSubmit({
+        ...formData,
+        photoUrl: finalImageUrl // Use the URL returned from upload
+      });
+    };
+
+    submitData();
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -69,21 +95,41 @@ const AddBibleStudyForm: React.FC<AddBibleStudyFormProps> = ({
       reader.onloadend = () => {
         setFormData(prev => ({
           ...prev,
-          photoUrl: reader.result as string,
+          photoUrl: reader.result as string
         }));
       };
       reader.readAsDataURL(file);
     } else {
       setFormData(prev => ({
         ...prev,
-        photoUrl: '',
+        photoUrl: ''
       }));
     }
   };
 
+  const uploadImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/upload/bible-study`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+      credentials: 'include',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Upload failed');
+    }
+
+    const data = await response.json();
+    return data.imageUrl;
+  };
+
   const studyTypes = [
     { value: t('bibleStudyForm.studyTypeBibleStudy'), label: t('bibleStudyForm.studyTypeBibleStudy') },
-    { value: t('bibleStudyForm.studyTypePrayerGroup'), label: t('bibleStudyForm.studyTypePrayerGroup') },
     { value: t('bibleStudyForm.studyTypeMarriageFamily'), label: t('bibleStudyForm.studyTypeMarriageFamily') },
   ];
 

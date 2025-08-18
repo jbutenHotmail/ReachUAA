@@ -11,7 +11,7 @@ export const login = async (req, res) => {
     // Find user by email
     const user = await db.getOne(
       `SELECT u.id, u.email, u.password_hash, u.role, u.status,
-       p.id as person_id, p.first_name, p.last_name, p.profile_image_url
+       p.id as person_id, p.first_name, p.last_name, p.profile_image_url, p.phone, p.address
        FROM users u
        LEFT JOIN people p ON u.person_id = p.id
        WHERE u.email = ?`,
@@ -55,7 +55,7 @@ export const login = async (req, res) => {
       'UPDATE users SET last_login = NOW() WHERE id = ?',
       [user.id]
     );
-    console.log(process.env.NODE_ENV);
+    
     // Set refresh token as HttpOnly cookie
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
@@ -71,7 +71,9 @@ export const login = async (req, res) => {
         email: user.email,
         role: user.role,
         name: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : email,
-        profile_image_url: user.profile_image_url
+        profile_image_url: user.profile_image_url,
+        phone: user.phone || null,
+        address: user.address || null
       },
       accessToken
     });
@@ -97,7 +99,7 @@ export const refreshToken = async (req, res) => {
     // Get user
     const user = await db.getOne(
       `SELECT u.id, u.email, u.role,
-       p.first_name, p.last_name, p.profile_image_url
+       p.first_name, p.last_name, p.profile_image_url, p.phone, p.address
        FROM users u
        LEFT JOIN people p ON u.person_id = p.id
        WHERE u.id = ?`,
@@ -126,7 +128,9 @@ export const refreshToken = async (req, res) => {
         email: user.email,
         role: user.role,
         name: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email, 
-        profile_image_url: user.profile_image_url
+        profile_image_url: user.profile_image_url,
+        phone: user.phone || null,
+        address: user.address || null
       }
     });
   } catch (error) {

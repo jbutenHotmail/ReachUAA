@@ -12,7 +12,7 @@ import ImageUpload from '../../components/ui/ImageUpload';
 const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user, updateProfile, isLoading } = useAuthStore();
+  const { user, updateProfile, getUserProfile, isLoading } = useAuthStore();
   
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -23,6 +23,10 @@ const ProfilePage: React.FC = () => {
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Load complete user profile on component mount
+  useEffect(() => {
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -61,17 +65,50 @@ const ProfilePage: React.FC = () => {
     }
   };
 
+  const uploadImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/upload/profile`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+      credentials: 'include',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error('Upload failed');
+    }
+    
+    const data = await response.json();
+    return data.imageUrl;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
     
     try {
+      let finalImageUrl = formData.profileImage;
+      
+      // If there's a file to upload (base64 data URL), upload it first
+      if (formData.profileImage && formData.profileImage.startsWith('data:')) {
+        // Convert base64 to file
+        const response = await fetch(formData.profileImage);
+        const blob = await response.blob();
+        const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
+        
+        finalImageUrl = await uploadImage(file);
+      }
+      
       await updateProfile({
         name: formData.name,
         phone: formData.phone,
         address: formData.address,
-        profile_image_url: formData.profileImage
+        profileImage: finalImageUrl
       });
       
       setIsEditing(false);
@@ -141,6 +178,46 @@ const ProfilePage: React.FC = () => {
         <div className="lg:col-span-2">
           <Card title={t('profile.personalInfo')} icon={<User size={20} />}>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Profile Image at the top */}
+              <div className="flex justify-center">
+                <div className="relative">
+                  {formData.profileImage ? (
+                    <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-primary-100 shadow-lg">
+                      <img 
+                        src={formData.profileImage} 
+                        alt={user.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-24 h-24 rounded-full bg-gray-200 border-4 border-gray-100 shadow-lg flex items-center justify-center">
+                      <User size={32} className="text-gray-400" />
+                    </div>
+                  )}
+                  {isEditing && (
+                    <div className="absolute -bottom-2 -right-2">
+                      <div className="bg-primary-600 rounded-full p-2 shadow-lg">
+                        <Edit size={14} className="text-white" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Image Upload Field - Only show when editing */}
+              {isEditing && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Profile Image
+                  </label>
+                  <ImageUpload
+                    value={formData.profileImage}
+                    onChange={handleImageChange}
+                    isUploading={isLoading}
+                  />
+                </div>
+              )}
+
               <div className="space-y-4">
                 {isEditing ? (
                   <>
@@ -171,16 +248,6 @@ const ProfilePage: React.FC = () => {
                         rows={3}
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                         placeholder={t('profile.addressPlaceholder')}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Profile Image
-                      </label>
-                      <ImageUpload
-                        value={formData.profileImage}
-                        onChange={handleImageChange}
                       />
                     </div>
                   </>
@@ -268,8 +335,8 @@ const ProfilePage: React.FC = () => {
             </div>
           </Card>
         </div>
-
-        <div className="lg:col-span-1">
+        
+        <div className="lg:col-span-1 space-y-6">
           <Card title={t('profile.accountInfo')} icon={<User size={20} />}>
             <div className="space-y-4">
               <div>
@@ -293,6 +360,21 @@ const ProfilePage: React.FC = () => {
                 </div>
               </div>
               
+              <div>
+                <p className="text-sm font-medium text-gray-500">{t('profile.status')}</p>
+                <div className="mt-1">
+                  {user.status === 'ACTIVE' ? (
+                    <Badge variant="success">
+                      {t('profile.active')}
+                    </Badge>
+                  ) : (
+                    <Badge variant="danger">
+                      {t('profile.inactive')}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              
               {user.lastLogin && (
                 <div>
                   <p className="text-sm font-medium text-gray-500">Last Login</p>
@@ -303,18 +385,6 @@ const ProfilePage: React.FC = () => {
               )}
             </div>
           </Card>
-          
-          {formData.profileImage && (
-            <div className="mt-6 flex justify-center">
-              <div className="w-48 h-48 rounded-full overflow-hidden border-4 border-white shadow-lg">
-                <img 
-                  src={formData.profileImage} 
-                  alt={user.name} 
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

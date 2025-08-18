@@ -240,13 +240,48 @@ export const useUserStore = create<UserStore>((set, get) => ({
     console.log("Creando persona");
     set({ isLoading: true, error: null, isCreatingPerson: true });
     try {
+      let finalImageUrl = personData.profileImage;
+      
+      // If there's a file to upload (base64 data URL), upload it first
+      if (personData.profileImage && personData.profileImage.startsWith('data:')) {
+        try {
+          // Convert base64 to file
+          const response = await fetch(personData.profileImage);
+          const blob = await response.blob();
+          const file = new File([blob], 'profile-image.jpg', { type: 'image/jpeg' });
+          
+          // Upload the file
+          const uploadFormData = new FormData();
+          uploadFormData.append('image', file);
+          
+          const uploadResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/upload/profile`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+            },
+            credentials: 'include',
+            body: uploadFormData,
+          });
+          
+          if (uploadResponse.ok) {
+            const uploadData = await uploadResponse.json();
+            finalImageUrl = uploadData.imageUrl;
+          }
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          // Continue without image if upload fails
+          finalImageUrl = '';
+        }
+      }
+      
       let newPerson;
 
       // Asegurarse de que el programId esté incluido
       const { program } = useProgramStore.getState();
       const dataWithProgram = {
         ...personData,
-        programId: personData.programId || (program ? program.id : null)
+        programId: personData.programId || (program ? program.id : null),
+        profile_image_url: finalImageUrl // Use the URL returned from upload
       };
 
       if (personData.personType === "COLPORTER") {
@@ -336,8 +371,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
       isLoading: false,
       error: null,
       werePeopleFetched: false,
-      isCreatingPerson: false,
-      users: []
+      isCreatingPerson: false
     });
   },
 }));

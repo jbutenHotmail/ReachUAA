@@ -98,9 +98,17 @@ const LeadersPage: React.FC = () => {
       header: t('leaderForm.name'),
       cell: info => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-success-100 flex items-center justify-center text-success-700">
-            <UserCog size={20} />
-          </div>
+          {info.row.original.profile_image_url ? (
+            <img 
+              src={info.row.original.profile_image_url} 
+              alt={`${info.getValue()} ${info.row.original.apellido}`}
+              className="h-10 w-10 rounded-full object-cover border-2 border-success-200"
+            />
+          ) : (
+            <div className="h-10 w-10 rounded-full bg-success-100 flex items-center justify-center text-success-700">
+              <UserCog size={20} />
+            </div>
+          )}
           <div>
             <div className="font-medium text-gray-900">{`${info.getValue()} ${info.row.original.apellido}`}</div>
             <div className="text-sm text-gray-500">{info.row.original.email}</div>

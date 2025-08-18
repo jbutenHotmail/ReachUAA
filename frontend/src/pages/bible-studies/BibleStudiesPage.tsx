@@ -228,8 +228,7 @@ const BibleStudiesPage: React.FC = () => {
           </h1>
           <p className="mt-1 text-sm text-gray-500">
             {isViewer 
-              ? t('dashboard.registerStudy')
-              : t('dashboard.description')
+              && t('dashboard.registerStudy')
             }
           </p>
         </div>

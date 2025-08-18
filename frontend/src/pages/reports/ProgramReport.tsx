@@ -621,7 +621,7 @@ const ProgramReport: React.FC = () => {
             </Card>
           </div>
 
-          <Card title={t("expenses.program")} icon={<Receipt size={20} />}>
+          <Card title={t("expenses.title")} icon={<Receipt size={20} />}>
             {approvedExpenses.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">

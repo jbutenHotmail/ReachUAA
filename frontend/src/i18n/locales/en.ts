@@ -1026,6 +1026,7 @@ export default {
     description: "Description",
     bookCatalog: "Book Catalog",
     inventoryTracking: "Inventory Tracking",
+    unknownBook: "Unknown Book",
     bookTitle: "Book Title",
     books: "Books",
     categories: {

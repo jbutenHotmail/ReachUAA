@@ -8,7 +8,7 @@ export const getPeople = async (req, res) => {
     
     let query = `SELECT p.id, p.first_name as name, p.last_name as apellido, p.email, p.phone, 
               p.address, p.profile_image_url as profileImage, p.status, p.person_type as personType,
-              p.school, p.age, p.institution, p.program_id as programId, p.created_at as createdAt, 
+              p.school, p.age, p.institution, p.program_id as programId, p.profile_image_url, p.created_at as createdAt, 
               p.updated_at as updatedAt, 
               CASE WHEN u.person_id IS NOT NULL THEN true ELSE false END as hasUser
        FROM people p
@@ -39,7 +39,7 @@ export const getColporters = async (req, res) => {
     
     let query = `SELECT id, first_name as name, last_name as apellido, email, phone, 
        address, profile_image_url as profileImage, status, school, age, program_id as programId,
-       created_at as createdAt, updated_at as updatedAt, 'COLPORTER' as personType,
+       profile_image_url, created_at as createdAt, updated_at as updatedAt, 'COLPORTER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
        FROM people
        WHERE person_type = 'COLPORTER'`;
@@ -100,9 +100,10 @@ export const createColporter = async (req, res) => {
       address,
       age,
       createUser,
-      profileImage,
+      profile_image_url,
       programId
     } = req.body;
+    
     
     // Check if email already exists in the same program for this person type
     const existingPerson = await db.getOne(
@@ -119,7 +120,7 @@ export const createColporter = async (req, res) => {
       // Insert person
       const [personResult] = await connection.execute(
         'INSERT INTO people (first_name, last_name, email, phone, address, profile_image_url, person_type, status, school, age, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [name, apellido, email, phone, address, profileImage || null, 'COLPORTER', 'ACTIVE', school, age, programId || null]
+        [name, apellido, email, phone, address, profile_image_url || null, 'COLPORTER', 'ACTIVE', school, age, programId || null]
       );
       
       const personId = personResult.insertId;
@@ -181,7 +182,7 @@ export const createColporter = async (req, res) => {
     // Get the created colporter
     const colporter = await db.getOne(
       `SELECT id, first_name as name, last_name as apellido, email, phone, 
-       address, profile_image_url as profileImage, status, school, age, program_id as programId,
+       address, profile_image_url, status, school, age, program_id as programId,
        created_at as createdAt, updated_at as updatedAt, 'COLPORTER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
        FROM people
@@ -209,9 +210,10 @@ export const updateColporter = async (req, res) => {
       address,
       age,
       status,
-      profileImage,
+      profile_image_url,
       programId
     } = req.body;
+    
     
     // Check if colporter exists
     const existingColporter = await db.getOne(
@@ -224,13 +226,13 @@ export const updateColporter = async (req, res) => {
     if (!existingColporter) {
       return res.status(404).json({ message: 'Colporter not found' });
     }
-    
+   
     // If colporter has a user, don't allow changing name, apellido, or email
     if (existingColporter.hasUser) {
       // Update person
       await db.update(
         'UPDATE people SET phone = ?, address = ?, profile_image_url = ?, status = ?, school = ?, age = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
-        [phone, address, profileImage || null, status, school, age, programId || existingColporter.program_id, id]
+        [phone, address, profile_image_url || existingColporter.profile_image_url, status || 'ACTIVE', school, age, programId || existingColporter.program_id, id]
       );
     } else {
       // Check if email already exists (if changing email)
@@ -248,7 +250,7 @@ export const updateColporter = async (req, res) => {
       // Update person
       await db.update(
         'UPDATE people SET first_name = ?, last_name = ?, email = ?, phone = ?, address = ?, profile_image_url = ?, status = ?, school = ?, age = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
-        [name, apellido, email, phone, address, profileImage || null, status, school, age, programId || existingColporter.program_id, id]
+        [name, apellido, email, phone, address, profile_image_url || existingColporter.profile_image_url, status, school, age, programId || existingColporter.program_id, id]
       );
     }
     
@@ -293,7 +295,7 @@ export const deleteColporter = async (req, res) => {
       [id]
     );
     
-    if (transactions[0].count > 0) {
+    if (transactions.length > 0 && transactions[0].count > 0) {
       return res.status(400).json({ 
         message: 'Cannot delete colporter with transactions. Consider deactivating instead.' 
       });
@@ -390,9 +392,10 @@ export const createLeader = async (req, res) => {
       institution,
       address,
       createUser,
-      profileImage,
+      profile_image_url,
       programId
     } = req.body;
+    
     
     // Check if email already exists in the same program for this person type
     const existingPerson = await db.getOne(
@@ -409,7 +412,7 @@ export const createLeader = async (req, res) => {
       // Insert person
       const [personResult] = await connection.execute(
         'INSERT INTO people (first_name, last_name, email, phone, address, profile_image_url, person_type, status, institution, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [name, apellido, email, phone, address, profileImage || null, 'LEADER', 'ACTIVE', institution, programId || null]
+        [name, apellido, email, phone, address, profile_image_url || null, 'LEADER', 'ACTIVE', institution, programId || null]
       );
       
       const personId = personResult.insertId;
@@ -471,7 +474,7 @@ export const createLeader = async (req, res) => {
     // Get the created leader
     const leader = await db.getOne(
       `SELECT id, first_name as name, last_name as apellido, email, phone, 
-       address, profile_image_url as profileImage, status, institution, program_id as programId,
+       address, profile_image_url, status, institution, program_id as programId,
        created_at as createdAt, updated_at as updatedAt, 'LEADER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
        FROM people
@@ -498,9 +501,10 @@ export const updateLeader = async (req, res) => {
       institution,
       address,
       status,
-      profileImage,
+      profile_image_url,
       programId
     } = req.body;
+    
     
     // Check if leader exists
     const existingLeader = await db.getOne(
@@ -519,7 +523,7 @@ export const updateLeader = async (req, res) => {
       // Update person
       await db.update(
         'UPDATE people SET phone = ?, address = ?, profile_image_url = ?, status = ?, institution = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
-        [phone, address, profileImage || null, status, institution, programId || existingLeader.program_id, id]
+        [phone, address, profile_image_url || existingLeader.profile_image_url, status || existingLeader.status, institution, programId || existingLeader.program_id, id]
       );
     } else {
       // Check if email already exists (if changing email)
@@ -537,7 +541,7 @@ export const updateLeader = async (req, res) => {
       // Update person
       await db.update(
         'UPDATE people SET first_name = ?, last_name = ?, email = ?, phone = ?, address = ?, profile_image_url = ?, status = ?, institution = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
-        [name, apellido, email, phone, address, profileImage || null, status, institution, programId || existingLeader.program_id, id]
+        [name, apellido, email, phone, address, profile_image_url || existingLeader.profile_image_url, status, institution, programId || existingLeader.program_id, id]
       );
     }
     
@@ -545,7 +549,7 @@ export const updateLeader = async (req, res) => {
     const updatedLeader = await db.getOne(
       `SELECT id, first_name as name, last_name as apellido, email, phone, 
        address, profile_image_url as profileImage, status, institution, program_id as programId,
-       created_at as createdAt, updated_at as updatedAt, 'LEADER' as personType,
+       profile_image_url, created_at as createdAt, updated_at as updatedAt, 'LEADER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
        FROM people
        WHERE id = ?`,
@@ -582,7 +586,7 @@ export const deleteLeader = async (req, res) => {
       [id]
     );
     
-    if (transactions[0].count > 0) {
+    if (transactions.length > 0 && transactions[0].count > 0) {
       return res.status(400).json({ 
         message: 'Cannot delete leader with transactions. Consider deactivating instead.' 
       });

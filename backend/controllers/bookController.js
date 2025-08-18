@@ -119,10 +119,14 @@ export const createBook = async (req, res) => {
       category,
       description,
       imageUrl,
+      image_url,
       stock,
       is_active,
       programId
     } = req.body;
+    
+    // Handle both imageUrl and image_url for compatibility
+    const finalImageUrl = image_url || imageUrl;
     
     // Validate required fields
     if (!title || !price || !category) {
@@ -134,7 +138,7 @@ export const createBook = async (req, res) => {
       // Insert book
       const [bookResult] = await connection.execute(
         'INSERT INTO books (isbn, title, author, publisher, price, size, category, description, image_url, stock, sold, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [isbn || null, title, author || null, publisher || null, price, size || (price >= 20 ? 'LARGE' : 'SMALL'), category, description, imageUrl || null, 0, 0, is_active !== false]
+        [isbn || null, title, author || null, publisher || null, price, size || (price >= 20 ? 'LARGE' : 'SMALL'), category, description, finalImageUrl || null, 0, 0, is_active !== false]
       );
       
       const bookId = bookResult.insertId;
@@ -193,10 +197,14 @@ export const updateBook = async (req, res) => {
       category,
       description,
       imageUrl,
+      image_url,
       stock,
       is_active,
       programId
     } = req.body;
+    
+    // Handle both imageUrl and image_url for compatibility
+    const finalImageUrl = image_url || imageUrl;
     
     // Check if book exists
     const existingBook = await db.getOne(
@@ -213,7 +221,7 @@ export const updateBook = async (req, res) => {
       // Update book
       await connection.execute(
         'UPDATE books SET isbn = ?, title = ?, author = ?, publisher = ?, price = ?, size = ?, category = ?, description = ?, image_url = ?, is_active = ? WHERE id = ?',
-        [isbn || null, title, author || null, publisher || null, price, size || (price >= 20 ? 'LARGE' : 'SMALL'), category, description, imageUrl || null, is_active !== false, id]
+        [isbn || null, title, author || null, publisher || null, price, size || (price >= 20 ? 'LARGE' : 'SMALL'), category, description, finalImageUrl || existingBook.image_url, is_active !== false, id]
       );
       
       // If programId is provided, update program_books

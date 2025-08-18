@@ -38,15 +38,59 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Determine size based on price if not explicitly set
-    const size = formData.size || (formData.price >= 12 ? BookSize.LARGE : BookSize.SMALL);
+    const submitData = async () => {
+      let finalImageUrl = formData.image_url;
+      
+      // If there's a file to upload (base64 data URL), upload it first
+      if (formData.image_url && formData.image_url.startsWith('data:')) {
+        try {
+          // Convert base64 to file
+          const response = await fetch(formData.image_url);
+          const blob = await response.blob();
+          const file = new File([blob], 'book-image.jpg', { type: 'image/jpeg' });
+          
+          finalImageUrl = await uploadImage(file);
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          // Continue without image if upload fails
+          finalImageUrl = '';
+        }
+      }
+      
+      // Determine size based on price if not explicitly set
+      const size = formData.size || (formData.price >= 12 ? BookSize.LARGE : BookSize.SMALL);
+      
+      onSubmit({
+        ...formData,
+        size,
+        price: Number(formData.price),
+        stock: Number(formData.stock),
+        image_url: finalImageUrl // Use the URL returned from upload
+      });
+    };
     
-    onSubmit({
-      ...formData,
-      size,
-      price: Number(formData.price),
-      stock: Number(formData.stock),
+    submitData();
+  };
+
+  const uploadImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/upload/book`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+      credentials: 'include',
+      body: formData,
     });
+    
+    if (!response.ok) {
+      throw new Error('Upload failed');
+    }
+    
+    const data = await response.json();
+    return data.imageUrl;
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -134,7 +178,7 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
               </div>
 
               <Input
-                label={t('inventory.bookTitle')}
+                label={t('inventory.title')}
                 name="title"
                 value={formData.title}
                 onChange={handleChange}
@@ -201,13 +245,13 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
                   required
                 >
                   <option value="">Select category</option>
-                  {/* <option value="religious">Religious</option> */}
+                  <option value="religious">Religious</option>
                   <option value="Health">Health</option>
-                  {/* <option value="family">Family</option>
-                  <option value="children">Children</option> */}
+                  <option value="family">Family</option>
+                  <option value="children">Children</option>
                   <option value="Devotional">Devotional</option>
-                  {/* <option value="educational">Educational</option>
-                  <option value="other">Other</option> */}
+                  <option value="educational">Educational</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
 

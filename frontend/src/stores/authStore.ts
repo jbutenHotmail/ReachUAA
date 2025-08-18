@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { AuthState, User } from '../types';
 import { api, refreshAccessToken } from '../api';
-import { useProgramStore } from './programStore';
 
 interface LoginResponse {
   user: User;
@@ -15,6 +14,7 @@ interface AuthStore extends AuthState {
   register: (name: string, email: string, password: string) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (token: string, password: string) => Promise<void>;
+  getUserProfile: () => Promise<User>;
   updateProfile: (user: Partial<User>) => Promise<User>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   refreshToken: () => Promise<void>;
@@ -85,13 +85,8 @@ export const useAuthStore = create<AuthStore>()(
             user: null, 
             token: null, 
             isAuthenticated: false, 
-            isLoading: false,
+            isLoading: false 
           });
-          // set wasprogramfetched to false in program store
-          useProgramStore.setState(state => ({
-            ...state,
-            wasProgramFetched: false
-          }));
         }
       },
 
@@ -165,6 +160,17 @@ export const useAuthStore = create<AuthStore>()(
             isLoading: false 
           });
           throw error;
+        }
+      },
+
+      getUserProfile: async () => {
+        // This function is no longer needed since login and refresh token
+        // endpoints now return complete user data
+        const currentUser = get().user;
+        if (currentUser) {
+          return currentUser;
+        } else {
+          throw new Error('No user found');
         }
       },
 
