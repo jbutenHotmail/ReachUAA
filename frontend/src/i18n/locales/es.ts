@@ -552,6 +552,7 @@ export default {
     personType: "Tipo de Persona",
     schoolInstitutionPlaceholder: "ej., Universidad de Oakwood",
     colporter: "Colportor",
+    selectColporter: "Seleccionar Colportor",
     colporterDescription: "Vendedor de libros estudiantil",
     leader: "Líder",
     leaderDescription: "Supervisor de equipo",

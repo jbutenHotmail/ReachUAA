@@ -117,11 +117,11 @@ const ProgramReport: React.FC = () => {
       const totalDonations = approvedTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0)
 
       const filteredCharges = charges.filter((charge) => charge.status === "APPLIED")
-      const totalFines = filteredCharges.reduce((sum, c) => sum + c.amount, 0)
+      const totalFines = filteredCharges.reduce((sum, c) => Number(sum) + Number(c.amount), 0)
       const filteredAdvances = advances.filter((advance) => advance.status === "APPROVED")
       const totalAdvances = filteredAdvances.reduce((sum, a) => sum + a.advanceAmount, 0)
 
-      const programExpenses = approvedExpenses.reduce((sum, e) => sum + e.amount, 0)
+      const programExpenses = approvedExpenses.reduce((sum, e) => Number(sum) + Number(e.amount), 0)
       const colporterAmount = totalDonations * (colporterPercentage / 100)
 
       // Crear mapa de colportores
@@ -282,7 +282,7 @@ const ProgramReport: React.FC = () => {
         backgroundColor: "rgba(59, 130, 246, 0.8)",
       },
       {
-        label: `${t("dashboard.revenueDistribution")} (${t("common.colporters")})`,
+        label: `${t("dashboard.revenueDistribution")} (${t("common.leaders")})`,
         data: uniqueLeaders.map((leader) => {
           // Calcular ganancias basado en ventas del equipo específico
           const teamSales = colporterFinancials
@@ -411,7 +411,7 @@ const ProgramReport: React.FC = () => {
     leader.leaderEarnings = leader.totalDonations * (leader.leaderPercentage / 100)
   })
 
-  const totalProgramExpenses = approvedExpenses.reduce((sum, e) => sum + e.amount, 0)
+  const totalProgramExpenses = approvedExpenses.reduce((sum, e) => Number(sum) + Number(e.amount), 0)
 
   return (
     <div className="space-y-6">

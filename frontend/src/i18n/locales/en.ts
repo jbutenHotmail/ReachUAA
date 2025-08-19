@@ -720,6 +720,7 @@ export default {
   personForm: {
     addNewPerson: "Add New Person",
     editPerson: "Edit Person",
+    selectColporter: "Select Colporter",
     personType: "Person Type",
     schoolInstitutionPlaceholder: "e.g., Oakwood University",
     colporter: "Colporter",
