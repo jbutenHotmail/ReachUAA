@@ -71,7 +71,7 @@ const FinancialBreakdown: React.FC = () => {
         
         const programCostsAmount = expenses
           .filter(e => e.status === 'APPROVED')
-          .reduce((sum: number, expense: any) => sum + expense.amount, 0);
+          .reduce((sum: number, expense: any) => Number(sum) + Number(expense.amount), 0);
         
         const totalExpenses = advancesAmount + programCostsAmount;
         const netProfit = totalRevenue - totalExpenses - (studentsAmount + leadersAmount);
@@ -272,6 +272,7 @@ const FinancialBreakdown: React.FC = () => {
               <div className="flex justify-between items-center p-2 bg-orange-50 rounded">
                 <span className="text-sm text-orange-700">{t('expenses.programCosts')}</span>
                 <span className="text-sm font-medium text-orange-900">
+                 
                   {formatCurrency(financialData.expenses.programCosts)}
                 </span>
               </div>
