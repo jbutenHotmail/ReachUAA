@@ -9,7 +9,8 @@ export const getTransactions = async (req, res) => {
       SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
       t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
       t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-      t.transaction_date as date, t.status, t.program_id as programId, t.created_at as createdAt, t.updated_at as updatedAt
+      DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId, 
+      t.created_at as createdAt, t.updated_at as updatedAt
       FROM transactions t
       JOIN people sp ON t.student_id = sp.id
       JOIN people lp ON t.leader_id = lp.id
@@ -19,7 +20,7 @@ export const getTransactions = async (req, res) => {
     const conditions = [];
     
     if (date) {
-      conditions.push('t.transaction_date = ?');
+      conditions.push('DATE(t.transaction_date) = ?');
       params.push(date);
     }
     
@@ -83,7 +84,8 @@ export const getTransactionById = async (req, res) => {
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
        t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
        t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-       t.transaction_date as date, t.status, t.program_id as programId, t.created_at as createdAt, t.updated_at as updatedAt
+       DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId, 
+       t.created_at as createdAt, t.updated_at as updatedAt
        FROM transactions t
        JOIN people sp ON t.student_id = sp.id
        JOIN people lp ON t.leader_id = lp.id
@@ -177,7 +179,8 @@ export const createTransaction = async (req, res) => {
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
        t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
        t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-       t.transaction_date as date, t.status, t.program_id as programId, t.created_at as createdAt, t.updated_at as updatedAt
+       DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId, 
+       t.created_at as createdAt, t.updated_at as updatedAt
        FROM transactions t
        JOIN people sp ON t.student_id = sp.id
        JOIN people lp ON t.leader_id = lp.id
@@ -303,7 +306,8 @@ export const updateTransaction = async (req, res) => {
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
        t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
        t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-       t.transaction_date as date, t.status, t.program_id as programId, t.created_at as createdAt, t.updated_at as updatedAt
+       DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId, 
+       t.created_at as createdAt, t.updated_at as updatedAt
        FROM transactions t
        JOIN people sp ON t.student_id = sp.id
        JOIN people lp ON t.leader_id = lp.id
@@ -437,7 +441,8 @@ export const approveTransaction = async (req, res) => {
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
        t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
        t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-       t.transaction_date as date, t.status, t.program_id as programId, t.created_at as createdAt, t.updated_at as updatedAt
+       DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId, 
+       t.created_at as createdAt, t.updated_at as updatedAt
        FROM transactions t
        JOIN people sp ON t.student_id = sp.id
        JOIN people lp ON t.leader_id = lp.id
@@ -526,7 +531,8 @@ export const rejectTransaction = async (req, res) => {
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
        t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
        t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-       t.transaction_date as date, t.status, t.program_id as programId, t.created_at as createdAt, t.updated_at as updatedAt
+       DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId, 
+       t.created_at as createdAt, t.updated_at as updatedAt
        FROM transactions t
        JOIN people sp ON t.student_id = sp.id
        JOIN people lp ON t.leader_id = lp.id

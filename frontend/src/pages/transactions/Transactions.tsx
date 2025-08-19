@@ -126,17 +126,21 @@ const Transactions: React.FC = () => {
 
   const filteredTransactions = React.useMemo(() => {
     if (!selectedLeader)
-      return transactions.filter((t) => formatDateToString(t.date) === formatDateToString(selectedDate))
+      return transactions.filter((t) => t.date === formatDateToString(selectedDate))
     return transactions.filter(
       (t) =>
         Number(t.leaderId) === Number(selectedLeader) &&
-        formatDateToString(t.date) === selectedDate.toISOString().split("T")[0],
+        t.date === formatDateToString(selectedDate),
     )
   }, [transactions, selectedLeader, selectedDate])
 
   // Calculate book totals from valid transactions
   const bookTotals = React.useMemo(() => {
-    return validTransactions.reduce(
+    const dayTransactions = transactions.filter((t) => 
+      t.date === formatDateToString(selectedDate) && t.status === 'APPROVED'
+    );
+    
+    return dayTransactions.reduce(
       (acc, transaction) => {
         transaction.books?.forEach((book) => {
           const bookSize = book.size

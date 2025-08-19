@@ -99,8 +99,15 @@ export const createLocalDate = (dateStr: string): Date => {
  * @returns True if the dates represent the same day, false otherwise
  */
 export const isSameDay = (date1: Date | string, date2: Date | string): boolean => {
-  const d1 = typeof date1 === 'string' ? createLocalDate(date1) : date1;
-  const d2 = typeof date2 === 'string' ? createLocalDate(date2) : date2;
+  // If both are strings in YYYY-MM-DD format, compare directly
+  if (typeof date1 === 'string' && typeof date2 === 'string') {
+    const dateStr1 = date1.split('T')[0]; // Extract date part if datetime
+    const dateStr2 = date2.split('T')[0]; // Extract date part if datetime
+    return dateStr1 === dateStr2;
+  }
+  
+  const d1 = typeof date1 === 'string' ? createLocalDate(date1.split('T')[0]) : date1;
+  const d2 = typeof date2 === 'string' ? createLocalDate(date2.split('T')[0]) : date2;
   
   return (
     d1.getFullYear() === d2.getFullYear() &&
