@@ -18,7 +18,7 @@ export default {
     all: "Todos",
     welcome: "Bienvenido",
     student: "Estudiante",
-    leader: "Responsable",
+    leader: "Líder",
     total: "Total",
     totals: "Totales",
     select: "Seleccionar",
