@@ -175,7 +175,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                     <div className="px-3 py-2 border-t border-gray-200 bg-primary-50">
                       <div className="flex items-center justify-between">
                         <div className="font-medium text-primary-900 text-sm">
-                          {selectedLeader.name}
+                          {selectedLeader.name} 
                         </div>
                         <button
                           type="button"
@@ -247,7 +247,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                   <option value="health">{t('expenses.health')}</option>
                   <option value="supplies">{t('expenses.supplies')}</option>
                   <option value="maintenance">{t('expenses.maintenance')}</option>
-                  <option value="vehicle">{t('expenses.vehicle')}</option>
+                  <option value="fuel">{t('expenses.fuel')}</option>
                   <option value="program">{t('expenses.programCosts')}</option>
                 </select>
               </div>

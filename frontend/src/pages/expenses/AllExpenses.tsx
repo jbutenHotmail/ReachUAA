@@ -11,6 +11,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { UserRole } from '../../types';
 import { useExpenseStore } from '../../stores/expenseStore';
 import LoadingScreen from '../../components/ui/LoadingScreen';
+import { formatNumber } from '../../utils/numberUtils';
 
 interface Expense {
   id: string;
@@ -101,7 +102,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
 
   // Calculate totals - ONLY APPROVED EXPENSES
   const approvedExpenses = filteredExpenses.filter(e => e.status === 'APPROVED' || !e.status);
-  const totalAmount = approvedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const totalAmount = filteredExpenses.filter(e => e.status !== 'REJECTED').reduce((sum, expense) => Number(sum) + Number(expense.amount), 0);
   const averagePerDay = totalAmount / (approvedExpenses.length || 1);
 
   // Get unique leaders from expenses
@@ -231,7 +232,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
         <Card>
           <div className="text-center">
             <p className="text-sm font-medium text-gray-500">{t('expenses.amount')}</p>
-            <p className="mt-2 text-3xl font-bold text-gray-900">${totalAmount.toFixed(2)}</p>
+            <p className="mt-2 text-3xl font-bold text-gray-900">${formatNumber(totalAmount)}</p>
             <p className="mt-1 text-sm text-gray-500">{t('expenses.totalExpenses')}</p>
           </div>
         </Card>
@@ -239,7 +240,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
         <Card>
           <div className="text-center">
             <p className="text-sm font-medium text-gray-500">{t('expenses.pending')}</p>
-            <p className="mt-2 text-3xl font-bold text-warning-600">${pendingTotal.toFixed(2)}</p>
+            <p className="mt-2 text-3xl font-bold text-warning-600">${formatNumber(pendingTotal)}</p>
             <p className="mt-1 text-sm text-gray-500">{t('expenses.awaiting')}</p>
           </div>
         </Card>
@@ -247,7 +248,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
         <Card>
           <div className="text-center">
             <p className="text-sm font-medium text-gray-500">{t('expenses.approved')}</p>
-            <p className="mt-2 text-3xl font-bold text-success-600">${approvedTotal.toFixed(2)}</p>
+            <p className="mt-2 text-3xl font-bold text-success-600">${formatNumber(approvedTotal)}</p>
             <p className="mt-1 text-sm text-gray-500">{t('expenses.confirmed')}</p>
           </div>
         </Card>
@@ -255,7 +256,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
         <Card>
           <div className="text-center">
             <p className="text-sm font-medium text-gray-500">{t('expenses.dailyAverage')}</p>
-            <p className="mt-2 text-3xl font-bold text-gray-900">${averagePerDay.toFixed(2)}</p>
+            <p className="mt-2 text-3xl font-bold text-gray-900">${formatNumber(averagePerDay)}</p>
             <p className="mt-1 text-sm text-gray-500">{t('expenses.perDay')}</p>
           </div>
         </Card>
