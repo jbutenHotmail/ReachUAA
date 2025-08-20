@@ -12,6 +12,7 @@ import { useProgramStore } from "../../stores/programStore"
 import { api } from "../../api"
 import LoadingScreen from "../../components/ui/LoadingScreen"
 import type { Colporter, Leader } from "../../types"
+import { formatNumber } from '../../utils/numberUtils'
 
 interface ColporterSummerStats {
   bruto: {
@@ -407,7 +408,7 @@ const SummerColporterReport: React.FC = () => {
               <DollarSign className="text-primary-600" size={24} />
             </div>
             <p className="text-sm font-medium text-gray-500">{t("summerColporterReport.totalSalesBruto")}</p>
-            <p className="mt-1 text-2xl font-bold text-primary-600">${stats.bruto.total.toFixed(2)}</p>
+            <p className="mt-1 text-2xl font-bold text-primary-600">${formatNumber(stats.bruto.total)}</p>
             <p className="text-xs text-gray-500">100% de las ventas</p>
           </div>
         </Card>
@@ -418,7 +419,7 @@ const SummerColporterReport: React.FC = () => {
               <DollarSign className="text-success-600" size={24} />
             </div>
             <p className="text-sm font-medium text-gray-500">{t("summerColporterReport.netEarningsNeto")}</p>
-            <p className="mt-1 text-2xl font-bold text-success-600">${stats.neto.total.toFixed(2)}</p>
+            <p className="mt-1 text-2xl font-bold text-success-600">${formatNumber(stats.neto.total)}</p>
             <p className="text-xs text-gray-500">{percentage}% de las ventas</p>
           </div>
         </Card>
@@ -464,7 +465,7 @@ const SummerColporterReport: React.FC = () => {
                   {topSellerBook.totalQuantity} libros
                 </Badge>
                 <Badge variant="secondary" size="sm">
-                  ${topSellerBook.totalRevenue.toFixed(0)}
+                  ${Number(topSellerBook.totalRevenue).toFixed(0)}
                 </Badge>
               </div>
             </div>
@@ -591,7 +592,7 @@ const SummerColporterReport: React.FC = () => {
                   })
                 : "N/A"}
             </p>
-            <p className="text-base font-bold text-success-700">${stats.bestDay.amount.toFixed(2)}</p>
+            <p className="text-base font-bold text-success-700">${formatNumber(stats.bestDay.amount)}</p>
           </div>
 
           <div className="p-3 bg-warning-50 rounded-lg">
@@ -607,14 +608,14 @@ const SummerColporterReport: React.FC = () => {
                 : "N/A"}
             </p>
             <p className="text-base font-bold text-warning-700">
-              ${stats.worstDay.amount > 0 ? stats.worstDay.amount.toFixed(2) : "0.00"}
+              ${stats.worstDay.amount > 0 ? Number(stats.worstDay.amount).toFixed(2) : "0.00"}
             </p>
           </div>
 
           <div className="p-3 bg-info-50 rounded-lg">
             <h4 className="font-semibold text-info-700 text-sm">{t("summerColporterReport.dailyAverage")}</h4>
             <p className="text-xs text-info-600 mt-1">{t("summerColporterReport.perWorkingDay")}</p>
-            <p className="text-base font-bold text-info-700">${stats.bruto.promedio.toFixed(2)}</p>
+            <p className="text-base font-bold text-info-700">${formatNumber(stats.bruto.promedio)}</p>
           </div>
 
           <div className="p-3 bg-purple-50 rounded-lg">
@@ -653,7 +654,7 @@ const SummerColporterReport: React.FC = () => {
                   <tr key={member.id} className={index % 2 === 0 ? "bg-gray-50" : ""}>
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{member.name}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                      ${member.totalSales.toFixed(2)}
+                      ${formatNumber(member.totalSales)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                       <Badge variant="primary">{member.books.large}</Badge>
@@ -724,11 +725,11 @@ const SummerColporterReport: React.FC = () => {
                     .sort()
                     .map((date) => (
                       <td key={date} className="px-4 py-3 text-sm text-right whitespace-nowrap">
-                        ${dailySales[date].toFixed(2)}
+                        ${formatNumber(dailySales[date])}
                       </td>
                     ))}
                   <td className="px-4 py-3 text-sm text-right font-medium whitespace-nowrap">
-                    ${stats.bruto.total.toFixed(2)}
+                    ${formatNumber(stats.bruto.total)}
                   </td>
                 </tr>
               </tbody>
@@ -775,7 +776,7 @@ const SummerColporterReport: React.FC = () => {
                     <td className="px-4 py-3 text-sm text-center font-medium">
                       <Badge variant="secondary">{data.books.large + data.books.small}</Badge>
                     </td>
-                    <td className="px-4 py-3 text-sm text-right font-medium">${data.sales.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm text-right font-medium">${formatNumber(data.sales)}</td>
                   </tr>
                 ))}
                 <tr className="bg-gray-100">
@@ -791,7 +792,7 @@ const SummerColporterReport: React.FC = () => {
                   <td className="px-4 py-3 text-sm text-center font-bold">
                     <Badge variant="secondary">{totalBooks}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-sm text-right font-bold">${stats.bruto.total.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-sm text-right font-bold">${formatNumber(stats.bruto.total)}</td>
                 </tr>
               </tbody>
             </table>
@@ -849,7 +850,7 @@ const SummerColporterReport: React.FC = () => {
                           {(dailyBooks[date]?.large || 0) + (dailyBooks[date]?.small || 0)}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-sm text-right font-medium">${dailySales[date].toFixed(2)}</td>
+                      <td className="px-4 py-3 text-sm text-right font-medium">${formatNumber(dailySales[date])}</td>
                     </tr>
                   ))}
               </tbody>
