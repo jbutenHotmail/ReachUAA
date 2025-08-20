@@ -172,74 +172,181 @@ const DonationsReport: React.FC = () => {
   const transformTransactionsToSalesData = () => {
     const filteredTransactions = getFilteredTransactions();
 
-    const colporterMap = new Map();
+    if (showLeaders) {
+      // When grouping by leaders, group transactions by the leader who was in charge that day
+      const leaderMap = new Map();
 
-    filteredTransactions.forEach((transaction) => {
-      if (!colporterMap.has(transaction.studentId)) {
-        colporterMap.set(transaction.studentId, {
-          colporterName: transaction.studentName,
-          leaderName: transaction.leaderName,
-          dailySales: {},
-          totalSales: 0,
-        });
-      }
+      filteredTransactions.forEach((transaction) => {
+        const leaderName = transaction.leaderName;
+        
+        if (!leaderMap.has(leaderName)) {
+          leaderMap.set(leaderName, {
+            colporterName: leaderName, // El nombre del líder como "colporter" para el reporte
+            leaderName: leaderName,
+            allLeaders: [leaderName],
+            dailySales: {},
+            totalSales: 0,
+          });
+        }
 
-      const colporterData = colporterMap.get(transaction.studentId);
+        const leaderData = leaderMap.get(leaderName);
 
-      // Usar fecha consistente como clave
-      const transactionDate = getDateFromUTC(transaction.date);
-      const dateKey = formatDateKey(transactionDate);
+        // Usar fecha consistente como clave
+        const transactionDate = getDateFromUTC(transaction.date);
+        const dateKey = formatDateKey(transactionDate);
 
-      if (!colporterData.dailySales[dateKey]) {
-        colporterData.dailySales[dateKey] = 0;
-      }
+        if (!leaderData.dailySales[dateKey]) {
+          leaderData.dailySales[dateKey] = 0;
+        }
 
-      colporterData.dailySales[dateKey] += Number(transaction.total);
-      colporterData.totalSales += Number(transaction.total);
-    });
+        leaderData.dailySales[dateKey] += Number(transaction.total);
+        leaderData.totalSales += Number(transaction.total);
+      });
 
-    return Array.from(colporterMap.values());
+      return Array.from(leaderMap.values());
+    } else {
+      // When grouping by colporters, use the existing logic
+      const colporterMap = new Map();
+
+      filteredTransactions.forEach((transaction) => {
+        if (!colporterMap.has(transaction.studentId)) {
+          colporterMap.set(transaction.studentId, {
+            colporterName: transaction.studentName,
+            leaderName: transaction.leaderName, // Primer líder encontrado
+            allLeaders: new Set([transaction.leaderName]), // Todos los líderes
+            dailySales: {},
+            totalSales: 0,
+          });
+        } else {
+          // Si el colportor ya existe, agregar el líder al set
+          const colporterData = colporterMap.get(transaction.studentId);
+          colporterData.allLeaders.add(transaction.leaderName);
+          
+          // Si hay múltiples líderes, mostrar "Multiple Leaders"
+          if (colporterData.allLeaders.size > 1) {
+            colporterData.leaderName = "Multiple Leaders";
+          }
+        }
+
+        const colporterData = colporterMap.get(transaction.studentId);
+
+        // Usar fecha consistente como clave
+        const transactionDate = getDateFromUTC(transaction.date);
+        const dateKey = formatDateKey(transactionDate);
+
+        if (!colporterData.dailySales[dateKey]) {
+          colporterData.dailySales[dateKey] = 0;
+        }
+
+        colporterData.dailySales[dateKey] += Number(transaction.total);
+        colporterData.totalSales += Number(transaction.total);
+      });
+
+      // Convertir el Set de líderes a array para el resultado final
+      return Array.from(colporterMap.values()).map(colporter => ({
+        ...colporter,
+        allLeaders: Array.from(colporter.allLeaders) // Convertir Set a Array
+      }));
+    }
   };
 
   const transformTransactionsToBookData = () => {
     const filteredTransactions = getFilteredTransactions();
 
-    const colporterMap = new Map();
+    if (showLeaders) {
+      // When grouping by leaders, group transactions by the leader who was in charge that day
+      const leaderMap = new Map();
 
-    filteredTransactions.forEach((transaction) => {
-      if (!colporterMap.has(transaction.studentId)) {
-        colporterMap.set(transaction.studentId, {
-          colporterName: transaction.studentName,
-          leaderName: transaction.leaderName,
-          dailyBooks: {},
-          totalBooks: { large: 0, small: 0 },
-        });
-      }
-
-      const colporterData = colporterMap.get(transaction.studentId);
-
-      if (transaction.books && transaction.books.length > 0) {
-        // Usar fecha consistente como clave
-        const transactionDate = getDateFromUTC(transaction.date);
-        const dateKey = formatDateKey(transactionDate);
-
-        if (!colporterData.dailyBooks[dateKey]) {
-          colporterData.dailyBooks[dateKey] = { large: 0, small: 0 };
+      filteredTransactions.forEach((transaction) => {
+        const leaderName = transaction.leaderName;
+        
+        if (!leaderMap.has(leaderName)) {
+          leaderMap.set(leaderName, {
+            colporterName: leaderName, // El nombre del líder como "colporter" para el reporte
+            leaderName: leaderName,
+            allLeaders: [leaderName],
+            dailyBooks: {},
+            totalBooks: { large: 0, small: 0 },
+          });
         }
 
-        transaction.books.forEach((book) => {
-          if (book.size === "LARGE") {
-            colporterData.dailyBooks[dateKey].large += book.quantity;
-            colporterData.totalBooks.large += book.quantity;
-          } else {
-            colporterData.dailyBooks[dateKey].small += book.quantity;
-            colporterData.totalBooks.small += book.quantity;
-          }
-        });
-      }
-    });
+        const leaderData = leaderMap.get(leaderName);
 
-    return Array.from(colporterMap.values());
+        if (transaction.books && transaction.books.length > 0) {
+          // Usar fecha consistente como clave
+          const transactionDate = getDateFromUTC(transaction.date);
+          const dateKey = formatDateKey(transactionDate);
+
+          if (!leaderData.dailyBooks[dateKey]) {
+            leaderData.dailyBooks[dateKey] = { large: 0, small: 0 };
+          }
+
+          transaction.books.forEach((book) => {
+            if (book.size === "LARGE") {
+              leaderData.dailyBooks[dateKey].large += book.quantity;
+              leaderData.totalBooks.large += book.quantity;
+            } else {
+              leaderData.dailyBooks[dateKey].small += book.quantity;
+              leaderData.totalBooks.small += book.quantity;
+            }
+          });
+        }
+      });
+
+      return Array.from(leaderMap.values());
+    } else {
+      // When grouping by colporters, use the existing logic
+      const colporterMap = new Map();
+
+      filteredTransactions.forEach((transaction) => {
+        if (!colporterMap.has(transaction.studentId)) {
+          colporterMap.set(transaction.studentId, {
+            colporterName: transaction.studentName,
+            leaderName: transaction.leaderName, // Primer líder encontrado
+            allLeaders: new Set([transaction.leaderName]), // Todos los líderes
+            dailyBooks: {},
+            totalBooks: { large: 0, small: 0 },
+          });
+        } else {
+          // Si el colportor ya existe, agregar el líder al set
+          const colporterData = colporterMap.get(transaction.studentId);
+          colporterData.allLeaders.add(transaction.leaderName);
+          
+          // Si hay múltiples líderes, mostrar "Multiple Leaders"
+          if (colporterData.allLeaders.size > 1) {
+            colporterData.leaderName = "Multiple Leaders";
+          }
+        }
+
+        const colporterData = colporterMap.get(transaction.studentId);
+
+        if (transaction.books && transaction.books.length > 0) {
+          // Usar fecha consistente como clave
+          const transactionDate = getDateFromUTC(transaction.date);
+          const dateKey = formatDateKey(transactionDate);
+
+          if (!colporterData.dailyBooks[dateKey]) {
+            colporterData.dailyBooks[dateKey] = { large: 0, small: 0 };
+          }
+
+          transaction.books.forEach((book) => {
+            if (book.size === "LARGE") {
+              colporterData.dailyBooks[dateKey].large += book.quantity;
+              colporterData.totalBooks.large += book.quantity;
+            } else {
+              colporterData.dailyBooks[dateKey].small += book.quantity;
+              colporterData.totalBooks.small += book.quantity;
+            }
+          });
+        }
+      });
+
+      // Convertir el Set de líderes a array para el resultado final
+      return Array.from(colporterMap.values()).map(colporter => ({
+        ...colporter,
+        allLeaders: Array.from(colporter.allLeaders) // Convertir Set a Array
+      }));
+    }
   };
 
   const formatDateRange = () => {

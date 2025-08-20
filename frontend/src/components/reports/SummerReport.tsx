@@ -145,7 +145,7 @@ const SummerReport: React.FC<SummerReportProps> = ({
     if (!showLeaders) return sales
 
     const leaderMap = new Map<string, SummerSale>()
-
+    
     sales.forEach((sale) => {
       const leaderName = sale.leaderName || t("common.unknown")
 
