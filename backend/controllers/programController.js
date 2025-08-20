@@ -590,20 +590,20 @@ export const updateFinancialConfig = async (req, res) => {
   try {
     const { id } = req.params;
     const {
-      colporterPercentage,
-      leaderPercentage,
-      colporterCashAdvancePercentage,
-      leaderCashAdvancePercentage,
+      colporter_percentage,
+      leader_percentage,
+      colporter_cash_advance_percentage,
+      leader_cash_advance_percentage,
     } = req.body;
 
     // Update financial config
     await db.update(
       "UPDATE program_financial_config SET colporter_percentage = ?, leader_percentage = ?, colporter_cash_advance_percentage = ?, leader_cash_advance_percentage = ?, updated_at = NOW() WHERE program_id = ?",
       [
-        colporterPercentage,
-        leaderPercentage,
-        colporterCashAdvancePercentage,
-        leaderCashAdvancePercentage,
+        colporter_percentage,
+        leader_percentage,
+        colporter_cash_advance_percentage,
+        leader_cash_advance_percentage,
         id,
       ]
     );

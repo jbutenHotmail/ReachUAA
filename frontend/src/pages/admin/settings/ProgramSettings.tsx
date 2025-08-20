@@ -226,11 +226,11 @@ const ProgramSettings: React.FC = () => {
     try {
       // Use the store method to update financial config
       await updateFinancialConfig(program.id, {
-        colporterPercentage: financialConfig.colporterPercentage,
-        leaderPercentage: financialConfig.leaderPercentage,
-        colporterCashAdvancePercentage:
+        colporter_percentage: financialConfig.colporterPercentage,
+        leader_percentage: financialConfig.leaderPercentage,
+        colporter_cash_advance_percentage:
           financialConfig.colporterCashAdvancePercentage,
-        leaderCashAdvancePercentage:
+        leader_cash_advance_percentage:
           financialConfig.leaderCashAdvancePercentage,
       });
 

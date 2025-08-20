@@ -1,7 +1,7 @@
 // AdminCashAdvance.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Wallet, Calendar, ChevronDown, X, Edit3, Save, AlertCircle } from 'lucide-react';
+import { Wallet, Calendar, ChevronDown, X, Save, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useUserStore } from '../../stores/userStore';
 import { useCashAdvanceStore } from '../../stores/cashAdvanceStore';
@@ -58,7 +58,7 @@ const AdminCashAdvance: React.FC = () => {
       // Set default percentage based on person type
       const defaultPercentage = selectedPerson.personType === 'COLPORTER' 
         ? program?.financialConfig?.colporter_cash_advance_percentage || 20
-        : program?.financialConfig?.leader_percentage || 25;
+        : program?.financialConfig?.leader_cash_advance_percentage || 25;
       setCustomPercentage(defaultPercentage);
       setIsEditingPercentage(false);
       
@@ -123,7 +123,7 @@ const AdminCashAdvance: React.FC = () => {
       : program?.financialConfig?.leader_cash_advance_percentage || 25;
     
     // Calculate maximum advance amount
-    const maxAdvanceAmount = totalSales * (maxPercentage / 100);
+    const maxAdvanceAmount = totalSales * (Number(maxPercentage) / 100);
     
     // Create weekly sales object
     const calculatedWeeklySales = {
@@ -465,13 +465,13 @@ const AdminCashAdvance: React.FC = () => {
                       ) : (
                         <div className="flex items-center gap-2">
                           <span className="text-lg font-bold text-primary-700">{customPercentage}%</span>
-                          <Button
+                          {/* <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setIsEditingPercentage(true)}
                           >
                             <Edit3 size={14} />
-                          </Button>
+                          </Button> */}
                         </div>
                       )}
                     </div>
