@@ -6,14 +6,15 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import { useProgramStore } from '../../stores/programStore';
+import { useUserStore } from '../../stores/userStore';
 import { api } from '../../api';
 import LoadingScreen from '../../components/ui/LoadingScreen';
-import { Leader } from '../../types';
-
+import { formatNumber } from '../../utils/numberUtils';
 const LeaderDetailPage: React.FC = () => {
   const { t } = useTranslation();
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
+  const { people, fetchPeople, werePeopleFetched } = useUserStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { program } = useProgramStore();
@@ -24,31 +25,30 @@ const LeaderDetailPage: React.FC = () => {
   const [colporterStats, setColporterStats] = useState<any[]>([]);
   const [monthlyData, setMonthlyData] = useState<Record<string, { sales: number; days: number; books: { large: number; small: number } }>>({});
 
+  // Fetch people data if not already loaded
+  useEffect(() => {
+    if (!werePeopleFetched) {
+      fetchPeople(program?.id);
+    }
+  }, [fetchPeople, werePeopleFetched, program]);
+
   // Fetch leader ID by name
   useEffect(() => {
-    const getLeaderId = async () => {
-      try {
-        const people: Leader[] = await api.get('/people/leaders');
-        const leader = people.find((p: any) => 
-          `${p.name} ${p.apellido}` === name || 
-          p.name === name
-        );
-        
-        if (leader) {
-          setLeaderId(leader.id);
-        } else {
-          setError(t('common.error'));
-        }
-      } catch (err) {
-        console.error('Error fetching leader:', err);
-        setError(t('common.error'));
+    if (name && people.length > 0) {
+      // Find leader by name from the people store
+      const leaders = people.filter(p => p.personType === 'LEADER');
+      const leader = leaders.find((p: any) => 
+        `${p.name} ${p.apellido}` === name || 
+        p.name === name
+      );
+      
+      if (leader) {
+        setLeaderId(leader.id);
+      } else {
+        setError('Leader not found');
       }
-    };
-    
-    if (name) {
-      getLeaderId();
     }
-  }, [name, t]);
+  }, [name, people]);
 
   // Fetch transactions for this leader's team
   useEffect(() => {
@@ -57,14 +57,22 @@ const LeaderDetailPage: React.FC = () => {
       
       setIsLoading(true);
       try {
-        const leaderTransactions = await api.get('/transactions', { 
-          params: { leaderId, status: 'APPROVED', programId: program?.id }
-        });
+        // Get current program ID for filtering
+        const params: any = { 
+          leaderId, 
+          status: 'APPROVED' 
+        };
+        
+        if (program?.id) {
+          params.programId = program.id;
+        }
+        
+        const leaderTransactions = await api.get('/transactions', { params });
         
         processTransactionData(leaderTransactions);
       } catch (err) {
         console.error('Error fetching transaction data:', err);
-        setError(t('common.error'));
+        setError('Failed to load transaction data');
       } finally {
         setIsLoading(false);
       }
@@ -73,25 +81,34 @@ const LeaderDetailPage: React.FC = () => {
     if (leaderId) {
       loadTransactionData();
     }
-  }, [leaderId, t]);
+  }, [leaderId, program]);
 
   // Process transaction data to get statistics
   const processTransactionData = (leaderTransactions: any[] ) => {
     if (!leaderTransactions.length) {
-      console.log('no transactions')
       setLeaderStats(null);
       setColporterStats([]);
       setMonthlyData({});
       return;
     }
     
-    const totalSales = leaderTransactions.reduce((sum, t) => sum + t.total, 0);
+    // Filter only APPROVED transactions
+    const validTransactions = leaderTransactions.filter(t => t.status === 'APPROVED');
+    
+    if (validTransactions.length === 0) {
+      setLeaderStats(null);
+      setColporterStats([]);
+      setMonthlyData({});
+      return;
+    }
+    
+    const totalSales = validTransactions.reduce((sum, t) => sum + Number(t.total), 0);
     const totalBooks = {
       large: 0,
       small: 0
     };
     
-    leaderTransactions.forEach(transaction => {
+    validTransactions.forEach(transaction => {
       if (transaction.books && transaction.books.length > 0) {
         transaction.books.forEach((book: any) => {
           if (book.size === 'LARGE') {
@@ -105,7 +122,7 @@ const LeaderDetailPage: React.FC = () => {
     
     const colporterMap = new Map();
     
-    leaderTransactions.forEach(transaction => {
+    validTransactions.forEach(transaction => {
       if (!colporterMap.has(transaction.studentId)) {
         colporterMap.set(transaction.studentId, {
           id: transaction.studentId,
@@ -124,13 +141,13 @@ const LeaderDetailPage: React.FC = () => {
       }
       
       const colporter = colporterMap.get(transaction.studentId);
-      colporter.totalSales += transaction.total;
+      colporter.totalSales += Number(transaction.total);
       colporter.transactions.push(transaction);
       
-      if (transaction.total > colporter.bestDay.amount) {
+      if (Number(transaction.total) > colporter.bestDay.amount) {
         colporter.bestDay = {
           date: transaction.date,
-          amount: transaction.total
+          amount: Number(transaction.total)
         };
       }
       
@@ -152,9 +169,13 @@ const LeaderDetailPage: React.FC = () => {
     
     const monthlyDataObj: Record<string, { sales: number; days: number; books: { large: number; small: number } }> = {};
     
-    leaderTransactions.forEach(transaction => {
+    validTransactions.forEach(transaction => {
       const date = new Date(transaction.date);
-      const month = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      const month = date.toLocaleDateString('es-ES', { 
+        month: 'long', 
+        year: 'numeric',
+        timeZone: 'UTC'
+      });
       
       if (!monthlyDataObj[month]) {
         monthlyDataObj[month] = { 
@@ -165,17 +186,21 @@ const LeaderDetailPage: React.FC = () => {
       }
       
       const dateStr = transaction.date;
-      const isNewDay = !leaderTransactions.some(t => 
+      const isNewDay = !validTransactions.some(t => 
         t.date === dateStr && 
         t.id !== transaction.id && 
-        new Date(t.date).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }) === month
+        new Date(t.date).toLocaleDateString('es-ES', { 
+          month: 'long', 
+          year: 'numeric',
+          timeZone: 'UTC'
+        }) === month
       );
       
       if (isNewDay) {
         monthlyDataObj[month].days += 1;
       }
       
-      monthlyDataObj[month].sales += transaction.total;
+      monthlyDataObj[month].sales += Number(transaction.total);
       
       if (transaction.books && transaction.books.length > 0) {
         transaction.books.forEach((book: any) => {
@@ -188,9 +213,9 @@ const LeaderDetailPage: React.FC = () => {
       }
     });
     
-    const salesByDay = leaderTransactions.reduce((acc: Record<string, number>, transaction) => {
+    const salesByDay = validTransactions.reduce((acc: Record<string, number>, transaction) => {
       const date = transaction.date;
-      acc[date] = (acc[date] || 0) + transaction.total;
+      acc[date] = (acc[date] || 0) + Number(transaction.total);
       return acc;
     }, {});
     
@@ -220,14 +245,6 @@ const LeaderDetailPage: React.FC = () => {
     setMonthlyData(monthlyDataObj);
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(amount);
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -244,6 +261,7 @@ const LeaderDetailPage: React.FC = () => {
       </div>
     );
   }
+
   if (!leaderStats || colporterStats.length === 0) {
     return (
       <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg text-warning-700">
@@ -296,7 +314,7 @@ const LeaderDetailPage: React.FC = () => {
               <DollarSign className="text-primary-600" size={24} />
             </div>
             <p className="text-sm font-medium text-gray-500">{t('dashboard.totalSales')}</p>
-            <p className="mt-1 text-2xl font-bold text-primary-600">{formatCurrency(leaderStats.totalSales)}</p>
+            <p className="mt-1 text-2xl font-bold text-primary-600">{formatNumber(leaderStats.totalSales)}</p>
             <p className="text-xs text-gray-500">{leaderStats.colporterCount} {t('common.colporters')}</p>
           </div>
         </Card>
@@ -308,7 +326,7 @@ const LeaderDetailPage: React.FC = () => {
             </div>
             <p className="text-sm font-medium text-gray-500">{t('reports.perColporter')}</p>
             <p className="mt-1 text-2xl font-bold text-success-600">
-              {formatCurrency(leaderStats.totalSales / leaderStats.colporterCount)}
+              {formatNumber(leaderStats.totalSales / leaderStats.colporterCount)}
             </p>
             <p className="text-xs text-gray-500">{t('reports.completeProgram')}</p>
           </div>
@@ -336,7 +354,7 @@ const LeaderDetailPage: React.FC = () => {
             </div>
             <p className="text-sm font-medium text-gray-500">{t('dashboard.dailyAverage')}</p>
             <p className="mt-1 text-2xl font-bold text-info-600">
-              {formatCurrency(leaderStats.totalSales / leaderStats.workingDays)}
+              {formatNumber(leaderStats.totalSales / leaderStats.workingDays)}
             </p>
             <p className="text-xs text-gray-500">{t('dashboard.perWorkingDay')}</p>
           </div>
@@ -350,18 +368,18 @@ const LeaderDetailPage: React.FC = () => {
               <div>
                 <p className="text-sm font-medium text-purple-700">{t('programSettings.leaderPercentage')} ({program?.financialConfig?.leader_percentage || 15}%)</p>
                 <p className="text-2xl font-bold text-purple-800 mt-1">
-                  {formatCurrency(leaderEarnings)}
+                  {formatNumber(leaderEarnings)}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-purple-600">{t('dashboard.basedOnSales')}</p>
-                <p className="text-lg font-semibold text-purple-700">{formatCurrency(leaderStats.totalSales)}</p>
+                <p className="text-lg font-semibold text-purple-700">{formatNumber(leaderStats.totalSales)}</p>
               </div>
             </div>
             
             <div className="mt-4 p-3 bg-white rounded-lg border border-purple-100">
               <p className="text-sm text-purple-800">
-                <strong>{t('confirmationStep.importantNotes')}:</strong> {t('programSettings.leaderPercentage')} {t('reports.distributionExpenses')} ({formatCurrency(leaderStats.totalSales)}) {t('reports.totalSales')}.
+                <strong>{t('confirmationStep.importantNotes')}:</strong> {t('programSettings.leaderPercentage')} {t('reports.distributionExpenses')} ({formatNumber(leaderStats.totalSales)}) {t('reports.totalSales')}.
               </p>
             </div>
           </div>
@@ -380,7 +398,7 @@ const LeaderDetailPage: React.FC = () => {
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="text-sm font-medium text-gray-700">{t('reports.perColporter')}</p>
               <p className="text-lg font-bold text-gray-900">
-                {formatCurrency(leaderEarnings / leaderStats.colporterCount)}
+                {formatNumber(leaderEarnings / leaderStats.colporterCount)}
               </p>
               <p className="text-xs text-gray-500">
                 {t('confirmationStep.programPeople')}
@@ -390,7 +408,7 @@ const LeaderDetailPage: React.FC = () => {
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="text-sm font-medium text-gray-700">{t('dashboard.perWorkingDay')}</p>
               <p className="text-lg font-bold text-gray-900">
-                {formatCurrency(leaderEarnings / leaderStats.workingDays)}
+                {formatNumber(leaderEarnings / leaderStats.workingDays)}
               </p>
               <p className="text-xs text-gray-500">
                 {t('dashboard.perWorkingDay')}
@@ -435,10 +453,10 @@ const LeaderDetailPage: React.FC = () => {
                     {colporter.name}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                    {formatCurrency(colporter.totalSales)}
+                    {formatNumber(colporter.totalSales)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                    {formatCurrency(colporter.averageSales)}
+                    {formatNumber(colporter.averageSales)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                     <Badge variant="primary">{colporter.books.large}</Badge>
@@ -454,7 +472,7 @@ const LeaderDetailPage: React.FC = () => {
                       }) : 'N/A'}
                     </div>
                     <div className="font-medium text-success-600">
-                      {colporter.bestDay.date ? formatCurrency(colporter.bestDay.amount) : '-'}
+                      {colporter.bestDay.date ? formatNumber(colporter.bestDay.amount) : '-'}
                     </div>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
@@ -475,10 +493,10 @@ const LeaderDetailPage: React.FC = () => {
                   {t('common.total')}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
-                  {formatCurrency(leaderStats.totalSales)}
+                  {formatNumber(leaderStats.totalSales)}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
-                  {formatCurrency(leaderStats.averageSales)}
+                  {formatNumber(leaderStats.averageSales)}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-center font-bold">
                   <Badge variant="primary">{leaderStats.totalBooks.large}</Badge>
@@ -499,7 +517,7 @@ const LeaderDetailPage: React.FC = () => {
             <thead>
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('programSettings.months')}
+                  {t('common.months')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   {t('dashboard.totalSales')}
@@ -525,13 +543,13 @@ const LeaderDetailPage: React.FC = () => {
                     {month}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                    {formatCurrency(data.sales)}
+                    {formatNumber(data.sales)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-500">
                     {data.days}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                    {formatCurrency(data.sales / data.days)}
+                    {formatNumber(data.sales / data.days)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                     <Badge variant="primary">{data.books.large}</Badge>
@@ -554,19 +572,19 @@ const LeaderDetailPage: React.FC = () => {
               <div className="flex justify-between items-center p-3 bg-primary-50 rounded-lg">
                 <span className="text-sm font-medium text-primary-700">{t('reports.perColporter')}</span>
                 <span className="text-lg font-bold text-primary-700">
-                  {formatCurrency(leaderStats.totalSales / leaderStats.colporterCount)}
+                  {formatNumber(leaderStats.totalSales / leaderStats.colporterCount)}
                 </span>
               </div>
               <div className="flex justify-between items-center p-3 bg-success-50 rounded-lg">
                 <span className="text-sm font-medium text-success-700">{t('dashboard.dailyAverage')}</span>
                 <span className="text-lg font-bold text-success-700">
-                  {formatCurrency(leaderStats.totalSales / leaderStats.workingDays)}
+                  {formatNumber(leaderStats.totalSales / leaderStats.workingDays)}
                 </span>
               </div>
               <div className="flex justify-between items-center p-3 bg-warning-50 rounded-lg">
                 <span className="text-sm font-medium text-warning-700">{t('colporterReport.bestDay')}</span>
                 <span className="text-lg font-bold text-warning-700">
-                  {leaderStats.bestDay.date ? formatCurrency(leaderStats.bestDay.amount) : '-'}
+                  {leaderStats.bestDay.date ? formatNumber(leaderStats.bestDay.amount) : '-'}
                 </span>
               </div>
             </div>
