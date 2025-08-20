@@ -10,7 +10,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { UserRole } from '../../types';
 import LoadingScreen from '../ui/LoadingScreen';
-import { formatDateToString } from '../../utils/dateUtils';
 import { formatNumber } from '../../utils/numberUtils';
 
 interface DailyTransactionsProps {
@@ -40,7 +39,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
 
   // Filter out rejected transactions for totals
   // IMPORTANT: Only count APPROVED transactions for totals
-  const validTransactions = transactions.filter(t => t.status === 'APPROVED' && formatDateToString(t.date) === date);
+  const validTransactions = transactions.filter(t => t.status === 'APPROVED' && t.date === date);
 
   const totals = validTransactions.reduce((acc, curr) => ({
     cash: Number(acc.cash) + Number(curr.cash),
@@ -322,7 +321,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                         {transaction.leaderName}
                       </td>
                       <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                        ${Number(transaction.cash).toFixed(2)}
+                        ${formatNumber(transaction.cash)}
                       </td>
                       <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
                         ${Number(transaction.checks).toFixed(2)}
@@ -331,10 +330,10 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                         ${Number(transaction.atmMobile).toFixed(2)}
                       </td>
                       <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                        ${Number(transaction.paypal).toFixed(2)}
+                        ${formatNumber(transaction.paypal)}
                       </td>
                       <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                        ${Number(transaction.total).toFixed(2)}
+                        ${formatNumber(transaction.total)}
                       </td>
                       <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center">
                         <Badge variant="primary">
@@ -390,7 +389,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                     {t('common.totals')}
                   </td>
                   <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                    ${formatNumber(Number(totals.cash))}
+                    ${formatNumber(totals.cash)}
                   </td>
                   <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                     ${formatNumber(Number(totals.checks))}
@@ -429,7 +428,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm text-green-600 truncate">{t('transactions.cash')}</p>
                 <p className="text-sm sm:text-lg font-semibold text-green-700 truncate">
-                  ${Number(totals.cash).toFixed(2)}
+                  ${formatNumber(totals.cash)}
                 </p>
               </div>
             </div>
