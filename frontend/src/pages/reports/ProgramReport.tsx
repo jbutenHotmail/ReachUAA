@@ -80,6 +80,10 @@ const ProgramReport: React.FC = () => {
   const { advances, fetchAdvances, wereAdvancesFetched } = useCashAdvanceStore()
   const { program, fetchProgram, wasProgramFetched } = useProgramStore()
   const approvedExpenses = expenses.filter((e)=> e.status === 'APPROVED')
+  const approvedTransactions = transactions.filter((t) => t.status === 'APPROVED')
+  const filteredCharges = charges.filter((c) => c.status === 'APPLIED')
+  const filteredAdvances = advances.filter((a) => a.status === 'APPROVED')
+
   useEffect(() => {
     const loadReportData = async () => {
       setIsLoading(true)
@@ -106,25 +110,22 @@ const ProgramReport: React.FC = () => {
 
   useEffect(() => {
     if (transactions.length > 0 || charges.length > 0 || advances.length > 0 || expenses.length > 0) {
-      const colporterPercentage = program?.financialConfig?.colporter_percentage
+      if (!program) return
+      const colporterPercentage = program.financialConfig.colporter_percentage
         ? Number.parseFloat(program.financialConfig.colporter_percentage)
         : 50
-      const leaderPercentage = program?.financialConfig?.leader_percentage
+      const leaderPercentage = program.financialConfig.leader_percentage
         ? Number.parseFloat(program.financialConfig.leader_percentage)
         : 15
 
-      const approvedTransactions = transactions.filter((t) => t.status === "APPROVED")
-      const totalDonations = approvedTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0)
+      const totalDonations = approvedTransactions.reduce((sum, t) => sum + Number(t.total), 0)
+      const totalFines = filteredCharges.reduce((sum, c) => sum + Number(c.amount), 0)
+      const totalAdvances = filteredAdvances.reduce((sum, a) => sum + Number(a.advanceAmount), 0)
+      const programExpenses = approvedExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
 
-      const filteredCharges = charges.filter((charge) => charge.status === "APPLIED")
-      const totalFines = filteredCharges.reduce((sum, c) => Number(sum) + Number(c.amount), 0)
-      const filteredAdvances = advances.filter((advance) => advance.status === "APPROVED")
-      const totalAdvances = filteredAdvances.reduce((sum, a) => sum + a.advanceAmount, 0)
-
-      const programExpenses = approvedExpenses.reduce((sum, e) => Number(sum) + Number(e.amount), 0)
       const colporterAmount = totalDonations * (colporterPercentage / 100)
 
-      // Crear mapa de colportores
+      // Crear mapa de colportadores
       const colporterMap = new Map<string, ColporterFinancials>()
 
       approvedTransactions.forEach((t) => {
@@ -164,17 +165,12 @@ const ProgramReport: React.FC = () => {
         colporter.earnings = colporter.donations * (colporter.percentage / 100)
       })
       
-      // Calcular ganancias de líderes basado en ventas de su equipo
-      const leaderSalesMap = new Map<string, number>()
-      Array.from(colporterMap.values()).forEach((colporter) => {
-        const currentSales = leaderSalesMap.get(colporter.leaderName) || 0
-        leaderSalesMap.set(colporter.leaderName, Number(currentSales) + Number(colporter.donations))
-      })
-      console.log("Leader sales map:", leaderSalesMap)
-      // Calcular el monto total de líderes basado en las ventas de cada equipo
+      // Calcular ganancias de líderes basado en transacciones individuales
+      // Cada transacción contribuye a las ganancias del líder que estuvo a cargo ese día
       let totalLeaderAmount = 0
-      leaderSalesMap.forEach((teamSales) => {
-        totalLeaderAmount += teamSales * (leaderPercentage / 100)
+      approvedTransactions.forEach((transaction) => {
+        const leaderEarnings = Number(transaction.total) * (leaderPercentage / 100)
+        totalLeaderAmount += leaderEarnings
       })
 
       const totalIncome = totalDonations + totalFines
@@ -209,6 +205,46 @@ const ProgramReport: React.FC = () => {
     }
   }, [transactions, charges, advances, program, expenses])
 
+  // Calcular resúmenes de líderes basado en transacciones individuales
+  const leaderSummaries = React.useMemo(() => {
+    const summaries: Record<string, any> = {}
+    
+    // Procesar cada transacción individualmente
+    approvedTransactions.forEach((transaction) => {
+      const leaderName = transaction.leaderName
+      
+      if (!summaries[leaderName]) {
+        summaries[leaderName] = {
+          name: leaderName,
+          totalDonations: 0,
+          leaderEarnings: 0,
+          uniqueColporters: new Set<string>(),
+          transactionCount: 0
+        }
+      }
+      
+      // Sumar ventas del equipo (cada transacción que supervisó)
+      summaries[leaderName].totalDonations += Number(transaction.total)
+      
+      // Calcular ganancias del líder para esta transacción específica
+      const leaderPercentage = program?.financialConfig?.leader_percentage 
+        ? parseFloat(program.financialConfig.leader_percentage) 
+        : 15
+      summaries[leaderName].leaderEarnings += Number(transaction.total) * (leaderPercentage / 100)
+      
+      // Agregar colportor único
+      summaries[leaderName].uniqueColporters.add(transaction.studentId)
+      summaries[leaderName].transactionCount++
+    })
+    
+    // Convertir Set a número para el conteo
+    Object.values(summaries).forEach((leader: any) => {
+      leader.colporterCount = leader.uniqueColporters.size
+    })
+    
+    return summaries
+  }, [approvedTransactions, program])
+
   const filteredColporterFinancials = React.useMemo(() => {
     let filtered = [...colporterFinancials]
 
@@ -220,10 +256,8 @@ const ProgramReport: React.FC = () => {
   }, [colporterFinancials, leaderFilter])
 
   const uniqueLeaders = React.useMemo(() => {
-    const leaders = new Set<string>()
-    colporterFinancials.forEach((c) => leaders.add(c.leaderName))
-    return Array.from(leaders)
-  }, [colporterFinancials])
+    return Object.keys(leaderSummaries)
+  }, [leaderSummaries])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -277,18 +311,14 @@ const ProgramReport: React.FC = () => {
       {
         label: t("reports.programSales"),
         data: uniqueLeaders.map((leader) => {
-          return colporterFinancials.filter((c) => c.leaderName === leader).reduce((sum, c) => sum + c.donations, 0)
+          return leaderSummaries[leader]?.totalDonations || 0
         }),
         backgroundColor: "rgba(59, 130, 246, 0.8)",
       },
       {
         label: `${t("dashboard.revenueDistribution")} (${t("common.leaders")})`,
         data: uniqueLeaders.map((leader) => {
-          // Calcular ganancias basado en ventas del equipo específico
-          const teamSales = colporterFinancials
-            .filter((c) => c.leaderName === leader)
-            .reduce((sum, c) => sum + c.donations, 0)
-          return (teamSales * (programFinancials?.distribution.leaderPercentage || 15)) / 100
+          return leaderSummaries[leader]?.leaderEarnings || 0
         }),
         backgroundColor: "rgba(139, 92, 246, 0.8)",
       },
@@ -374,42 +404,6 @@ const ProgramReport: React.FC = () => {
       </Card>
     )
   }
-
-  // Calcular resúmenes de líderes con ganancias basadas en ventas de equipo
-  const leaderSummaries = colporterFinancials.reduce(
-    (acc, colporter) => {
-      const leaderName = colporter.leaderName
-
-      if (!acc[leaderName]) {
-        acc[leaderName] = {
-          name: leaderName,
-          colporters: [],
-          totalDonations: 0,
-          totalFines: 0,
-          totalCharges: 0,
-          totalAdvances: 0,
-          totalEarnings: 0,
-          leaderPercentage: programFinancials.distribution.leaderPercentage,
-          leaderEarnings: 0, // Se calculará después
-        }
-      }
-
-      acc[leaderName].colporters.push(colporter)
-      acc[leaderName].totalDonations += colporter.donations
-      acc[leaderName].totalFines += colporter.fines
-      acc[leaderName].totalCharges += colporter.charges
-      acc[leaderName].totalAdvances += colporter.advances
-      acc[leaderName].totalEarnings += colporter.earnings
-
-      return acc
-    },
-    {} as Record<string, any>,
-  )
-
-  // Calcular ganancias de cada líder basado en las ventas de su equipo
-  Object.values(leaderSummaries).forEach((leader) => {
-    leader.leaderEarnings = leader.totalDonations * (leader.leaderPercentage / 100)
-  })
 
   const totalProgramExpenses = approvedExpenses.reduce((sum, e) => Number(sum) + Number(e.amount), 0)
 
@@ -903,7 +897,7 @@ const ProgramReport: React.FC = () => {
                     <tr key={leader.name} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{leader.name}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                        <Badge variant="primary">{leader.colporters.length}</Badge>
+                        <Badge variant="primary">{leader.colporterCount}</Badge>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                         {formatCurrency(leader.totalDonations)}
@@ -913,7 +907,7 @@ const ProgramReport: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                         <Badge variant="secondary">
-                          {((leader.totalDonations / programFinancials.income.donations) * 100).toFixed(1)}%
+                          {programFinancials.income.donations > 0 ? ((leader.totalDonations / programFinancials.income.donations) * 100).toFixed(1) : 0}%
                         </Badge>
                       </td>
                     </tr>
@@ -969,9 +963,6 @@ const ProgramReport: React.FC = () => {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {t("common.colporter")}
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t("common.leader")}
-                    </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {t("donations.title")}
                     </th>
@@ -995,7 +986,6 @@ const ProgramReport: React.FC = () => {
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                         {colporter.name}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{colporter.leaderName}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-green-600">
                         {formatCurrency(colporter.donations)}
                       </td>
@@ -1016,7 +1006,7 @@ const ProgramReport: React.FC = () => {
                 </tbody>
                 <tfoot>
                   <tr className="bg-gray-100">
-                    <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-900">
+                    <td className="px-4 py-3 text-sm font-bold text-gray-900">
                       {t("common.totals")}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-green-600">
