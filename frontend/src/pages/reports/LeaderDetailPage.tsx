@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Calendar, BookText, DollarSign, Users, ChevronRight, TrendingUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useExpenseStore } from '../../stores/expenseStore';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -17,6 +18,7 @@ const LeaderDetailPage: React.FC = () => {
   const { people, fetchPeople, werePeopleFetched } = useUserStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { expenses, fetchExpenses, wereExpensesFetched } = useExpenseStore();
   const { program } = useProgramStore();
   
   // State for leader data
@@ -24,13 +26,17 @@ const LeaderDetailPage: React.FC = () => {
   const [leaderStats, setLeaderStats] = useState<any>(null);
   const [colporterStats, setColporterStats] = useState<any[]>([]);
   const [monthlyData, setMonthlyData] = useState<Record<string, { sales: number; days: number; books: { large: number; small: number } }>>({});
+  const [leaderExpenses, setLeaderExpenses] = useState<any[]>([]);
 
   // Fetch people data if not already loaded
   useEffect(() => {
     if (!werePeopleFetched) {
       fetchPeople(program?.id);
     }
-  }, [fetchPeople, werePeopleFetched, program]);
+    if (!wereExpensesFetched) {
+      fetchExpenses();
+    }
+  }, [fetchPeople, werePeopleFetched, fetchExpenses, wereExpensesFetched, program]);
 
   // Fetch leader ID by name
   useEffect(() => {
@@ -49,6 +55,18 @@ const LeaderDetailPage: React.FC = () => {
       }
     }
   }, [name, people]);
+
+  // Process expenses when data is available
+  useEffect(() => {
+    if (leaderId && expenses.length > 0) {
+      // Filter expenses for this leader (approved only)
+      const leaderExpensesList = expenses.filter(expense => 
+        expense.leaderId === leaderId && expense.status === 'APPROVED'
+      );
+      
+      setLeaderExpenses(leaderExpensesList);
+    }
+  }, [leaderId, expenses]);
 
   // Fetch transactions for this leader's team
   useEffect(() => {
@@ -285,6 +303,9 @@ const LeaderDetailPage: React.FC = () => {
   
   // Calculate leader earnings based on their team's sales, not the entire program
   const leaderEarnings = leaderStats.totalSales * leaderPercentage;
+  
+  // Calculate total expenses
+  const totalLeaderExpenses = leaderExpenses.reduce((sum, expense) => Number(sum) + Number(expense.amount), 0);
 
   return (
     <div className="space-y-6">
@@ -417,6 +438,46 @@ const LeaderDetailPage: React.FC = () => {
           </div>
         </div>
       </Card>
+
+      {/* Expenses Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Leader Expenses */}
+        <Card title={`Gastos del Líder - ${name}`} icon={<DollarSign size={20} />}>
+          <div className="space-y-4">
+            <div className="p-3 bg-red-50 rounded-lg text-center">
+              <p className="text-sm font-medium text-red-600">Total Gastos del Líder</p>
+              <p className="text-2xl font-bold text-red-700">${formatNumber(totalLeaderExpenses)}</p>
+              <p className="text-xs text-red-600">{leaderExpenses.length} gastos aprobados</p>
+            </div>
+            
+            {leaderExpenses.length > 0 ? (
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {leaderExpenses.map((expense) => (
+                  <div key={expense.id} className="flex justify-between items-center p-2 bg-gray-50 rounded border">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{expense.motivo}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="primary" size="sm">{t(`expenses.${expense.category}`)}</Badge>
+                        <span className="text-xs text-gray-500">
+                          {new Date(expense.date).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right ml-2">
+                      <p className="text-sm font-bold text-red-600">${formatNumber(expense.amount)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                <p className="text-sm">No hay gastos registrados para este líder</p>
+              </div>
+            )}
+          </div>
+        </Card>
+
+      </div>
 
       <Card title={t('colporterReport.salesDetails')} icon={<Users size={20} />}>
         <div className="overflow-x-auto">

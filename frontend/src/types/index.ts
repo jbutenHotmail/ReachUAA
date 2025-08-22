@@ -54,51 +54,6 @@ export interface Person {
   // Fields specific to leaders
   institution?: string;
 }
-export interface PersonalStats {
-  person: {
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-    personType: string;
-    organization: string;
-  };
-  topSellerBook?: {
-      id: string;
-      title: string;
-      price: number;
-      size: string;
-      totalQuantity: number;
-      totalRevenue: number;
-      imageUrl?: string;
-      stock: number;
-      sold: number;
-      is_active: boolean;
-      programId?: string; // New field to associate books with programs
-      image_url?: string;
-    };
-  startDate: string;
-  endDate: string;
-  transactions: any[];
-  totals: {
-    cash: number;
-    checks: number;
-    atmMobile: number;
-    paypal: number;
-    total: number;
-  };
-  earnings: {
-    gross: number;
-    percentage: number;
-    net: number;
-    charges: number;
-    advances: number;
-    final: number;
-  };
-  charges: any[];
-  advances: any[];
-  dailyEarnings: Record<string, number>;
-}
 
 // New Charge interface
 export interface Charge {
@@ -123,6 +78,8 @@ export interface Expense {
   id: string;
   leaderId: string | null;
   leaderName: string;
+  forLeaderId?: string | null;
+  forLeaderName?: string | null;
   amount: number;
   motivo: string;
   category: string;

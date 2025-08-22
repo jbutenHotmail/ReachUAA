@@ -204,3 +204,30 @@ export const getDateRange = (startDate: string, endDate: string): string[] => {
 export const parseDate = (dateStr: string): Date => {
   return createLocalDate(dateStr);
 };
+
+export const generateDateRange = (
+  startDate: string,
+  endDate: string
+): { date: string; amount: number }[] => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const dateArray: { date: string; amount: number }[] = [];
+  
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const formattedDate = `${day}${month}${year}`; // DDMMYYYY
+    dateArray.push({ date: formattedDate, amount: 0 });
+  }
+  
+  return dateArray;
+};
+
+export const formatDDMMYYYYToYYYYMMDD = (dateStr: string): string => {
+  if (!dateStr || dateStr.length !== 8) return dateStr;
+  const day = dateStr.slice(0, 2);
+  const month = dateStr.slice(2, 4);
+  const year = dateStr.slice(4, 8);
+  return `${year}-${month}-${day}`; // YYYY-MM-DD
+};

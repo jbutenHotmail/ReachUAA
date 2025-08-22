@@ -3,20 +3,18 @@
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
-import { AlertTriangle, Download, FileText, Printer, Wallet, ChevronDown, X } from "lucide-react"
+import { AlertTriangle, Download, FileText, Printer, Wallet, ChevronDown, X, Receipt } from "lucide-react"
 import { clsx } from "clsx"
 import Card from "../../components/ui/Card"
 import Button from "../../components/ui/Button"
 import Input from "../../components/ui/Input"
 import Badge from "../../components/ui/Badge"
 import { useUserStore } from "../../stores/userStore"
-import { useTransactionStore } from "../../stores/transactionStore"
-import { useChargeStore } from "../../stores/chargeStore"
-import { useCashAdvanceStore } from "../../stores/cashAdvanceStore"
 import { useProgramStore } from "../../stores/programStore"
 import { isColportableDay } from "../../utils/programUtils"
-import { getEndOfMonth, getStartOfMonth, isDateInRange, getDateRange, parseDate } from "../../utils/dateUtils"
+import { getEndOfMonth, getStartOfMonth, isDateInRange, parseDate } from "../../utils/dateUtils"
 import { formatNumber } from "../../utils/numberUtils"
+import api from "../../api"
 
 interface ReportData {
   personId: string
@@ -41,6 +39,21 @@ interface ReportData {
   }>
   netAmount: number
   percentage: number
+  expenses?: Array<{
+    id: string
+    date: string
+    motivo: string
+    category: string
+    amount: number
+    notes?: string
+  }>
+  earnings?: {
+    expenses: number
+    final: number
+  }
+  person?: {
+    personType: "COLPORTER" | "LEADER"
+  }
 }
 
 // Helper function to format dates consistently
@@ -71,12 +84,23 @@ const getDayOfWeekSafe = (dateString: string): number => {
   return date.getDay()
 }
 
+// Helper function to generate all dates in a range
+const generateDateRange = (start: string, end: string): string[] => {
+  const dates: string[] = [];
+  const currentDate = new Date(start);
+  const endDateObj = new Date(end);
+  
+  while (currentDate <= endDateObj) {
+    dates.push(currentDate.toISOString().split('T')[0]);
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return dates;
+};
+
 const IndividualReports: React.FC = () => {
   const { t } = useTranslation()
   const { fetchUsers, getLeaders, getColporters, fetchPeople, werePeopleFetched, wereUsersFetched } = useUserStore()
-  const { transactions, fetchAllTransactions, wereTransactionsFetched } = useTransactionStore()
-  const { charges, fetchCharges, wereChargesFetched } = useChargeStore()
-  const { advances, fetchAdvances, wereAdvancesFetched } = useCashAdvanceStore()
   const { program, fetchProgram, wasProgramFetched } = useProgramStore()
 
   const [personType, setPersonType] = useState<"COLPORTER" | "LEADER">("COLPORTER")
@@ -97,8 +121,6 @@ const IndividualReports: React.FC = () => {
       const dataToFetch = []
       if (!wereUsersFetched) dataToFetch.push(fetchUsers())
       if (!werePeopleFetched) dataToFetch.push(fetchPeople())
-      if (!wereChargesFetched) dataToFetch.push(fetchCharges())
-      if (!wereAdvancesFetched) dataToFetch.push(fetchAdvances())
       if (!wasProgramFetched) dataToFetch.push(fetchProgram())
 
       try {
@@ -120,13 +142,9 @@ const IndividualReports: React.FC = () => {
   }, [
     wereUsersFetched,
     werePeopleFetched,
-    wereChargesFetched,
-    wereAdvancesFetched,
     wasProgramFetched,
     fetchUsers,
     fetchPeople,
-    fetchCharges,
-    fetchAdvances,
     fetchProgram,
     getLeaders,
     t,
@@ -156,75 +174,24 @@ const IndividualReports: React.FC = () => {
     setError(null)
 
     try {
-      const fetchedTransactions = wereTransactionsFetched ? transactions : await fetchAllTransactions("APPROVED")
-      !wereChargesFetched && (await fetchCharges())
-      !wereAdvancesFetched && (await fetchAdvances())
-
-      // Generate date range using consistent date utilities
-      const dateRange = getDateRange(startDate, endDate)
-
-      const personTransactions = fetchedTransactions.filter((t) => {
-        // Use consistent date range checking
-        const isInDateRange = isDateInRange(t.date, startDate, endDate)
-        return (
-          (personType === "COLPORTER"
-            ? Number(t.studentId) === Number(selectedPerson.id)
-            : Number(t.leaderId) === Number(selectedPerson.id)) &&
-          isInDateRange &&
-          t.status === "APPROVED"
-        )
+      const response: ReportData = await api.get(`/reports/earnings/${selectedPerson.id}`, {
+        params: { startDate, endDate },
       })
 
-      // Only include APPLIED charges (not PENDING or CANCELLED)
-      const personCharges = charges.filter((c) => {
-        return c.personId === selectedPerson.id && isDateInRange(c.date, startDate, endDate) && c.status === "APPLIED"
-      })
+      const data: ReportData = response;// Assuming the API returns data in this format
+      console.log(response, startDate, endDate)
+      // Filter charges for this person from local data
+      const personCharges = data.charges.filter(
+        (c) => c.personId === selectedPerson.id && c.status === "APPLIED",
+      )
 
-      // Only include APPROVED advances (not PENDING or REJECTED)
-      const personAdvances = advances.filter((a) => {
-        return (
-          a.personId === selectedPerson.id &&
-          isDateInRange(a.weekStartDate, startDate, endDate) &&
-          isDateInRange(a.weekEndDate, startDate, endDate) &&
-          a.status === "APPROVED"
-        )
-      })
+      // Filter advances for this person from local data
+      const personAdvances = data.charges.filter(
+        (a) => a.personId === selectedPerson.id && isDateInRange(a.date, startDate, endDate),
+      )
 
-      const percentage =
-        personType === "COLPORTER"
-          ? program?.financialConfig?.colporter_percentage
-            ? Number.parseFloat(program.financialConfig.colporter_percentage)
-            : 50
-          : program?.financialConfig?.leader_percentage
-            ? Number.parseFloat(program.financialConfig.leader_percentage)
-            : 15
-
-      const dailyEarnings: Record<string, number> = {}
-      let totalEarnings = 0
-
-      // For both colporters and leaders, calculate daily earnings based on their relevant transactions
-      dateRange.forEach((date) => {
-        const dayTransactions = personTransactions.filter((t) => {
-          return isDateInRange(t.date, date, date) // Check if transaction is on this specific date
-        })
-        const dayTotal = dayTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0)
-        dailyEarnings[date] = dayTotal
-      })
-
-      totalEarnings = Object.values(dailyEarnings).reduce((sum, amount) => Number(sum) + Number(amount), 0)
-
-      const totalCharges = personCharges.reduce((sum, charge) => sum + charge.amount, 0)
-      const totalAdvances = personAdvances.reduce((sum, advance) => sum + advance.advanceAmount, 0)
-
-      // Calculate net amount based on person type
-      let netAmount: number
-      if (personType === "COLPORTER") {
-        // For colporters: their sales * percentage - charges - advances
-        netAmount = totalEarnings * (percentage / 100) - totalCharges - totalAdvances
-      } else {
-        // For leaders: their team sales * percentage - charges - advances (no division by total leaders)
-        netAmount = totalEarnings * (percentage / 100) - totalCharges - totalAdvances
-      }
+      // Construct dailyEarnings from API response (assuming data.dailyEarnings exists)
+      const dailyEarnings: Record<string, number> = data.dailyEarnings || {}
 
       setReportData({
         personId: selectedPerson.id,
@@ -233,7 +200,7 @@ const IndividualReports: React.FC = () => {
         startDate,
         endDate,
         dailyEarnings,
-        totalEarnings, // For leaders, this represents their team sales
+        totalEarnings: Object.values(dailyEarnings).reduce((sum, amount) => sum + amount, 0),
         charges: personCharges.map((c) => ({
           id: c.id,
           date: c.date,
@@ -242,17 +209,32 @@ const IndividualReports: React.FC = () => {
         })),
         advances: personAdvances.map((a) => ({
           id: a.id,
-          date: a.requestDate,
+          date: a.date,
           weekStartDate: a.weekStartDate,
           weekEndDate: a.weekEndDate,
-          amount: a.advanceAmount,
+          amount: a.amount,
         })),
-        netAmount,
-        percentage,
+        netAmount: data.earnings?.final || 0,
+        percentage: data.earnings?.percentage || 0,
+        expenses: data.expenses?.map((e: any) => ({
+          id: e.id,
+          date: e.date,
+          motivo: e.motivo,
+          category: e.category,
+          amount: e.amount,
+          notes: e.notes,
+        })) || [],
+        earnings: {
+          expenses: data.earnings?.expenses || 0,
+          final: data.earnings?.final || 0,
+        },
+        person: {
+          personType: data.person?.personType || personType,
+        },
       })
     } catch (error) {
       console.error("Error generating report:", error)
-      setError(t("individualReports.errorGenerateReport"))
+      setError(t("common.error"))
     } finally {
       setIsLoading(false)
     }
@@ -271,68 +253,77 @@ const IndividualReports: React.FC = () => {
     setPersonSearch("")
   }
 
-  const groupEarningsByWeeks = (dailyEarnings: Record<string, number>) => {
-    const weeks: Array<{
-      startDate: string
-      endDate: string
-      weekLabel: string
-      weekTotal: number
-      days: Array<{ date: string; dayName: string; amount: number; isColportableDay: boolean }>
-    }> = []
+  const groupEarningsByWeeks = (dailyEarnings: Record<string, number>, startDate: string, endDate: string) => {
+  const weeks: Array<{
+    startDate: string
+    endDate: string
+    weekLabel: string
+    weekTotal: number
+    days: Array<{ date: string; dayName: string; amount: number; isColportableDay: boolean }>
+  }> = []
 
-    const dates = Object.keys(dailyEarnings).sort()
-    let currentWeek: Array<{ date: string; dayName: string; amount: number; isColportableDay: boolean }> = []
+  // Generate all dates in the range
+  const allDates = generateDateRange(startDate, endDate)
+  console.log('allDates', allDates)
+  let currentWeek: Array<{ date: string; dayName: string; amount: number; isColportableDay: boolean }> = []
+  let weekStartDate: string | null = null
 
-    dates.forEach((date, index) => {
-      const dayName = getDayNameSafe(date)
-      const dayOfWeek = getDayOfWeekSafe(date)
+  allDates.forEach((date, index) => {
+    const dayName = getDayNameSafe(date)
+    const dayOfWeek = getDayOfWeekSafe(date)
 
-      if (dayOfWeek === 0 || index === 0) {
-        if (currentWeek.length > 0) {
-          const weekTotal = currentWeek.reduce((sum, day) => sum + day.amount, 0)
-          const endDate = currentWeek[currentWeek.length - 1].date
-          weeks.push({
-            startDate: currentWeek[0].date,
-            endDate,
-            weekLabel: `${formatWeekLabelSafe(currentWeek[0].date)} - ${formatWeekLabelSafe(endDate)}`,
-            weekTotal,
-            days: currentWeek,
-          })
-          currentWeek = []
-        }
+    // Start a new week on Sunday (dayOfWeek === 0) or first date
+    if (dayOfWeek === 0 || index === 0) {
+      if (currentWeek.length > 0 && weekStartDate) {
+        const weekTotal = currentWeek.reduce((sum, day) => sum + day.amount, 0)
+        const endDate = currentWeek[currentWeek.length - 1].date
+        weeks.push({
+          startDate: weekStartDate,
+          endDate,
+          weekLabel: `${formatWeekLabelSafe(weekStartDate)} - ${formatWeekLabelSafe(endDate)}`,
+          weekTotal,
+          days: currentWeek,
+        })
+        currentWeek = []
       }
-
-      // Create date consistently for isColportableDay check
-      const currentDate = parseDate(date)
-      const isColportable = program ? isColportableDay(currentDate) : true
-
-      currentWeek.push({
-        date,
-        dayName,
-        amount: dailyEarnings[date],
-        isColportableDay: isColportable,
-      })
-    })
-
-    if (currentWeek.length > 0) {
-      const weekTotal = currentWeek.reduce((sum, day) => sum + day.amount, 0)
-      const endDate = currentWeek[currentWeek.length - 1].date
-      weeks.push({
-        startDate: currentWeek[0].date,
-        endDate,
-        weekLabel: `${formatWeekLabelSafe(currentWeek[0].date)} - ${formatWeekLabelSafe(endDate)}`,
-        weekTotal,
-        days: currentWeek,
-      })
+      weekStartDate = date
     }
 
-    return weeks
+    // Check if the date is colportable
+    const currentDate = parseDate(date)
+    const isColportable = program ? isColportableDay(currentDate) : true
+
+    // Use the earnings from dailyEarnings if available, otherwise 0
+    const amount = dailyEarnings[date] || 0
+
+    currentWeek.push({
+      date,
+      dayName,
+      amount,
+      isColportableDay: isColportable,
+    })
+  })
+
+  // Push the last week if it has any days
+  if (currentWeek.length > 0 && weekStartDate) {
+    const weekTotal = currentWeek.reduce((sum, day) => sum + day.amount, 0)
+    const endDate = currentWeek[currentWeek.length - 1].date
+    weeks.push({
+      startDate: weekStartDate,
+      endDate,
+      weekLabel: `${formatWeekLabelSafe(weekStartDate)} - ${formatWeekLabelSafe(endDate)}`,
+      weekTotal,
+      days: currentWeek,
+    })
   }
+
+  return weeks
+}
 
   const printReport = () => {
     if (!reportData) return
 
-    const weeks = groupEarningsByWeeks(reportData.dailyEarnings)
+    const weeks = groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate)
 
     if (weeks.length === 0 && reportData.personType === "COLPORTER") {
       setError(t("individualReports.errorNoData"))
@@ -463,7 +454,7 @@ const IndividualReports: React.FC = () => {
             ? `
             <div class="leader-note">
               <p><strong>${t("common.note")}:</strong> ${t("individualReports.leaderEarningsBasedOnTeam", { percentage: reportData.percentage })}</p>
-              <p>${t("individualReports.teamSales")}: $${Number(reportData.totalEarnings).toFixed(2)}</p>
+              <p>${t("individualReports.teamSales")}: $${formatNumber(reportData.totalEarnings)}</p>
             </div>
           `
             : ""
@@ -497,7 +488,7 @@ const IndividualReports: React.FC = () => {
                       const dayData = week.days.find((d) => d.dayName === dayName)
                       if (!dayData) return `<td>-</td>`
                       const cellClass = dayData.isColportableDay ? "" : "non-colportable"
-                      return `<td class="${cellClass}">${dayData.amount.toFixed(2)}${
+                      return `<td class="${cellClass}">${formatNumber(dayData.amount)}${
                         !dayData.isColportableDay ? `<br><small>${t("individualReports.nonColportable")}</small>` : ""
                       }</td>`
                     })
@@ -509,7 +500,7 @@ const IndividualReports: React.FC = () => {
                         return isDateInRange(charge.date, week.startDate, week.endDate)
                       })
                       const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
-                      return chargeTotal > 0 ? `-${chargeTotal.toFixed(2)}` : "-"
+                      return chargeTotal > 0 ? `-${formatNumber(chargeTotal)}` : "-"
                     })()}
                   </td>
                   <td class="advances-cell">
@@ -677,7 +668,7 @@ const IndividualReports: React.FC = () => {
       csvContent += `${t("individualReports.weeklyBreakdown")}\r\n`
       csvContent += `${t("common.week")},${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => t(`programSettings.days.${day.toLowerCase()}`)).join(",")},${t("common.total")},${t("charges.title")},${t("cashAdvance.title")}\r\n`
 
-      const weeks = groupEarningsByWeeks(reportData.dailyEarnings)
+      const weeks = groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate)
       weeks.forEach((week, i) => {
         csvContent += `${i + 1}) ${week.weekLabel},`
         ;["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].forEach((dayName) => {
@@ -1008,7 +999,7 @@ const IndividualReports: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {groupEarningsByWeeks(reportData.dailyEarnings).map((week, index) => (
+                      {groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate).map((week, index) => (
                         <tr
                           key={week.startDate}
                           className={clsx(
@@ -1064,7 +1055,7 @@ const IndividualReports: React.FC = () => {
                           {t("common.totals")}
                         </td>
                         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => {
-                          const dayTotal = groupEarningsByWeeks(reportData.dailyEarnings).reduce((sum, week) => {
+                          const dayTotal = groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate).reduce((sum, week) => {
                             const dayData = week.days.find((d) => d.dayName === dayName)
                             return sum + (dayData ? dayData.amount : 0)
                           }, 0)
@@ -1144,7 +1135,7 @@ const IndividualReports: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {groupEarningsByWeeks(reportData.dailyEarnings).map((week, index) => (
+                      {groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate).map((week, index) => (
                         <tr
                           key={week.startDate}
                           className={clsx(
@@ -1191,7 +1182,7 @@ const IndividualReports: React.FC = () => {
                           {t("common.totals")}
                         </td>
                         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => {
-                          const dayTotal = groupEarningsByWeeks(reportData.dailyEarnings).reduce((sum, week) => {
+                          const dayTotal = groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate).reduce((sum, week) => {
                             const dayData = week.days.find((d) => d.dayName === dayName)
                             return sum + (dayData ? dayData.amount : 0)
                           }, 0)
@@ -1368,6 +1359,35 @@ const IndividualReports: React.FC = () => {
                         </span>
                       </div>
                     )}
+                    
+                    {/* Leader Expenses - Only for leaders */}
+                    {reportData.person?.personType === 'LEADER' && reportData.expenses && reportData.expenses.length > 0 && (
+                      <div className="p-3 bg-orange-50 rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-orange-600">{t('expenses.totalExpenses')}</span>
+                          <span className="text-lg font-bold text-orange-700">
+                            -${reportData.earnings?.expenses?.toFixed(2) || '0.00'}
+                          </span>
+                        </div>
+                        {reportData.expenses.length > 0 && (
+                          <div className="mt-3 space-y-1">
+                            {reportData.expenses.map((expense: any, index: number) => (
+                              <div
+                                key={index}
+                                className="flex justify-between items-center text-xs bg-white p-2 rounded border border-orange-100"
+                              >
+                                <div>
+                                  <span className="text-orange-600 font-medium">{expense.motivo}</span>
+                                  <span className="text-orange-500 ml-2">({t(`expenses.${expense.category}`)})</span>
+                                </div>
+                                <span className="font-medium text-orange-700">-${formatNumber(expense.amount)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
                     <div className="flex justify-between items-center p-3 bg-success-100 rounded-lg shadow-sm border border-success-200">
                       <span className="text-sm font-medium text-success-700">{t("dashboard.finalAmount")}</span>
                       <span className="text-xl font-bold text-success-700">
@@ -1404,7 +1424,7 @@ const IndividualReports: React.FC = () => {
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-sm font-medium text-gray-600">{t("dashboard.workingDays")}</span>
                           <span className="text-sm font-medium text-gray-900">
-                            {groupEarningsByWeeks(reportData.dailyEarnings).reduce(
+                            {groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate).reduce(
                               (sum, week) => sum + week.days.filter((d) => d.isColportableDay).length,
                               0,
                             )}
@@ -1439,6 +1459,65 @@ const IndividualReports: React.FC = () => {
               </div>
             </div>
           </Card>
+          
+          {/* Leader Expenses Details - Only for leaders */}
+          {reportData.person?.personType === 'LEADER' && reportData.expenses && reportData.expenses.length > 0 && (
+            <Card title={t('expenses.title')} icon={<Receipt size={20} />} className="mt-6">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t('expenses.date')}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t('expenses.motivo')}
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t('expenses.category')}
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t('expenses.amount')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {reportData.expenses.map((expense: any) => (
+                      <tr key={expense.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {new Date(expense.date).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {expense.motivo}
+                          {expense.notes && (
+                            <div className="text-xs text-gray-500 mt-1">{expense.notes}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center">
+                          <Badge variant="warning" size="sm">
+                            {t(`expenses.${expense.category}`)}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-orange-600">
+                          -${formatNumber(expense.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-orange-50">
+                      <td colSpan={3} className="px-4 py-3 whitespace-nowrap text-sm font-bold text-orange-800">
+                        {t('expenses.totalExpenses')}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-orange-700">
+                        -${reportData.earnings?.expenses?.toFixed(2) || '0.00'}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </Card>
+          )}
         </div>
       )}
     </div>

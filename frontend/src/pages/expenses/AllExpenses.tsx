@@ -1,4 +1,3 @@
-// AllExpenses.tsx
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Search, Utensils, ChevronFirst as FirstAid, ShoppingBag, Wrench, Car, CheckCircle, XCircle, Clock } from 'lucide-react';
@@ -8,26 +7,10 @@ import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
 import AddExpenseForm from './AddExpenseForm';
 import { useAuthStore } from '../../stores/authStore';
-import { UserRole } from '../../types';
+import { Expense, UserRole } from '../../types';
 import { useExpenseStore } from '../../stores/expenseStore';
 import LoadingScreen from '../../components/ui/LoadingScreen';
 import { formatNumber } from '../../utils/numberUtils';
-
-interface Expense {
-  id: string;
-  leaderId: string | null;
-  leaderName: string;
-  amount: number;
-  motivo: string;
-  category: string;
-  notes?: string;
-  date: string;
-  status?: string;
-  createdBy: string;
-  createdByName: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 interface AllExpensesProps {
   defaultCategory?: string;
@@ -41,19 +24,19 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [leaderFilter, setLeaderFilter] = useState('');
+  const [forLeaderFilter, setForLeaderFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setSelectedCategory] = useState(defaultCategory || '');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const { wereExpensesFetched, fetchExpenses, expenses, createExpense, updateExpense, 
-    approveExpense, rejectExpense, isLoading } = useExpenseStore();
+  const { wereExpensesFetched, fetchExpenses, expenses, createExpense, updateExpense, deleteExpense, approveExpense, rejectExpense, isLoading } = useExpenseStore();
   const isAdmin = user?.role === UserRole.ADMIN;
 
   useEffect(() => {
     !wereExpensesFetched && fetchExpenses();
-  }, []);
+  }, [fetchExpenses, wereExpensesFetched]);
 
   // Update category filter when defaultCategory changes
   useEffect(() => {
@@ -82,7 +65,12 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
     const matchesLeader = leaderFilter
       ? leaderFilter === 'program'
         ? !expense.leaderId // Program expenses have no leaderId
-        : expense.leaderId === leaderFilter
+        : Number(expense.leaderId) === Number(leaderFilter)
+      : true;
+
+    // For Leader filter (beneficiary)
+    const matchesForLeader = forLeaderFilter
+      ? Number(expense.forLeaderId) === Number(forLeaderFilter)
       : true;
 
     // Status filter
@@ -96,13 +84,14 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
       matchesCategory &&
       matchesDate &&
       matchesLeader &&
+      matchesForLeader &&
       matchesStatus
     );
   });
-
+  console.log('filteredExpenses', filteredExpenses)
   // Calculate totals - ONLY APPROVED EXPENSES
   const approvedExpenses = filteredExpenses.filter(e => e.status === 'APPROVED' || !e.status);
-  const totalAmount = filteredExpenses.filter(e => e.status !== 'REJECTED').reduce((sum, expense) => Number(sum) + Number(expense.amount), 0);
+  const totalAmount = approvedExpenses.reduce((sum, expense) => Number(sum) + Number(expense.amount), 0);
   const averagePerDay = totalAmount / (approvedExpenses.length || 1);
 
   // Get unique leaders from expenses
@@ -113,6 +102,16 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
     .map(id => ({
       id: id as string,
       name: expenses.find(e => e.leaderId === id)?.leaderName as string,
+    }));
+
+  // Get unique "for leaders" from expenses
+  const uniqueForLeaders = Array.from(new Set(expenses
+    .filter(e => e.forLeaderId)
+    .map(e => e.forLeaderId)))
+    .filter(Boolean)
+    .map(id => ({
+      id: id as string,
+      name: expenses.find(e => e.forLeaderId === id)?.forLeaderName as string,
     }));
 
   const getCategoryIcon = (category: string) => {
@@ -307,17 +306,18 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
               </select>
 
               <select
-                value={categoryFilter}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+                value={forLeaderFilter}
+                onChange={(e) => setForLeaderFilter(e.target.value)}
                 className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               >
-                <option value="">{t('common.all')} {t('expenses.categories')}</option>
-                <option value="food">{t('expenses.food')}</option>
-                <option value="health">{t('expenses.health')}</option>
-                <option value="supplies">{t('expenses.supplies')}</option>
-                <option value="maintenance">{t('expenses.maintenance')}</option>
-                <option value="fuel">{t('expenses.fuel')}</option>
+                <option value="">Todos los Beneficiarios</option>
+                {uniqueForLeaders.map(leader => (
+                  <option key={leader.id} value={leader.id}>
+                    {leader.name}
+                  </option>
+                ))}
               </select>
+
             </div>
             
             <div className="flex-shrink-0">
@@ -340,7 +340,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
                     {t('expenses.date')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t('common.leader')}
+                    Responsable / Beneficiario
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {t('expenses.motivo')}
@@ -370,12 +370,17 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                       {expense.leaderName}
+                      {expense.forLeaderName && (
+                        <div className="text-xs text-gray-500">
+                          Líder: {expense.forLeaderName}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                       {expense.motivo}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                      ${Number(expense.amount).toFixed(2)}
+                      ${formatNumber(expense.amount)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                       <Badge 

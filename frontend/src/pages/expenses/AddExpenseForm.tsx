@@ -21,6 +21,8 @@ interface ExpenseFormData {
   notes?: string;
   leaderId?: string;
   leaderName?: string;
+  forLeaderId?: string;
+  forLeaderName?: string;
   status?: string;
 }
 
@@ -48,8 +50,15 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
       ? { id: initialData.leaderId, name: initialData.leaderName }
       : null
   );
+  const [selectedForLeader, setSelectedForLeader] = useState<{ id: string; name: string } | null>(
+    initialData?.forLeaderId && initialData?.forLeaderName 
+      ? { id: initialData.forLeaderId, name: initialData.forLeaderName }
+      : null
+  );
   const [isLeaderDropdownOpen, setIsLeaderDropdownOpen] = useState(false);
+  const [isForLeaderDropdownOpen, setIsForLeaderDropdownOpen] = useState(false);
   const leaderDropdownRef = useRef<HTMLDivElement>(null);
+  const forLeaderDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     !werePeopleFetched && fetchPeople();
@@ -60,6 +69,9 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
     const handleClickOutside = (event: MouseEvent) => {
       if (leaderDropdownRef.current && !leaderDropdownRef.current.contains(event.target as Node)) {
         setIsLeaderDropdownOpen(false);
+      }
+      if (forLeaderDropdownRef.current && !forLeaderDropdownRef.current.contains(event.target as Node)) {
+        setIsForLeaderDropdownOpen(false);
       }
     };
 
@@ -84,6 +96,8 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
       ...formData,
       leaderId: selectedLeader?.id,
       leaderName: selectedLeader?.name,
+      forLeaderId: selectedForLeader?.id,
+      forLeaderName: selectedForLeader?.name,
       status: 'PENDING',
     });
   };
@@ -137,7 +151,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
 
               <div className="md:col-span-2 relative" ref={leaderDropdownRef}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('common.leader')}
+                  {'Responsable'}
                 </label>
                 <div
                   className={clsx(
@@ -175,7 +189,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                     <div className="px-3 py-2 border-t border-gray-200 bg-primary-50">
                       <div className="flex items-center justify-between">
                         <div className="font-medium text-primary-900 text-sm">
-                          {selectedLeader.name} 
+                          {selectedLeader.name}
                         </div>
                         <button
                           type="button"
@@ -219,6 +233,92 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                 )}
               </div>
 
+              <div className="md:col-span-2 relative" ref={forLeaderDropdownRef}>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Líder (Opcional - Solo para registro)
+                </label>
+                <div
+                  className={clsx(
+                    'relative border border-gray-300 rounded-md shadow-sm',
+                    isForLeaderDropdownOpen && 'ring-2 ring-primary-500 ring-opacity-50'
+                  )}
+                >
+                  <div className="flex items-center">
+                    <input
+                      type="text"
+                      placeholder="Buscar líder para quien es el gasto..."
+                      value={selectedForLeader ? selectedForLeader.name : ''}
+                      onChange={(e) => {
+                        if (!selectedForLeader) {
+                          setIsForLeaderDropdownOpen(true);
+                        }
+                      }}
+                      onFocus={() => setIsForLeaderDropdownOpen(true)}
+                      className="w-full px-3 py-2 rounded-md border-0 focus:outline-none text-sm"
+                      readOnly={!!selectedForLeader}
+                    />
+                    <button
+                      type="button"
+                      className="pr-2 flex items-center"
+                      onClick={() => setIsForLeaderDropdownOpen(!isForLeaderDropdownOpen)}
+                    >
+                      <ChevronDown
+                        className={clsx(
+                          'w-5 h-5 text-gray-400 transition-transform duration-200',
+                          isForLeaderDropdownOpen && 'transform rotate-180'
+                        )}
+                      />
+                    </button>
+                  </div>
+                  {selectedForLeader && (
+                    <div className="px-3 py-2 border-t border-gray-200 bg-success-50">
+                      <div className="flex items-center justify-between">
+                        <div className="font-medium text-success-900 text-sm">
+                          {selectedForLeader.name}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedForLeader(null);
+                          }}
+                          className="p-1 hover:bg-success-100 rounded-full"
+                        >
+                          <X className="w-4 h-4 text-success-600" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {isForLeaderDropdownOpen && !selectedForLeader && (
+                  <div className="absolute z-50 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200">
+                    <div className="max-h-60 overflow-y-auto py-1">
+                      {getLeaders().length > 0 ? (
+                        getLeaders().map((leader) => (
+                          <button
+                            key={leader.id}
+                            type="button"
+                            className="w-full text-left px-4 py-2 hover:bg-gray-50 focus:outline-none focus:bg-gray-50"
+                            onClick={() => {
+                              setSelectedForLeader({ id: leader.id, name: `${leader.name} ${leader.apellido}` });
+                              setIsForLeaderDropdownOpen(false);
+                            }}
+                          >
+                            <div className="font-medium text-sm">{leader.name} {leader.apellido}</div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-4 py-2 text-sm text-gray-500">
+                          {t('addExpenseForm.noLeadersFound')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Este campo es opcional y solo se usa para registrar para qué líder fue el gasto (diferente de quien lo paga).
+                </p>
+              </div>
+
               <div className="md:col-span-2">
                 <Input
                   label={t('expenses.motivo')}
@@ -247,7 +347,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                   <option value="health">{t('expenses.health')}</option>
                   <option value="supplies">{t('expenses.supplies')}</option>
                   <option value="maintenance">{t('expenses.maintenance')}</option>
-                  <option value="fuel">{t('expenses.fuel')}</option>
+                  <option value="vehicle">{t('expenses.vehicle')}</option>
                   <option value="program">{t('expenses.programCosts')}</option>
                 </select>
               </div>
@@ -268,7 +368,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
               {initialData && (
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Status
+                    {t('common.status')}
                   </label>
                   <select
                     name="status"

@@ -1,23 +1,8 @@
 import { create } from 'zustand';
 import { api } from '../api';
 import { useProgramStore } from './programStore';
+import { Expense } from '../types';
 
-interface Expense {
-  id: string;
-  leaderId: string | null;
-  leaderName: string;
-  amount: number;
-  motivo: string;
-  category: string;
-  notes?: string;
-  date: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  programId?: number;
-  createdBy: string;
-  createdByName: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 interface ExpenseState {
   expenses: Expense[];

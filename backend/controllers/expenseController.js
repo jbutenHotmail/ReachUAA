@@ -8,12 +8,15 @@ export const getExpenses = async (req, res) => {
     let query = `
       SELECT e.id, e.leader_id as leaderId, 
       CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
+      e.for_leader_id as forLeaderId,
+      CASE WHEN e.for_leader_id IS NOT NULL THEN CONCAT(fp.first_name, ' ', fp.last_name) ELSE NULL END as forLeaderName,
       e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
       e.status, e.program_id as programId,
       e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
       e.created_at as createdAt, e.updated_at as updatedAt
       FROM expenses e
       LEFT JOIN people p ON e.leader_id = p.id
+      LEFT JOIN people fp ON e.for_leader_id = fp.id
       JOIN users u ON e.created_by = u.id
       JOIN people cp ON u.person_id = cp.id
     `;
@@ -82,12 +85,15 @@ export const getExpenseById = async (req, res) => {
     const expense = await db.getOne(
       `SELECT e.id, e.leader_id as leaderId, 
        CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
+       e.for_leader_id as forLeaderId,
+       CASE WHEN e.for_leader_id IS NOT NULL THEN CONCAT(fp.first_name, ' ', fp.last_name) ELSE NULL END as forLeaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
        e.status, e.program_id as programId,
        e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
        e.created_at as createdAt, e.updated_at as updatedAt
        FROM expenses e
        LEFT JOIN people p ON e.leader_id = p.id
+       LEFT JOIN people fp ON e.for_leader_id = fp.id
        JOIN users u ON e.created_by = u.id
        JOIN people cp ON u.person_id = cp.id
        WHERE e.id = ?`,
@@ -110,6 +116,7 @@ export const createExpense = async (req, res) => {
   try {
     const {
       leaderId,
+      forLeaderId,
       amount,
       motivo,
       category,
@@ -136,20 +143,22 @@ export const createExpense = async (req, res) => {
     
     // Insert expense
     const expenseId = await db.insert(
-      'INSERT INTO expenses (leader_id, amount, motivo, category, notes, expense_date, created_by, status, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [leaderId === 'program' ? null : leaderId, amount, motivo, category, notes || null, date, userId, status, currentProgramId]
+      'INSERT INTO expenses (leader_id, for_leader_id, amount, motivo, category, notes, expense_date, created_by, status, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [leaderId === 'program' ? null : leaderId, forLeaderId || null, amount, motivo, category, notes || null, date, userId, status, currentProgramId]
     );
     
     // Get the created expense
     const expense = await db.getOne(
-      `SELECT e.id, e.leader_id as leaderId, 
+      `SELECT e.id, e.leader_id as leaderId, e.for_leader_id as forLeaderId,
        CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
+       CASE WHEN e.for_leader_id IS NOT NULL THEN CONCAT(fp.first_name, ' ', fp.last_name) ELSE NULL END as forLeaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
        e.status, e.program_id as programId,
        e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
        e.created_at as createdAt, e.updated_at as updatedAt
        FROM expenses e
        LEFT JOIN people p ON e.leader_id = p.id
+       LEFT JOIN people fp ON e.for_leader_id = fp.id
        JOIN users u ON e.created_by = u.id
        JOIN people cp ON u.person_id = cp.id
        WHERE e.id = ?`,
@@ -169,6 +178,7 @@ export const updateExpense = async (req, res) => {
     const { id } = req.params;
     const {
       leaderId,
+      forLeaderId,
       amount,
       motivo,
       category,
@@ -202,9 +212,10 @@ export const updateExpense = async (req, res) => {
     
     // Update expense
     await db.update(
-      'UPDATE expenses SET leader_id = ?, amount = ?, motivo = ?, category = ?, notes = ?, expense_date = ?, status = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
+      'UPDATE expenses SET leader_id = ?, for_leader_id = ?, amount = ?, motivo = ?, category = ?, notes = ?, expense_date = ?, status = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
       [
         leaderId === 'program' ? null : (leaderId !== undefined ? leaderId : existingExpense.leader_id),
+        forLeaderId !== undefined ? forLeaderId : existingExpense.for_leader_id,
         amount !== undefined ? amount : existingExpense.amount,
         motivo || existingExpense.motivo,
         category || existingExpense.category,
@@ -218,14 +229,16 @@ export const updateExpense = async (req, res) => {
     
     // Get the updated expense
     const updatedExpense = await db.getOne(
-      `SELECT e.id, e.leader_id as leaderId, 
+      `SELECT e.id, e.leader_id as leaderId, e.for_leader_id as forLeaderId,
        CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
+       CASE WHEN e.for_leader_id IS NOT NULL THEN CONCAT(fp.first_name, ' ', fp.last_name) ELSE NULL END as forLeaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
        e.status, e.program_id as programId,
        e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
        e.created_at as createdAt, e.updated_at as updatedAt
        FROM expenses e
        LEFT JOIN people p ON e.leader_id = p.id
+       LEFT JOIN people fp ON e.for_leader_id = fp.id
        JOIN users u ON e.created_by = u.id
        JOIN people cp ON u.person_id = cp.id
        WHERE e.id = ?`,
@@ -295,14 +308,16 @@ export const approveExpense = async (req, res) => {
     
     // Get the updated expense
     const updatedExpense = await db.getOne(
-      `SELECT e.id, e.leader_id as leaderId, 
+      `SELECT e.id, e.leader_id as leaderId, e.for_leader_id as forLeaderId,
        CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
+       CASE WHEN e.for_leader_id IS NOT NULL THEN CONCAT(fp.first_name, ' ', fp.last_name) ELSE NULL END as forLeaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
        e.status, e.program_id as programId,
        e.created_by as createdBy, CONCAT(cp.first_name, ' ', cp.last_name) as createdByName,
        e.created_at as createdAt, e.updated_at as updatedAt
        FROM expenses e
        LEFT JOIN people p ON e.leader_id = p.id
+       LEFT JOIN people fp ON e.for_leader_id = fp.id
        JOIN users u ON e.created_by = u.id
        JOIN people cp ON u.person_id = cp.id
        WHERE e.id = ?`,
