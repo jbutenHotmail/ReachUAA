@@ -56,7 +56,7 @@ interface DashboardState {
 
 interface DashboardStore extends DashboardState {
   fetchDashboardStats: (forceRefresh?: boolean) => Promise<void>;
-  fetchPersonalStats: (userId: string, forceRefresh?: boolean) => Promise<void>;
+  fetchPersonalStats: (userId: string, forceRefresh?: boolean, type?: string) => Promise<void>;
   updateStatsAfterTransaction: (transaction: any) => void;
   resetStore: () => void;
 }
@@ -159,7 +159,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     }
   },
 
-  fetchPersonalStats: async (userId: string, forceRefresh = false) => {
+  fetchPersonalStats: async (userId: string, forceRefresh = false, type: string | undefined) => {
     // Check if we already have personal stats and they're not too old
     const currentState = get();
     const now = Date.now();
@@ -191,7 +191,8 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         params: {
           startDate: startDateStr,
           endDate: endDateStr,
-          status: 'APPROVED'
+          status: 'APPROVED',
+          type
         }
       });
       set({ 

@@ -54,7 +54,7 @@ const ViewerDashboard: React.FC = () => {
 
     setIsRefreshing(true);
     try {
-      await fetchPersonalStats(user.id, true);
+      await fetchPersonalStats(user.id, true, 'user');
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
@@ -64,10 +64,11 @@ const ViewerDashboard: React.FC = () => {
 
   // Fetch personal stats for the user
   useEffect(() => {
-    if (user?.id && !werePersonalStatsFetched && !isLoadingPersonalStats) {
-      fetchPersonalStats(user.id);
+    console.log(user)
+    if (user?.id && !werePersonalStatsFetched) {
+      fetchPersonalStats(user.id, false, 'user');
     }
-  }, [user, fetchPersonalStats, werePersonalStatsFetched, isLoadingPersonalStats]);
+  }, [user, fetchPersonalStats, werePersonalStatsFetched]);
 
   // Filter user-specific transactions
   const userTransactions = useMemo(() => {

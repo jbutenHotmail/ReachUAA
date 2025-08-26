@@ -342,7 +342,6 @@ export const getColporterReport = async (req, res) => {
   try {
     const { id } = req.params;
     const { startDate, endDate } = req.query;
-    
     let reportStartDate = startDate;
     let reportEndDate = endDate;
     
@@ -985,8 +984,7 @@ export const getProgramReport = async (req, res) => {
 export const getIndividualEarningsReport = async (req, res) => {
   try {
     const { id } = req.params;
-    const { startDate, endDate } = req.query;
-    
+    const { startDate, endDate, type } = req.query;
     let reportStartDate = startDate;
     let reportEndDate = endDate;
     
@@ -1007,8 +1005,8 @@ export const getIndividualEarningsReport = async (req, res) => {
          ELSE NULL
        END as organization
        FROM people
-       WHERE id = ?`,
-      [id]
+       WHERE ${type === 'user' ? 'id IN (SELECT person_id FROM users WHERE id = ?)' : 'id = ?'}`,
+      [type === 'user' ? id : id]
     );
     
     if (!person) {

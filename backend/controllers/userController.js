@@ -453,6 +453,7 @@ export const resetPassword = async (req, res) => {
     // Generate default password based on name
     let defaultPassword;
     if (user.first_name && user.last_name) {
+      console.log(`${user.first_name.toLowerCase()}.${user.last_name.toLowerCase()}`);
       defaultPassword = `${user.first_name.toLowerCase()}.${user.last_name.toLowerCase()}`;
     } else {
       // If no name is available, use email as base for password
