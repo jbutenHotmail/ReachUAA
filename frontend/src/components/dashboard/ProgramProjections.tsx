@@ -25,6 +25,8 @@ const ProgramProjections: React.FC = () => {
     breakdown: {
       students50: 0,
       leaders: 0,
+      globalLeaders: 0,
+      customLeaders: 0,
       programProfit: 0,
     },
     leaderBreakdown: {
@@ -84,26 +86,59 @@ const ProgramProjections: React.FC = () => {
           !leaderPercentages.some(p => p.leaderId === leader.id && p.isActive)
         )
         
-        // Calculate custom leaders total percentage
+        // Calculate custom leaders earnings based on their supervised transactions
+        const customLeadersAmount = leadersWithCustom.reduce((sum, leader) => {
+          const individualPercentage = leaderPercentages.find(
+            p => p.leaderId === leader.id && p.isActive
+          );
+          
+          if (!individualPercentage) return sum;
+          
+          // Get transactions supervised by this specific leader
+          const leaderTransactions = validTransactions.filter(t => t.leaderId === leader.id);
+          const leaderTeamSales = leaderTransactions.reduce((teamSum, t) => teamSum + Number(t.total), 0);
+          
+          // Calculate this leader's earnings based on their team's sales
+          const leaderEarnings = leaderTeamSales * (individualPercentage.percentage / 100);
+          
+          return sum + leaderEarnings;
+        }, 0);
+        
+        // Calculate global leaders earnings based on their supervised transactions
+        const globalLeadersAmount = leadersWithGlobal.reduce((sum, leader) => {
+          // Get transactions supervised by this specific leader
+          const leaderTransactions = validTransactions.filter(t => t.leaderId === leader.id);
+          const leaderTeamSales = leaderTransactions.reduce((teamSum, t) => teamSum + Number(t.total), 0);
+          
+          // Calculate this leader's earnings based on their team's sales and global percentage
+          const leaderEarnings = leaderTeamSales * (globalLeaderPercentage / 100);
+          
+          return sum + leaderEarnings;
+        }, 0);
+        
+        // Calculate total custom leader percentage for display purposes
         const customLeaderPercentage = leadersWithCustom.reduce((sum, leader) => {
           const individualPercentage = leaderPercentages.find(
             p => p.leaderId === leader.id && p.isActive
-          )
-          return sum + (individualPercentage ? individualPercentage.percentage : 0)
-        }, 0)
+          );
+          return sum + (individualPercentage ? individualPercentage.percentage : 0);
+        }, 0);
         
         // Calculate global leaders total percentage
-        // If there are leaders using global percentage, they share the global percentage equally
         const globalLeadersTotalPercentage = leadersWithGlobal.length > 0 ? globalLeaderPercentage : 0;
         
         // Total leader percentage
         const totalLeaderPercentage = customLeaderPercentage + globalLeadersTotalPercentage
         
-        const programPercentage = 100 - studentPercentage - totalLeaderPercentage
-
         const students50 = endOfProgramProjection * (studentPercentage / 100)
-        const leadersTotal = endOfProgramProjection * (totalLeaderPercentage / 100)
-        const programProfit = (endOfProgramProjection * (programPercentage / 100)) - (endOfProgramProjection * (projectionData.leaderBreakdown.globalLeadersPercentage / 100))
+        
+        // Calculate projected leader earnings based on current performance
+        const projectedCustomLeadersAmount = customLeadersAmount * (endOfProgramProjection / totalSales);
+        const projectedGlobalLeadersAmount = globalLeadersAmount * (endOfProgramProjection / totalSales);
+        const leadersTotal = projectedCustomLeadersAmount + projectedGlobalLeadersAmount;
+        
+        const programGrossAmount = endOfProgramProjection - students50 - leadersTotal;
+        const programProfit = programGrossAmount;
 
         setProjectionData({
           totalMayJuneJuly: totalSales,
@@ -112,6 +147,8 @@ const ProgramProjections: React.FC = () => {
           breakdown: {
             students50,
             leaders: leadersTotal,
+            globalLeaders: projectedGlobalLeadersAmount,
+            customLeaders: projectedCustomLeadersAmount,
             programProfit,
           },
           leaderBreakdown: {
@@ -295,10 +332,10 @@ const ProgramProjections: React.FC = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs sm:text-sm font-medium text-purple-700 truncate">
-                        Líderes 
+                        Líderes Globales ({projectionData.leaderBreakdown.globalLeadersCount} líderes comparten {formatNumber(projectionData.leaderBreakdown.globalLeadersPercentage, 1)}%)
                       </span>
                       <span className="text-xs sm:text-sm font-bold text-purple-900 ml-2 flex-shrink-0">
-                        {formatCurrency(projectionData.endOfProgramProjection * (projectionData.leaderBreakdown.globalLeadersPercentage / 100))}
+                        {formatCurrency(projectionData.breakdown.globalLeaders || 0)}
                       </span>
                     </div>
                     <div className="w-full bg-purple-200 rounded-full h-1.5 sm:h-2">
@@ -320,7 +357,7 @@ const ProgramProjections: React.FC = () => {
                           Líderes Personalizados ({projectionData.leaderBreakdown.customLeadersCount} líderes)
                         </span>
                         <span className="text-xs sm:text-sm font-bold text-yellow-900 ml-2 flex-shrink-0">
-                          {formatCurrency(projectionData.endOfProgramProjection * (projectionData.leaderBreakdown.customLeadersPercentage / 100))}
+                          {formatCurrency(projectionData.breakdown.customLeaders || 0)}
                         </span>
                       </div>
                       <div className="w-full bg-yellow-200 rounded-full h-1.5 sm:h-2">
@@ -339,7 +376,7 @@ const ProgramProjections: React.FC = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">
-                        {t("common.program")} ({formatNumber(100 - (program?.financialConfig?.colporter_percentage ? Number.parseFloat(program.financialConfig.colporter_percentage) : 50) - projectionData.leaderBreakdown.totalLeaderPercentage, 1)}%)
+                        {t("common.program")}
                       </span>
                       <span className="text-xs sm:text-sm font-bold text-gray-900 ml-2 flex-shrink-0">
                         {formatCurrency(projectionData.breakdown.programProfit)}
@@ -348,9 +385,7 @@ const ProgramProjections: React.FC = () => {
                     <div className="w-full bg-gray-200 rounded-full h-1.5 sm:h-2">
                       <div
                         className="bg-gray-600 h-1.5 sm:h-2 rounded-full transition-all duration-300"
-                        style={{
-                          width: `${100 - (program?.financialConfig?.colporter_percentage ? Number.parseFloat(program.financialConfig.colporter_percentage) : 50) - projectionData.leaderBreakdown.totalLeaderPercentage}%`,
-                        }}
+                        style={{ width: `${Math.max(0, (projectionData.breakdown.programProfit / projectionData.endOfProgramProjection) * 100)}%` }}
                       ></div>
                     </div>
                   </div>
@@ -364,4 +399,4 @@ const ProgramProjections: React.FC = () => {
   )
 }
 
-export default ProgramProjections
+export default ProgramProjections;

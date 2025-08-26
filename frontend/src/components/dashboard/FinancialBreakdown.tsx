@@ -120,6 +120,18 @@ const FinancialBreakdown: React.FC = () => {
           return sum + leaderEarnings;
         }, 0);
         
+        // Calculate global leaders earnings based on their supervised transactions
+        const globalLeadersAmount = leadersWithGlobal.reduce((sum, leader) => {
+          // Get transactions supervised by this specific leader
+          const leaderTransactions = validTransactions.filter(t => t.leaderId === leader.id);
+          const leaderTeamSales = leaderTransactions.reduce((teamSum, t) => teamSum + Number(t.total), 0);
+          
+          // Calculate this leader's earnings based on their team's sales and global percentage
+          const leaderEarnings = leaderTeamSales * (globalLeaderPercentage / 100);
+          
+          return sum + leaderEarnings;
+        }, 0);
+        
         // Calculate total custom leader percentage for display purposes
         const customLeaderPercentage = leadersWithCustom.reduce((sum, leader) => {
           const individualPercentage = leaderPercentages.find(
@@ -137,7 +149,6 @@ const FinancialBreakdown: React.FC = () => {
         
         // Calculate amounts correctly
         const studentsAmount = totalRevenue * (studentPercentage / 100);
-        const globalLeadersAmount = totalRevenue * (globalLeadersTotalPercentage / 100);
         
         const advancesAmount = advances
           .filter(a => a.status === 'APPROVED')
