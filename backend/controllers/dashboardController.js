@@ -1,9 +1,29 @@
 import * as db from '../config/database.js';
 
+// Helper function to get leader percentage (individual or global)
+const getLeaderPercentage = async (leaderId, programId) => {
+  // First check if leader has individual percentage
+  const individualPercentage = await db.getOne(
+    'SELECT percentage FROM leader_percentages WHERE leader_id = ? AND program_id = ? AND is_active = TRUE',
+    [leaderId, programId]
+  );
+  
+  if (individualPercentage) {
+    return parseFloat(individualPercentage.percentage);
+  }
+  
+  // Fallback to global program percentage
+  const programConfig = await db.getOne(
+    'SELECT leader_percentage FROM program_financial_config WHERE program_id = ?',
+    [programId]
+  );
+  
+  return programConfig ? parseFloat(programConfig.leader_percentage) : 15;
+};
+
 // Get dashboard stats
 export const getDashboardStats = async (req, res) => {
   try {
-    console.log('HOLA DESDE DASHVBOARD')
     // Use the date from the request if provided, otherwise use server date
     const today = req.query.date || new Date().toISOString().split('T')[0];
     const programId = req.query.programId || req.user.currentProgramId;

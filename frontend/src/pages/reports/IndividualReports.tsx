@@ -809,7 +809,7 @@ const IndividualReports: React.FC = () => {
 
           <div className="relative" ref={personDropdownRef}>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {personType === "COLPORTER" ? t("personForm.selectColporter") : t("personForm.selectLeader")}
+              {personType === "COLPORTER" ? t("personForm.selectColporter") : t("expenses.selectLeader")}
             </label>
             <div
               className={clsx(

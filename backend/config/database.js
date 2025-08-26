@@ -3,7 +3,7 @@ import { config } from './config.js';
 
 // Create a connection pool
 const pool = mysql.createPool({
-  host: config.DB_HOST,
+  host: config.DB_HOST || '127.0.0.1',
   user: config.DB_USER,
   password: config.DB_PASSWORD,
   database: config.DB_NAME,

@@ -36,6 +36,7 @@ const SummerColporterReport = lazy(() => import('./pages/reports/SummerColporter
 const LeaderDetailPage = lazy(() => import('./pages/reports/LeaderDetailPage'));
 const IndividualReports = lazy(() => import('./pages/reports/IndividualReports'));
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
+const LeaderPercentagesPage = lazy(() => import('./pages/admin/people/LeaderPercentagePage'));
 const ColportersPage = lazy(() => import('./pages/admin/people/ColportersPage'));
 const LeadersPage = lazy(() => import('./pages/admin/people/LeadersPage'));
 const AllPeoplePage = lazy(() => import('./pages/admin/people/AllPeoplePage'));
@@ -432,6 +433,7 @@ function App() {
               <Route path="colporters" element={<Suspense fallback={<LoadingScreen />}><ColportersPage /></Suspense>} />
               <Route path="leaders" element={<Suspense fallback={<LoadingScreen />}><LeadersPage /></Suspense>} />
             </Route>
+            <Route path="percentages" element={<Suspense fallback={<LoadingScreen />}><LeaderPercentagesPage /></Suspense>} />
             <Route path="settings" element={<Suspense fallback={<LoadingScreen />}><ProgramSettings /></Suspense>} />
             <Route path="programs" element={<Suspense fallback={<LoadingScreen />}><ProgramSelectionPage /></Suspense>} />
           </Route>

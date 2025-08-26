@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Calendar, BookText, DollarSign, Users, ChevronRight, TrendingUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useExpenseStore } from '../../stores/expenseStore';
+import { useLeaderPercentageStore } from '../../stores/leaderPercentageStore';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -16,6 +17,7 @@ const LeaderDetailPage: React.FC = () => {
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
   const { people, fetchPeople, werePeopleFetched } = useUserStore();
+  const { getLeaderPercentage, fetchLeaderPercentages, werePercentagesFetched } = useLeaderPercentageStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { expenses, fetchExpenses, wereExpensesFetched } = useExpenseStore();
@@ -36,7 +38,10 @@ const LeaderDetailPage: React.FC = () => {
     if (!wereExpensesFetched) {
       fetchExpenses();
     }
-  }, [fetchPeople, werePeopleFetched, fetchExpenses, wereExpensesFetched, program]);
+    if (!werePercentagesFetched) {
+      fetchLeaderPercentages();
+    }
+  }, [fetchPeople, werePeopleFetched, fetchExpenses, wereExpensesFetched, fetchLeaderPercentages, werePercentagesFetched, program]);
 
   // Fetch leader ID by name
   useEffect(() => {
@@ -263,6 +268,13 @@ const LeaderDetailPage: React.FC = () => {
     setMonthlyData(monthlyDataObj);
   };
 
+  // Get the individual percentage for this leader
+  const individualPercentage = leaderId ? getLeaderPercentage(leaderId) : null;
+  
+  // Calculate the actual percentage to use (individual or global)
+  const actualPercentage = individualPercentage?.isActive 
+    ? individualPercentage.percentage 
+    : parseFloat(program?.financialConfig?.leader_percentage || '15');
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -296,13 +308,8 @@ const LeaderDetailPage: React.FC = () => {
     );
   }
 
-  // Calculate leader earnings based on their team's sales
-  const leaderPercentage = program?.financialConfig?.leader_percentage 
-    ? parseFloat(program.financialConfig.leader_percentage) / 100 
-    : 0.15;
-  
-  // Calculate leader earnings based on their team's sales, not the entire program
-  const leaderEarnings = leaderStats.totalSales * leaderPercentage;
+  // Calculate leader earnings using the actual percentage (individual or global)
+  const leaderEarnings = leaderStats.totalSales * (actualPercentage / 100);
   
   // Calculate total expenses
   const totalLeaderExpenses = leaderExpenses.reduce((sum, expense) => Number(sum) + Number(expense.amount), 0);
@@ -384,30 +391,76 @@ const LeaderDetailPage: React.FC = () => {
 
       <Card title={t('dashboard.earningsBreakdown')} icon={<DollarSign size={20} />}>
         <div className="space-y-4">
+          {/* Percentage Information */}
+          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-700">
+                  {individualPercentage?.isActive 
+                    ? `Porcentaje Individual: ${formatNumber(actualPercentage, 1)}%`
+                    : `Porcentaje Global: ${formatNumber(actualPercentage, 1)}%`
+                  }
+                </p>
+                {individualPercentage?.isActive && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="info" size="sm">Personalizado</Badge>
+                    <span className="text-xs text-blue-600">
+                      vs Global: {formatNumber(parseFloat(program?.financialConfig?.leader_percentage || '15'), 1)}%
+                    </span>
+                  </div>
+                )}
+                {!individualPercentage?.isActive && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="secondary" size="sm">Global</Badge>
+                    <span className="text-xs text-blue-600">
+                      Configuración del programa
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-blue-600">Diferencia vs Global</p>
+                <p className="text-lg font-semibold text-blue-700">
+                  {individualPercentage?.isActive 
+                    ? `${formatNumber(actualPercentage - parseFloat(program?.financialConfig?.leader_percentage || '15'), 1)}%`
+                    : '0.0%'
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg border border-purple-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-700">{t('programSettings.leaderPercentage')} ({program?.financialConfig?.leader_percentage || 15}%)</p>
+                <p className="text-sm font-medium text-purple-700">
+                  {t('programSettings.leaderPercentage')} ({formatNumber(actualPercentage, 1)}%)
+                </p>
                 <p className="text-2xl font-bold text-purple-800 mt-1">
-                  {formatNumber(leaderEarnings)}
+                  ${formatNumber(leaderEarnings)}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-purple-600">{t('dashboard.basedOnSales')}</p>
-                <p className="text-lg font-semibold text-purple-700">{formatNumber(leaderStats.totalSales)}</p>
+                <p className="text-lg font-semibold text-purple-700">${formatNumber(leaderStats.totalSales)}</p>
               </div>
             </div>
             
             <div className="mt-4 p-3 bg-white rounded-lg border border-purple-100">
               <p className="text-sm text-purple-800">
-                <strong>{t('confirmationStep.importantNotes')}:</strong> {t('programSettings.leaderPercentage')} {t('reports.distributionExpenses')} ({formatNumber(leaderStats.totalSales)}) {t('reports.totalSales')}.
+                <strong>Nota:</strong> Las ganancias del líder se calculan como {formatNumber(actualPercentage, 1)}% de las ventas totales del equipo (${formatNumber(leaderStats.totalSales)}).
+                {individualPercentage?.isActive && (
+                  <span className="block mt-1 text-xs">
+                    Este líder tiene un porcentaje personalizado que sobrescribe el porcentaje global del programa.
+                  </span>
+                )}
               </p>
             </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm font-medium text-gray-700">{t('confirmationStep.programPeople')}</p>
+              <p className="text-sm font-medium text-gray-700">Equipo</p>
               <p className="text-lg font-bold text-gray-900">
                 {leaderStats.colporterCount}
               </p>
@@ -419,17 +472,17 @@ const LeaderDetailPage: React.FC = () => {
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="text-sm font-medium text-gray-700">{t('reports.perColporter')}</p>
               <p className="text-lg font-bold text-gray-900">
-                {formatNumber(leaderEarnings / leaderStats.colporterCount)}
+                ${formatNumber(leaderEarnings / leaderStats.colporterCount)}
               </p>
               <p className="text-xs text-gray-500">
-                {t('confirmationStep.programPeople')}
+                Ganancias por colportor
               </p>
             </div>
             
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="text-sm font-medium text-gray-700">{t('dashboard.perWorkingDay')}</p>
               <p className="text-lg font-bold text-gray-900">
-                {formatNumber(leaderEarnings / leaderStats.workingDays)}
+                ${formatNumber(leaderEarnings / leaderStats.workingDays)}
               </p>
               <p className="text-xs text-gray-500">
                 {t('dashboard.perWorkingDay')}
@@ -514,10 +567,10 @@ const LeaderDetailPage: React.FC = () => {
                     {colporter.name}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                    {formatNumber(colporter.totalSales)}
+                    ${formatNumber(colporter.totalSales)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                    {formatNumber(colporter.averageSales)}
+                    ${formatNumber(colporter.averageSales)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                     <Badge variant="primary">{colporter.books.large}</Badge>
@@ -534,7 +587,7 @@ const LeaderDetailPage: React.FC = () => {
                       }) : 'N/A'}
                     </div>
                     <div className="font-medium text-success-600">
-                      {colporter.bestDay.date ? formatNumber(colporter.bestDay.amount) : '-'}
+                      {colporter.bestDay.date ? `$${formatNumber(colporter.bestDay.amount)}` : '-'}
                     </div>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
@@ -555,10 +608,10 @@ const LeaderDetailPage: React.FC = () => {
                   {t('common.total')}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
-                  {formatNumber(leaderStats.totalSales)}
+                  ${formatNumber(leaderStats.totalSales)}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
-                  {formatNumber(leaderStats.averageSales)}
+                  ${formatNumber(leaderStats.averageSales)}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-center font-bold">
                   <Badge variant="primary">{leaderStats.totalBooks.large}</Badge>
@@ -605,13 +658,13 @@ const LeaderDetailPage: React.FC = () => {
                     {month}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                    {formatNumber(data.sales)}
+                    ${formatNumber(data.sales)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-500">
                     {data.days}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                    {formatNumber(data.sales / data.days)}
+                    ${formatNumber(data.sales / data.days)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                     <Badge variant="primary">{data.books.large}</Badge>
@@ -634,19 +687,19 @@ const LeaderDetailPage: React.FC = () => {
               <div className="flex justify-between items-center p-3 bg-primary-50 rounded-lg">
                 <span className="text-sm font-medium text-primary-700">{t('reports.perColporter')}</span>
                 <span className="text-lg font-bold text-primary-700">
-                  {formatNumber(leaderStats.totalSales / leaderStats.colporterCount)}
+                  ${formatNumber(leaderStats.totalSales / leaderStats.colporterCount)}
                 </span>
               </div>
               <div className="flex justify-between items-center p-3 bg-success-50 rounded-lg">
                 <span className="text-sm font-medium text-success-700">{t('dashboard.dailyAverage')}</span>
                 <span className="text-lg font-bold text-success-700">
-                  {formatNumber(leaderStats.totalSales / leaderStats.workingDays)}
+                  ${formatNumber(leaderStats.totalSales / leaderStats.workingDays)}
                 </span>
               </div>
               <div className="flex justify-between items-center p-3 bg-warning-50 rounded-lg">
                 <span className="text-sm font-medium text-warning-700">{t('colporterReport.bestDay')}</span>
                 <span className="text-lg font-bold text-warning-700">
-                  {leaderStats.bestDay.date ? formatNumber(leaderStats.bestDay.amount) : '-'}
+                  {leaderStats.bestDay.date ? `$${formatNumber(leaderStats.bestDay.amount)}` : '-'}
                 </span>
               </div>
             </div>

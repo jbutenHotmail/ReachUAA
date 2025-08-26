@@ -33,20 +33,18 @@ const Transactions: React.FC = () => {
     }
     return "finances"
   })
-
   useEffect(() => {
     if (location.pathname === "/transactions") {
       navigate("/transactions/finances", { replace: true })
     }
   }, [location.pathname, navigate])
-
   useEffect(() => {
     const newTab = location.pathname === "/transactions/delivered-books" ? "delivered-books" : "finances"
     if (newTab !== activeTab) {
       setActiveTab(newTab)
     }
   }, [location.pathname, activeTab])
-
+  console.log('location.pathname', location.pathname)
   useEffect(() => {
     const formattedDate = formatDateToString(selectedDate)
     fetchTransactions(formattedDate)
@@ -54,11 +52,11 @@ const Transactions: React.FC = () => {
 
   useEffect(() => {
     !werePeopleFetched && fetchPeople()
-  }, [fetchPeople, werePeopleFetched])
+  }, [])
 
   useEffect(() => {
     !wasProgramFetched && fetchProgram()
-  }, [fetchProgram, wasProgramFetched])
+  }, [])
 
   const navigateDate = (days: number) => {
     const newDate = new Date(selectedDate)

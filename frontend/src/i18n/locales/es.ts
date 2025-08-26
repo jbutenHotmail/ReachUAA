@@ -175,6 +175,7 @@ export default {
     cashAdvances: "Adelantos en Efectivo",
   },
   programSettings: {
+    title: "Configuración del Programa",
     programInformation: "Información del Programa",
     programName: "Nombre del Programa",
     programLogo: "Logotipo del Programa",
@@ -764,6 +765,10 @@ export default {
     transactionAproved: "Transacción aprobada exitosamente",
     noTransactionsFound: "No se encontraron transacciones",
     title: "Transacciones",
+    pastDateTransaction: "Transacción para la fecha pasada",
+    pastDateTransactionDescription: "Estás creando una transacción para una fecha anterior. Asegúrate de que esto sea correcto.",
+    pastDate: "Fecha Pasada",
+    transactionDate: "Fecha de Transacción",
     successRejected: "Transacción rechazada exitosamente",
     todaySupervisor: "Supervisor de Hoy",
     description:
@@ -1177,6 +1182,7 @@ export default {
     title: "Gastos",
     amount: "Monto",
     date: "Fecha",
+    selectLeader: "Seleccionar Líder",
     description: "Gestionar y rastrear todos los gastos del programa",
     motivo: "Motivo",
     category: "Categoría",

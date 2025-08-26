@@ -21,6 +21,7 @@ import programRoutes from './routes/program.js';
 import reportRoutes from './routes/reports.js';
 import dashboardRoutes from './routes/dashboard.js';
 import setupRoutes from './routes/setup.js';
+import leadersRoutes from './routes/leaders.js';
 // Get current directory
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -70,6 +71,7 @@ app.use('/api/program', programRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/setup', setupRoutes);
+app.use('/api/leaders', leadersRoutes);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);

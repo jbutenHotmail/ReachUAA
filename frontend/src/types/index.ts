@@ -346,3 +346,16 @@ export interface Country {
   name: string;
   code: string;
 }
+
+// Leader percentage interface
+export interface LeaderPercentage {
+  id: string;
+  leaderId: string;
+  leaderName: string;
+  programId: number;
+  programName: string;
+  percentage: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

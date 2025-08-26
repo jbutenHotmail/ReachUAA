@@ -1,13 +1,12 @@
 import React from 'react';
 import { Outlet, useNavigate, useLocation, NavLink } from 'react-router-dom';
-import { Users, Settings, UserCog } from 'lucide-react';
+import { Users, Settings, UserCog, Percent } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useTranslation } from 'react-i18next';
 
 const AdminLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+
   React.useEffect(() => {
     if (location.pathname === '/admin') {
       navigate('/admin/users/manage');
@@ -30,6 +29,7 @@ const AdminLayout: React.FC = () => {
   const getCurrentSection = () => {
     if (location.pathname.includes('/admin/users')) return 'users';
     if (location.pathname.includes('/admin/people')) return 'people';
+    if (location.pathname.includes('/admin/percentages')) return 'percentages';
     if (location.pathname.includes('/admin/settings')) return 'settings';
     return null;
   };
@@ -52,13 +52,15 @@ const AdminLayout: React.FC = () => {
     const section = getCurrentSection();
     switch (section) {
       case 'users':
-        return t('admin.userManagement');
+        return 'User Management';
       case 'people':
-        return t('admin.peopleManagement');
+        return 'People Management';
+      case 'percentages':
+        return 'Custom Percentages';
       case 'settings':
-        return t('admin.programSettings');
+        return 'Program Settings';
       default:
-        return t('admin.administration');
+        return 'Administration';
     }
   };
 
@@ -67,13 +69,15 @@ const AdminLayout: React.FC = () => {
     const section = getCurrentSection();
     switch (section) {
       case 'users':
-        return t('admin.descriptions.manageSystemUsers');
+        return 'Manage system users and their permissions';
       case 'people':
-        return t('admin.descriptions.managePeople');
+        return 'Manage colporters, leaders, and other personnel';
+      case 'percentages':
+        return 'Configure individual percentage rates for leaders';
       case 'settings':
-        return t('admin.descriptions.configureProgramSettings');
+        return 'Configure program settings and working days';
       default:
-        return t('admin.descriptions.systemSettings');
+        return 'System settings and configurations';
     }
   };
 
@@ -85,6 +89,8 @@ const AdminLayout: React.FC = () => {
         return <UserCog size={28} className="text-primary-600" />;
       case 'people':
         return <Users size={28} className="text-primary-600" />;
+      case 'percentages':
+        return <Percent size={28} className="text-primary-600" />;
       case 'settings':
         return <Settings size={28} className="text-primary-600" />;
       default:

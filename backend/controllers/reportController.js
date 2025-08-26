@@ -1,14 +1,12 @@
 import * as db from '../config/database.js';
 
-// Get daily report
+// Get daily report (unchanged)
 export const getDailyReport = async (req, res) => {
   try {
     const { date } = req.query;
     
-    // Use today's date if not provided
     const reportDate = date || new Date().toISOString().split('T')[0];
     
-    // Get transactions for the day
     const transactions = await db.query(
       `SELECT t.*, 
        CONCAT(sp.first_name, ' ', sp.last_name) as student_name,
@@ -22,7 +20,6 @@ export const getDailyReport = async (req, res) => {
       [reportDate]
     );
     
-    // Get transaction books
     const transactionBooks = await Promise.all(
       transactions.map(async (transaction) => {
         const books = await db.query(
@@ -40,7 +37,6 @@ export const getDailyReport = async (req, res) => {
       })
     );
     
-    // Calculate totals
     const totals = transactions.reduce((acc, t) => ({
       cash: acc.cash + t.cash,
       checks: acc.checks + t.checks,
@@ -55,7 +51,6 @@ export const getDailyReport = async (req, res) => {
       total: 0
     });
     
-    // Calculate book totals
     const bookTotals = {
       large: 0,
       small: 0,
@@ -85,24 +80,21 @@ export const getDailyReport = async (req, res) => {
   }
 };
 
-// Get weekly report
+// Get weekly report (unchanged)
 export const getWeeklyReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     
-    // Calculate default week dates if not provided
     let reportStartDate = startDate;
     let reportEndDate = endDate;
     
     if (!startDate || !endDate) {
       const today = new Date();
-      const day = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      const day = today.getDay();
       
-      // Calculate Monday of current week
       const monday = new Date(today);
       monday.setDate(today.getDate() - day + (day === 0 ? -6 : 1));
       
-      // Calculate Sunday of current week
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
       
@@ -110,7 +102,6 @@ export const getWeeklyReport = async (req, res) => {
       reportEndDate = sunday.toISOString().split('T')[0];
     }
     
-    // Get transactions for the week
     const transactions = await db.query(
       `SELECT t.*, 
        CONCAT(sp.first_name, ' ', sp.last_name) as student_name,
@@ -124,7 +115,6 @@ export const getWeeklyReport = async (req, res) => {
       [reportStartDate, reportEndDate]
     );
     
-    // Group transactions by day
     const dailyTransactions = transactions.reduce((acc, transaction) => {
       const date = transaction.transaction_date;
       
@@ -156,7 +146,6 @@ export const getWeeklyReport = async (req, res) => {
       return acc;
     }, {});
     
-    // Get transaction books and update book totals
     for (const date in dailyTransactions) {
       for (let i = 0; i < dailyTransactions[date].transactions.length; i++) {
         const transaction = dailyTransactions[date].transactions[i];
@@ -182,7 +171,6 @@ export const getWeeklyReport = async (req, res) => {
       }
     }
     
-    // Calculate week totals
     const weekTotals = {
       cash: 0,
       checks: 0,
@@ -222,24 +210,21 @@ export const getWeeklyReport = async (req, res) => {
   }
 };
 
-// Get monthly report
+// Get monthly report (unchanged)
 export const getMonthlyReport = async (req, res) => {
   try {
     const { month, year } = req.query;
     
-    // Calculate default month and year if not provided
     const today = new Date();
-    const reportMonth = month ? parseInt(month) : today.getMonth() + 1; // 1-12
+    const reportMonth = month ? parseInt(month) : today.getMonth() + 1;
     const reportYear = year ? parseInt(year) : today.getFullYear();
     
-    // Calculate start and end dates for the month
     const startDate = new Date(reportYear, reportMonth - 1, 1);
     const endDate = new Date(reportYear, reportMonth, 0);
     
     const reportStartDate = startDate.toISOString().split('T')[0];
     const reportEndDate = endDate.toISOString().split('T')[0];
     
-    // Get transactions for the month
     const transactions = await db.query(
       `SELECT t.*, 
        CONCAT(sp.first_name, ' ', sp.last_name) as student_name,
@@ -253,7 +238,6 @@ export const getMonthlyReport = async (req, res) => {
       [reportStartDate, reportEndDate]
     );
     
-    // Group transactions by week
     const weeklyTransactions = transactions.reduce((acc, transaction) => {
       const date = new Date(transaction.transaction_date);
       const weekNumber = Math.ceil((date.getDate() + startDate.getDay()) / 7);
@@ -287,13 +271,12 @@ export const getMonthlyReport = async (req, res) => {
       return acc;
     }, {});
     
-    // Get transaction books and update book totals
     for (const weekKey in weeklyTransactions) {
       for (let i = 0; i < weeklyTransactions[weekKey].transactions.length; i++) {
         const transaction = weeklyTransactions[weekKey].transactions[i];
         
         const books = await db.query(
-          `SELECT tb.book_id, b.title, b.size, tb.quantity, tb.price
+          `SELECT tb.book_id, b.title, b.category, b.size, b.price, tb.quantity
            FROM transaction_books tb
            JOIN books b ON tb.book_id = b.id
            WHERE tb.transaction_id = ?`,
@@ -313,7 +296,6 @@ export const getMonthlyReport = async (req, res) => {
       }
     }
     
-    // Calculate month totals
     const monthTotals = {
       cash: 0,
       checks: 0,
@@ -361,12 +343,10 @@ export const getColporterReport = async (req, res) => {
     const { id } = req.params;
     const { startDate, endDate } = req.query;
     
-    // Calculate default dates if not provided
     let reportStartDate = startDate;
     let reportEndDate = endDate;
     
     if (!startDate || !endDate) {
-      // Default to current month
       const today = new Date();
       const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
       const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -375,9 +355,8 @@ export const getColporterReport = async (req, res) => {
       reportEndDate = lastDay.toISOString().split('T')[0];
     }
     
-    // Get colporter details
     const colporter = await db.getOne(
-      `SELECT id, CONCAT(first_name, ' ', last_name) as name, email, phone, school, age
+      `SELECT id, CONCAT(first_name, ' ', last_name) as name, email, phone, school, age, program_id
        FROM people
        WHERE id = ? AND person_type = 'COLPORTER'`,
       [id]
@@ -387,7 +366,11 @@ export const getColporterReport = async (req, res) => {
       return res.status(404).json({ message: 'Colporter not found' });
     }
     
-    // Get transactions for the colporter
+    const financialConfig = await db.getOne(
+      'SELECT * FROM program_financial_config WHERE program_id = ?',
+      [colporter.program_id]
+    );
+    
     const transactions = await db.query(
       `SELECT t.*, t.transaction_date as date,
        CONCAT(lp.first_name, ' ', lp.last_name) as leader_name
@@ -400,7 +383,6 @@ export const getColporterReport = async (req, res) => {
       [id, reportStartDate, reportEndDate]
     );
     
-    // Get transaction books
     const transactionBooks = await Promise.all(
       transactions.map(async (transaction) => {
         const books = await db.query(
@@ -418,7 +400,6 @@ export const getColporterReport = async (req, res) => {
       })
     );
     
-    // Get Bible Studies for the colporter
     const bibleStudies = await db.query(
       `SELECT bs.id, bs.name, bs.phone, bs.address, bs.location, bs.municipality_id,
        m.name as municipality_name, bs.study_type, bs.interest_topic,
@@ -431,7 +412,6 @@ export const getColporterReport = async (req, res) => {
       [id, reportStartDate, reportEndDate]
     );
     
-    // Calculate book sales statistics
     const bookSales = new Map();
     
     transactionBooks.forEach(transaction => {
@@ -458,7 +438,6 @@ export const getColporterReport = async (req, res) => {
       }
     });
     
-    // Get book images for the top sellers
     if (bookSales.size > 0) {
       const bookIds = Array.from(bookSales.keys()).map(key => key.split('-')[0]);
       const bookImages = await db.query(
@@ -466,7 +445,6 @@ export const getColporterReport = async (req, res) => {
         bookIds
       );
       
-      // Update book sales with image URLs
       bookImages.forEach(bookImg => {
         for (const [key, bookData] of bookSales.entries()) {
           if (bookData.id == bookImg.id) {
@@ -476,11 +454,9 @@ export const getColporterReport = async (req, res) => {
       });
     }
     
-    // Find top selling book by quantity
     const topSellerBook = Array.from(bookSales.values())
       .sort((a, b) => b.totalQuantity - a.totalQuantity)[0] || null;
     
-    // Calculate totals
     const totals = transactions.reduce((acc, t) => ({
       cash: acc.cash + t.cash,
       checks: acc.checks + t.checks,
@@ -495,7 +471,6 @@ export const getColporterReport = async (req, res) => {
       total: 0
     });
     
-    // Calculate book totals
     const bookTotals = {
       large: 0,
       small: 0,
@@ -513,19 +488,12 @@ export const getColporterReport = async (req, res) => {
       });
     });
     
-    // Get financial configuration
-    const financialConfig = await db.getOne(
-      'SELECT * FROM program_financial_config WHERE program_id = (SELECT id FROM programs WHERE is_active = TRUE LIMIT 1)'
-    );
-    
-    // Calculate earnings
     const colporterPercentage = financialConfig?.colporter_percentage 
       ? parseFloat(financialConfig.colporter_percentage) 
       : 50;
     
     const earnings = totals.total * (colporterPercentage / 100);
     
-    // Get charges for the colporter
     const charges = await db.query(
       `SELECT c.id, c.amount, c.reason, c.description, c.category, c.status, c.charge_date as date
        FROM charges c
@@ -538,7 +506,6 @@ export const getColporterReport = async (req, res) => {
     
     const totalCharges = charges.reduce((sum, c) => sum + c.amount, 0);
     
-    // Get cash advances for the colporter
     const advances = await db.query(
       `SELECT ca.id, ca.advance_amount as amount, ca.week_start_date, ca.week_end_date, ca.status, ca.request_date as date
        FROM cash_advances ca
@@ -551,7 +518,6 @@ export const getColporterReport = async (req, res) => {
     
     const totalAdvances = advances.reduce((sum, a) => sum + a.amount, 0);
     
-    // Calculate net earnings
     const netEarnings = earnings - totalCharges - totalAdvances;
     
     res.json({
@@ -586,12 +552,10 @@ export const getLeaderReport = async (req, res) => {
     const { id } = req.params;
     const { startDate, endDate } = req.query;
     
-    // Calculate default dates if not provided
     let reportStartDate = startDate;
     let reportEndDate = endDate;
     
     if (!startDate || !endDate) {
-      // Default to current month
       const today = new Date();
       const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
       const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -600,9 +564,8 @@ export const getLeaderReport = async (req, res) => {
       reportEndDate = lastDay.toISOString().split('T')[0];
     }
     
-    // Get leader details
     const leader = await db.getOne(
-      `SELECT id, CONCAT(first_name, ' ', last_name) as name, email, phone, institution
+      `SELECT id, CONCAT(first_name, ' ', last_name) as name, email, phone, institution, program_id
        FROM people
        WHERE id = ? AND person_type = 'LEADER'`,
       [id]
@@ -612,7 +575,11 @@ export const getLeaderReport = async (req, res) => {
       return res.status(404).json({ message: 'Leader not found' });
     }
     
-    // Get transactions for the leader's team
+    const financialConfig = await db.getOne(
+      'SELECT * FROM program_financial_config WHERE program_id = ?',
+      [leader.program_id]
+    );
+    
     const transactions = await db.query(
       `SELECT t.*, 
        CONCAT(sp.first_name, ' ', sp.last_name) as student_name
@@ -625,7 +592,6 @@ export const getLeaderReport = async (req, res) => {
       [id, reportStartDate, reportEndDate]
     );
     
-    // Get transaction books
     const transactionBooks = await Promise.all(
       transactions.map(async (transaction) => {
         const books = await db.query(
@@ -643,7 +609,6 @@ export const getLeaderReport = async (req, res) => {
       })
     );
     
-    // Calculate totals
     const totals = transactions.reduce((acc, t) => ({
       cash: acc.cash + t.cash,
       checks: acc.checks + t.checks,
@@ -658,7 +623,6 @@ export const getLeaderReport = async (req, res) => {
       total: 0
     });
     
-    // Calculate book totals
     const bookTotals = {
       large: 0,
       small: 0,
@@ -676,19 +640,17 @@ export const getLeaderReport = async (req, res) => {
       });
     });
     
-    // Get financial configuration
-    const financialConfig = await db.getOne(
-      'SELECT * FROM program_financial_config WHERE program_id = (SELECT id FROM programs WHERE is_active = TRUE LIMIT 1)'
+    const individualPercentage = await db.getOne(
+      'SELECT percentage FROM leader_percentages WHERE leader_id = ? AND program_id = ? AND is_active = TRUE',
+      [id, leader.program_id]
     );
     
-    // Calculate earnings
-    const leaderPercentage = financialConfig?.leader_percentage 
-      ? parseFloat(financialConfig.leader_percentage) 
-      : 15;
+    const leaderPercentage = individualPercentage 
+      ? parseFloat(individualPercentage.percentage)
+      : (financialConfig?.leader_percentage ? parseFloat(financialConfig.leader_percentage) : 15);
     
     const earnings = totals.total * (leaderPercentage / 100);
     
-    // Get charges for the leader
     const charges = await db.query(
       `SELECT c.id, c.amount, c.reason, c.description, c.category, c.status, c.charge_date as date
        FROM charges c
@@ -701,7 +663,6 @@ export const getLeaderReport = async (req, res) => {
     
     const totalCharges = charges.reduce((sum, c) => sum + c.amount, 0);
     
-    // Get cash advances for the leader
     const advances = await db.query(
       `SELECT ca.id, ca.advance_amount as amount, ca.week_start_date, ca.week_end_date, ca.status, ca.request_date as date
        FROM cash_advances ca
@@ -714,10 +675,6 @@ export const getLeaderReport = async (req, res) => {
     
     const totalAdvances = advances.reduce((sum, a) => sum + a.amount, 0);
     
-    // Calculate net earnings
-    const netEarnings = earnings - totalCharges - totalAdvances;
-    
-    // Get colporter performance
     const colporterPerformance = await db.query(
       `SELECT 
          p.id,
@@ -734,7 +691,6 @@ export const getLeaderReport = async (req, res) => {
       [id, reportStartDate, reportEndDate]
     );
     
-    // Get book details for each colporter
     const colporterDetails = await Promise.all(
       colporterPerformance.map(async (colporter) => {
         const colporterBooks = await db.query(
@@ -755,7 +711,6 @@ export const getLeaderReport = async (req, res) => {
           [colporter.id, reportStartDate, reportEndDate]
         );
         
-        // Calculate book totals for this colporter
         const colporterBookTotals = {
           large: 0,
           small: 0,
@@ -792,7 +747,7 @@ export const getLeaderReport = async (req, res) => {
         net: earnings,
         charges: totalCharges,
         advances: totalAdvances,
-        final: netEarnings
+        final: earnings - totalCharges - totalAdvances
       },
       charges,
       advances,
@@ -809,7 +764,6 @@ export const getProgramReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     
-    // Get active program
     const program = await db.getOne(
       'SELECT * FROM programs WHERE is_active = TRUE'
     );
@@ -818,17 +772,14 @@ export const getProgramReport = async (req, res) => {
       return res.status(404).json({ message: 'No active program found' });
     }
     
-    // Calculate default dates if not provided
     let reportStartDate = startDate || program.start_date;
     let reportEndDate = endDate || new Date().toISOString().split('T')[0];
     
-    // Get financial configuration
     const financialConfig = await db.getOne(
       'SELECT * FROM program_financial_config WHERE program_id = ?',
       [program.id]
     );
     
-    // Get all transactions
     const transactions = await db.query(
       `SELECT t.*, 
        CONCAT(sp.first_name, ' ', sp.last_name) as student_name,
@@ -842,7 +793,6 @@ export const getProgramReport = async (req, res) => {
       [reportStartDate, reportEndDate]
     );
     
-    // Calculate totals
     const totals = transactions.reduce((acc, t) => ({
       cash: acc.cash + t.cash,
       checks: acc.checks + t.checks,
@@ -857,7 +807,6 @@ export const getProgramReport = async (req, res) => {
       total: 0
     });
     
-    // Get all books delivered
     const books = await db.query(
       `SELECT 
          b.id,
@@ -876,7 +825,6 @@ export const getProgramReport = async (req, res) => {
       [reportStartDate, reportEndDate]
     );
     
-    // Calculate book totals
     const bookTotals = {
       large: 0,
       small: 0,
@@ -892,7 +840,6 @@ export const getProgramReport = async (req, res) => {
       bookTotals.total += book.quantity;
     });
     
-    // Get all expenses - ONLY APPROVED EXPENSES
     const expenses = await db.query(
       `SELECT e.*, 
        CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leader_name
@@ -904,7 +851,6 @@ export const getProgramReport = async (req, res) => {
       [reportStartDate, reportEndDate]
     );
     
-    // Calculate expense totals
     const expenseTotals = expenses.reduce((acc, e) => {
       if (e.leader_id === null) {
         acc.program += e.amount;
@@ -919,7 +865,6 @@ export const getProgramReport = async (req, res) => {
       total: 0
     });
     
-    // Get all cash advances - ONLY APPROVED ADVANCES
     const advances = await db.query(
       `SELECT ca.*, 
        CONCAT(p.first_name, ' ', p.last_name) as person_name,
@@ -932,7 +877,6 @@ export const getProgramReport = async (req, res) => {
       [reportStartDate, reportEndDate]
     );
     
-    // Calculate advance totals
     const advanceTotals = advances.reduce((acc, a) => {
       if (a.person_type === 'COLPORTER') {
         acc.colporters += a.advance_amount;
@@ -947,7 +891,6 @@ export const getProgramReport = async (req, res) => {
       total: 0
     });
     
-    // Calculate distribution
     const colporterPercentage = financialConfig?.colporter_percentage 
       ? parseFloat(financialConfig.colporter_percentage) 
       : 50;
@@ -964,15 +907,12 @@ export const getProgramReport = async (req, res) => {
       program: totals.total * (programPercentage / 100)
     };
     
-    // Calculate program expenses (only program expenses, not leader expenses)
     const programExpenses = expenses
       .filter(e => e.leader_id === null && e.status === 'APPROVED')
       .reduce((sum, e) => sum + e.amount, 0);
     
-    // Calculate net profit
     const netProfit = distribution.program - programExpenses - advanceTotals.total;
     
-    // Get leader performance
     const leaderPerformance = await db.query(
       `SELECT 
          p.id,
@@ -990,7 +930,6 @@ export const getProgramReport = async (req, res) => {
       [reportStartDate, reportEndDate]
     );
     
-    // Get colporter performance
     const colporterPerformance = await db.query(
       `SELECT 
          p.id,
@@ -1010,7 +949,6 @@ export const getProgramReport = async (req, res) => {
       [reportStartDate, reportEndDate]
     );
     
-    // Calculate program goal progress
     const goalProgress = {
       goal: parseFloat(program.financial_goal),
       achieved: totals.total,
@@ -1043,23 +981,12 @@ export const getProgramReport = async (req, res) => {
   }
 };
 
-// Enhanced version that includes book details for dashboard
-// Helper function to format date to DDMMYYYY
-const formatDateToDDMMYYYY = (date) => {
-  const d = new Date(date);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0'); // Months are 0-based
-  const year = d.getFullYear();
-  return `${year}-${month}-${day}`;
-};
-
-// Enhanced version that includes book details for dashboard
+// Get individual earnings report (unchanged)
 export const getIndividualEarningsReport = async (req, res) => {
   try {
-    const { id } = req.params; // personId
+    const { id } = req.params;
     const { startDate, endDate } = req.query;
     
-    // Calculate default dates if not provided
     let reportStartDate = startDate;
     let reportEndDate = endDate;
     
@@ -1072,9 +999,8 @@ export const getIndividualEarningsReport = async (req, res) => {
       reportEndDate = lastDay.toISOString().split('T')[0];
     }
     
-    // Get person details
     const person = await db.getOne(
-      `SELECT id, CONCAT(first_name, ' ', last_name) as name, email, phone, person_type, 
+      `SELECT id, CONCAT(first_name, ' ', last_name) as name, email, phone, person_type, program_id, 
        CASE 
          WHEN person_type = 'COLPORTER' THEN school
          WHEN person_type = 'LEADER' THEN institution
@@ -1089,12 +1015,11 @@ export const getIndividualEarningsReport = async (req, res) => {
       return res.status(404).json({ message: 'Person not found' });
     }
     
-    // Get financial configuration
     const financialConfig = await db.getOne(
-      'SELECT * FROM program_financial_config WHERE program_id = (SELECT id FROM programs WHERE is_active = TRUE LIMIT 1)'
+      'SELECT * FROM program_financial_config WHERE program_id = ?',
+      [person.program_id]
     );
     
-    // Get transactions based on person type
     let transactionsQuery = `
       SELECT t.*, 
        CONCAT(lp.first_name, ' ', lp.last_name) as leader_name
@@ -1123,7 +1048,6 @@ export const getIndividualEarningsReport = async (req, res) => {
     
     const transactions = await db.query(transactionsQuery, transactionParams);
     
-    // Get books for each transaction
     for (let i = 0; i < transactions.length; i++) {
       const books = await db.query(
         `SELECT tb.book_id as id, b.title, b.size, tb.quantity, tb.price
@@ -1136,7 +1060,6 @@ export const getIndividualEarningsReport = async (req, res) => {
       transactions[i].books = books;
     }
     
-    // Calculate totals
     const totals = transactions.reduce((acc, t) => ({
       cash: Number(acc.cash) + Number(t.cash),
       checks: Number(acc.checks) + Number(t.checks),
@@ -1151,14 +1074,21 @@ export const getIndividualEarningsReport = async (req, res) => {
       total: 0
     });
     
-    // Calculate earnings based on person type
-    const percentage = person.person_type === 'COLPORTER'
-      ? (financialConfig?.colporter_percentage ? parseFloat(financialConfig.colporter_percentage) : 50)
-      : (financialConfig?.leader_percentage ? parseFloat(financialConfig.leader_percentage) : 15);
+    let percentage;
+    if (person.person_type === 'COLPORTER') {
+      percentage = financialConfig?.colporter_percentage ? parseFloat(financialConfig.colporter_percentage) : 50;
+    } else {
+      const individualPercentage = await db.getOne(
+        'SELECT percentage FROM leader_percentages WHERE leader_id = ? AND program_id = ? AND is_active = TRUE',
+        [person.id, person.program_id]
+      );
+      percentage = individualPercentage 
+        ? parseFloat(individualPercentage.percentage)
+        : (financialConfig?.leader_percentage ? parseFloat(financialConfig.leader_percentage) : 15);
+    }
     
     const earnings = totals.total * (percentage / 100);
     
-    // Get charges for the person
     const charges = await db.query(
       `SELECT c.id, c.amount, c.reason, c.description, c.category, c.status, c.charge_date as date
        FROM charges c
@@ -1170,7 +1100,6 @@ export const getIndividualEarningsReport = async (req, res) => {
     );
     const totalCharges = charges.reduce((sum, c) => sum + Number(c.amount), 0);
     
-    // Get cash advances for the person
     const advances = await db.query(
       `SELECT ca.id, ca.advance_amount as amount, ca.week_start_date, ca.week_end_date, ca.status, ca.request_date as date
        FROM cash_advances ca
@@ -1182,10 +1111,8 @@ export const getIndividualEarningsReport = async (req, res) => {
     );
     const totalAdvances = advances.reduce((sum, a) => sum + Number(a.amount), 0);
     
-    // Get expenses for leaders only
     let expenses = [];
     let totalExpenses = 0;
-    console.log(reportEndDate, reportStartDate, person.person_type = 'LEADER')
     if (person.person_type === 'LEADER') {
       expenses = await db.query(
         `SELECT e.id, e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
@@ -1197,14 +1124,11 @@ export const getIndividualEarningsReport = async (req, res) => {
          ORDER BY e.expense_date DESC`,
         [person.id, reportStartDate, reportEndDate]
       );
-      console.log('expenses',expenses)
       totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
     }
     
-    // Calculate final earnings
     const finalEarnings = earnings - totalCharges - totalAdvances - totalExpenses;
     
-    // Get daily earnings with DDMMYYYY format
     const dailyEarnings = {};
     
     transactions.forEach(transaction => {
@@ -1216,11 +1140,9 @@ export const getIndividualEarningsReport = async (req, res) => {
       
       dailyEarnings[date] += Number(transaction.total);
     });
-    console.log('dailyEarnings', dailyEarnings, earnings)
-    // Calculate book statistics
+    
     const bookSales = new Map();
     
-    // Process each transaction to track book sales
     for (const transaction of transactions) {
       if (transaction.books && transaction.books.length > 0) {
         transaction.books.forEach(book => {
@@ -1245,7 +1167,6 @@ export const getIndividualEarningsReport = async (req, res) => {
       }
     }
     
-    // Get book images for the top sellers
     if (bookSales.size > 0) {
       const bookIds = Array.from(bookSales.keys()).map(key => key.split('-')[0]);
       const bookImages = await db.query(
@@ -1253,7 +1174,6 @@ export const getIndividualEarningsReport = async (req, res) => {
         bookIds
       );
       
-      // Update book sales with image URLs
       bookImages.forEach(bookImg => {
         for (const [key, bookData] of bookSales.entries()) {
           if (bookData.id == bookImg.id) {
@@ -1263,11 +1183,9 @@ export const getIndividualEarningsReport = async (req, res) => {
       });
     }
     
-    // Find top selling book by quantity
     const topSellerBook = Array.from(bookSales.values())
       .sort((a, b) => b.totalQuantity - a.totalQuantity)[0] || null;
     
-    // Calculate book totals by size
     const bookTotals = {
       large: 0,
       small: 0,
@@ -1287,19 +1205,16 @@ export const getIndividualEarningsReport = async (req, res) => {
       }
     });
     
-    // Calculate best and worst day from daily earnings
     const dailySalesEntries = Object.entries(dailyEarnings);
     let bestDay = { date: '', amount: 0 };
     let worstDay = { date: '', amount: 0 };
     
     if (dailySalesEntries.length > 0) {
-      // Find best day (highest sales)
       bestDay = dailySalesEntries.reduce((best, [date, amount]) => 
         amount > best.amount ? { date, amount } : best, 
         { date: '', amount: 0 }
       );
       
-      // Find worst day (lowest sales, but greater than 0)
       const daysWithSales = dailySalesEntries.filter(([_, amount]) => amount > 0);
       if (daysWithSales.length > 0) {
         worstDay = daysWithSales.reduce((worst, [date, amount]) => 
@@ -1308,36 +1223,11 @@ export const getIndividualEarningsReport = async (req, res) => {
         );
       }
       
-      // If worstDay still has Infinity, reset it
       if (worstDay.amount === Infinity) {
         worstDay = { date: '', amount: 0 };
       }
     }
-    // console.log( {person: {
-    //     ...person,
-    //     personType: person.person_type
-    //   },
-    //   startDate: reportStartDate,
-    //   endDate: reportEndDate,
-    //   transactions,
-    //   totals,
-    //   earnings: {
-    //     gross: totals.total,
-    //     percentage,
-    //     net: earnings,
-    //     charges: totalCharges,
-    //     advances: totalAdvances,
-    //     expenses: totalExpenses,
-    //     final: finalEarnings
-    //   },
-    //   charges,
-    //   advances,
-    //   expenses,
-    //   dailyEarnings,
-    //   bookTotals,
-    //   topSellerBook,
-    //   bestDay,
-    //   worstDay})
+    
     res.json({
       person: {
         ...person,
@@ -1371,12 +1261,37 @@ export const getIndividualEarningsReport = async (req, res) => {
   }
 };
 
-// Get sales history for dashboard
+// Get sales history
 export const getSalesHistory = async (req, res) => {
   try {
     const { userId, period } = req.params;
     
-    // Calculate date range based on period
+    const user = await db.getOne(
+      'SELECT * FROM users WHERE id = ?',
+      [userId]
+    );
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    let personId = null;
+    let personType = null;
+    let programId = null;
+    
+    if (user.person_id) {
+      const person = await db.getOne(
+        'SELECT id, person_type, program_id FROM people WHERE id = ?',
+        [user.person_id]
+      );
+      
+      if (person) {
+        personId = person.id;
+        personType = person.person_type;
+        programId = person.program_id;
+      }
+    }
+    
     const today = new Date();
     let startDate;
     
@@ -1395,9 +1310,9 @@ export const getSalesHistory = async (req, res) => {
         break;
       case 'all':
       default:
-        // Get program start date
         const program = await db.getOne(
-          'SELECT start_date FROM programs WHERE is_active = TRUE'
+          'SELECT start_date FROM programs WHERE id = ?',
+          [programId]
         );
         startDate = program ? new Date(program.start_date) : new Date(today.getFullYear(), 0, 1);
         break;
@@ -1406,37 +1321,9 @@ export const getSalesHistory = async (req, res) => {
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = today.toISOString().split('T')[0];
     
-    // Get user details
-    const user = await db.getOne(
-      'SELECT * FROM users WHERE id = ?',
-      [userId]
-    );
-    
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    
-    // Get person details if user has a person_id
-    let personId = null;
-    let personType = null;
-    
-    if (user.person_id) {
-      const person = await db.getOne(
-        'SELECT id, person_type FROM people WHERE id = ?',
-        [user.person_id]
-      );
-      
-      if (person) {
-        personId = person.id;
-        personType = person.person_type;
-      }
-    }
-    
-    // Get daily sales data based on user role and person type
     let salesData = [];
     
     if (user.role === 'ADMIN') {
-      // For admin, get all sales
       salesData = await db.query(
         `SELECT 
            transaction_date as date,
@@ -1449,7 +1336,6 @@ export const getSalesHistory = async (req, res) => {
         [startDateStr, endDateStr]
       );
     } else if (personType === 'LEADER') {
-      // For leaders, get their team's sales
       salesData = await db.query(
         `SELECT 
            transaction_date as date,
@@ -1463,7 +1349,6 @@ export const getSalesHistory = async (req, res) => {
         [personId, startDateStr, endDateStr]
       );
     } else if (personType === 'COLPORTER') {
-      // For colporters, get their own sales
       salesData = await db.query(
         `SELECT 
            transaction_date as date,
@@ -1477,11 +1362,9 @@ export const getSalesHistory = async (req, res) => {
         [personId, startDateStr, endDateStr]
       );
     } else {
-      // For other users, return empty data
       salesData = [];
     }
     
-    // Ensure we have data for every day in the range
     const result = [];
     const currentDate = new Date(startDate);
     
@@ -1504,12 +1387,11 @@ export const getSalesHistory = async (req, res) => {
   }
 };
 
-// Get financial summary for dashboard
+// Get financial summary
 export const getFinancialSummary = async (req, res) => {
   try {
     const { userId } = req.params;
     
-    // Get user details
     const user = await db.getOne(
       'SELECT * FROM users WHERE id = ?',
       [userId]
@@ -1519,20 +1401,35 @@ export const getFinancialSummary = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    // Get active program
-    const program = await db.getOne(
-      'SELECT * FROM programs WHERE is_active = TRUE'
-    );
+    let personId = null;
+    let personType = null;
+    let programId = null;
     
-    if (!program) {
-      return res.status(404).json({ message: 'No active program found' });
+    if (user.person_id) {
+      const person = await db.getOne(
+        'SELECT id, person_type, program_id FROM people WHERE id = ?',
+        [user.person_id]
+      );
+      
+      if (person) {
+        personId = person.id;
+        personType = person.person_type;
+        programId = person.program_id;
+      }
     }
     
-    // Get today's date
+    const program = await db.getOne(
+      'SELECT * FROM programs WHERE id = ?',
+      [programId]
+    );
+    
+    if (!program && user.role !== 'ADMIN') {
+      return res.status(404).json({ message: 'No program found for user' });
+    }
+    
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
     
-    // Calculate start dates for week and month
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - 7);
     const weekStartStr = weekStart.toISOString().split('T')[0];
@@ -1541,30 +1438,14 @@ export const getFinancialSummary = async (req, res) => {
     monthStart.setMonth(today.getMonth() - 1);
     const monthStartStr = monthStart.toISOString().split('T')[0];
     
-    // Get person details if user has a person_id
-    let personId = null;
-    let personType = null;
+    const programStartStr = program ? program.start_date : new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0];
     
-    if (user.person_id) {
-      const person = await db.getOne(
-        'SELECT id, person_type FROM people WHERE id = ?',
-        [user.person_id]
-      );
-      
-      if (person) {
-        personId = person.id;
-        personType = person.person_type;
-      }
-    }
-    
-    // Get sales data based on user role and person type
     let totalSales = 0;
     let dailySales = 0;
     let weeklySales = 0;
     let monthlySales = 0;
     
     if (user.role === 'ADMIN') {
-      // For admin, get all sales
       const salesData = await db.getOne(
         `SELECT 
            COALESCE(SUM(total), 0) as total_sales,
@@ -1574,7 +1455,7 @@ export const getFinancialSummary = async (req, res) => {
          FROM transactions
          WHERE transaction_date BETWEEN ? AND ?
          AND status = 'APPROVED'`,
-        [todayStr, weekStartStr, todayStr, monthStartStr, todayStr, program.start_date, todayStr]
+        [todayStr, weekStartStr, todayStr, monthStartStr, todayStr, programStartStr, todayStr]
       );
       
       totalSales = salesData.total_sales;
@@ -1582,7 +1463,6 @@ export const getFinancialSummary = async (req, res) => {
       weeklySales = salesData.weekly_sales;
       monthlySales = salesData.monthly_sales;
     } else if (personType === 'LEADER') {
-      // For leaders, get their team's sales
       const salesData = await db.getOne(
         `SELECT 
            COALESCE(SUM(total), 0) as total_sales,
@@ -1593,7 +1473,7 @@ export const getFinancialSummary = async (req, res) => {
          WHERE leader_id = ?
          AND transaction_date BETWEEN ? AND ?
          AND status = 'APPROVED'`,
-        [personId, todayStr, personId, weekStartStr, todayStr, personId, monthStartStr, todayStr, personId, program.start_date, todayStr]
+        [personId, todayStr, personId, weekStartStr, todayStr, personId, monthStartStr, todayStr, personId, programStartStr, todayStr]
       );
       
       totalSales = salesData.total_sales;
@@ -1601,7 +1481,6 @@ export const getFinancialSummary = async (req, res) => {
       weeklySales = salesData.weekly_sales;
       monthlySales = salesData.monthly_sales;
     } else if (personType === 'COLPORTER') {
-      // For colporters, get their own sales
       const salesData = await db.getOne(
         `SELECT 
            COALESCE(SUM(total), 0) as total_sales,
@@ -1612,7 +1491,7 @@ export const getFinancialSummary = async (req, res) => {
          WHERE student_id = ?
          AND transaction_date BETWEEN ? AND ?
          AND status = 'APPROVED'`,
-        [personId, todayStr, personId, weekStartStr, todayStr, personId, monthStartStr, todayStr, personId, program.start_date, todayStr]
+        [personId, todayStr, personId, weekStartStr, todayStr, personId, monthStartStr, todayStr, personId, programStartStr, todayStr]
       );
       
       totalSales = salesData.total_sales;
@@ -1631,6 +1510,15 @@ export const getFinancialSummary = async (req, res) => {
     console.error('Error getting financial summary:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
+};
+
+// Helper function to format date to DDMMYYYY
+const formatDateToDDMMYYYY = (date) => {
+  const d = new Date(date);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${year}-${month}-${day}`;
 };
 
 export default {

@@ -37,6 +37,7 @@ const NewTransaction: React.FC = () => {
   const [paypal, setPaypal] = useState(0);
   const [bookQuantities, setBookQuantities] = useState<Record<string, number>>({});
   const [stayOnPage, setStayOnPage] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(getCurrentDate());
   const [error, setError] = useState<string | null>(null);
   const [bookTotal, setBookTotal] = useState<number>(0);
   const [success, setSuccess] = useState<string | null>(null);
@@ -47,11 +48,11 @@ const NewTransaction: React.FC = () => {
   const colporterDropdownRef = useRef<HTMLDivElement>(null);
 
   // Check if today is a colportable day
+  const selectedDateObj = useMemo(() => new Date(selectedDate + 'T00:00:00'), [selectedDate]);
+  const isSelectedDateColportable = useMemo(() => isColportableDay(selectedDateObj), [selectedDateObj]);
+  const nextColportableDay = useMemo(() => getNextColportableDay(selectedDateObj), [selectedDateObj]);
   const today = useMemo(() => new Date(), []);
-const isToday = useMemo(() => isColportableDay(today), [today]);
-const nextColportableDay = useMemo(() => getNextColportableDay(today), [today]);
-
-  const isAdmin = user?.role === UserRole.ADMIN;
+  const isToday = selectedDate === getCurrentDate();
 
   useEffect(() => {
     const loadData = async () => {
@@ -113,7 +114,7 @@ const nextColportableDay = useMemo(() => getNextColportableDay(today), [today]);
     setBookTotal(total);
   }, [bookQuantities]);
 
-  const formattedDate = today.toLocaleDateString(undefined, {
+  const formattedDate = selectedDateObj.toLocaleDateString(undefined, {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -142,7 +143,7 @@ const nextColportableDay = useMemo(() => getNextColportableDay(today), [today]);
         atmMobile,
         paypal,
         total,
-        date: todayFormatted,
+        date: selectedDate,
         books: Object.entries(bookQuantities)
           .filter(([_, quantity]) => quantity > 0)
           .map(([id, quantity]) => {
@@ -203,8 +204,9 @@ const nextColportableDay = useMemo(() => getNextColportableDay(today), [today]);
       <LoadingScreen message={t('transactions.preparingTransactionForm')} />
     );
   }
-  // If today is not a colportable day and user is not admin, show restriction screen
-  if (!isToday) {
+  
+  // If selected date is not a colportable day, show restriction screen
+  if (!isSelectedDateColportable) {
     return (
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -253,9 +255,6 @@ const nextColportableDay = useMemo(() => getNextColportableDay(today), [today]);
             </div>
             
             <div className="space-y-4 w-full max-w-md">
-              <p className="text-sm text-gray-500">
-                {t('transactions.contactAdminMessage')}
-              </p>
               
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Button
@@ -266,15 +265,13 @@ const nextColportableDay = useMemo(() => getNextColportableDay(today), [today]);
                   {t('transactions.returnToTransactions')}
                 </Button>
                 
-                {isAdmin && (
-                  <Button
-                    variant="primary"
-                    onClick={() => navigate('/admin/settings')}
-                    leftIcon={<Settings size={16} />}
-                  >
-                    {t('programSettings.title')}
-                  </Button>
-                )}
+                <Button
+                  variant="primary"
+                  onClick={() => navigate('/admin/settings')}
+                  leftIcon={<Settings size={16} />}
+                >
+                  {t('programSettings.title')}
+                </Button>
               </div>
             </div>
           </div>
@@ -291,6 +288,11 @@ const nextColportableDay = useMemo(() => getNextColportableDay(today), [today]);
           <div className="flex items-center gap-2 mt-2 text-gray-600">
             <Calendar size={16} />
             <span className="text-sm">{formattedDate}</span>
+            {!isToday && (
+              <Badge variant="warning" size="sm">
+                {t('transactions.pastDate')}
+              </Badge>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -335,6 +337,59 @@ const nextColportableDay = useMemo(() => getNextColportableDay(today), [today]);
 
       <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          {/* Date Selection */}
+          <div className="md:col-span-2">
+            <Card>
+              <div className="space-y-4">
+                <label className="block text-sm font-medium text-gray-700">
+                  {t('transactions.transactionDate')}
+                </label>
+                <div className="flex items-center gap-4">
+                  <Input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    max={getCurrentDate()}
+                    className="w-auto"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedDate(getCurrentDate())}
+                    disabled={isToday}
+                  >
+                    {t('transactions.today')}
+                  </Button>
+                </div>
+                
+                {!isSelectedDateColportable && (
+                  <div className="p-3 bg-warning-50 border border-warning-200 rounded-lg flex items-start gap-2">
+                    <AlertTriangle className="text-warning-500 flex-shrink-0 mt-0.5" size={16} />
+                    <div className="text-sm text-warning-700">
+                      <p className="font-medium">
+                        {t('transactions.nonColportableDay')}
+                      </p>
+                      <p>
+                        {t('transactions.nonColportableDayMessage')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {!isToday && isSelectedDateColportable && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-2">
+                    <Calendar className="text-blue-500 flex-shrink-0 mt-0.5" size={16} />
+                    <div className="text-sm text-blue-700">
+                      <p className="font-medium">{t('transactions.pastDateTransaction')}</p>
+                      <p>{t('transactions.pastDateTransactionDescription')}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+
           {/* Leader Selection */}
           <div className="relative" ref={leaderDropdownRef}>
             <Card className="overflow-visible">

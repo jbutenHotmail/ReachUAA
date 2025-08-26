@@ -7,11 +7,16 @@ import { TrendingUp, Calendar, DollarSign, Target } from "lucide-react"
 import Card from "../ui/Card"
 import { useProgramStore } from "../../stores/programStore"
 import { useTransactionStore } from "../../stores/transactionStore"
+import { useLeaderPercentageStore } from "../../stores/leaderPercentageStore"
+import { useUserStore } from "../../stores/userStore"
+import { formatNumber } from "../../utils/numberUtils"
 
 const ProgramProjections: React.FC = () => {
   const { t } = useTranslation()
   const { program } = useProgramStore()
   const { transactions, isLoading: transactionsLoading } = useTransactionStore()
+  const { leaderPercentages, fetchLeaderPercentages, werePercentagesFetched } = useLeaderPercentageStore()
+  const { people, fetchPeople, werePeopleFetched } = useUserStore()
   const [isCalculating, setIsCalculating] = useState(transactions.length > 0)
   const [projectionData, setProjectionData] = useState({
     totalMayJuneJuly: 0,
@@ -19,13 +24,30 @@ const ProgramProjections: React.FC = () => {
     endOfProgramProjection: 0,
     breakdown: {
       students50: 0,
-      leaders15: 0,
+      leaders: 0,
       programProfit: 0,
+    },
+    leaderBreakdown: {
+      globalLeadersCount: 0,
+      customLeadersCount: 0,
+      globalLeadersPercentage: 0,
+      customLeadersPercentage: 0,
+      totalLeaderPercentage: 0,
     },
   })
 
+  // Fetch required data
   useEffect(() => {
-    if (transactions.length > 0 && program) {
+    if (!werePercentagesFetched) {
+      fetchLeaderPercentages()
+    }
+    if (!werePeopleFetched) {
+      fetchPeople(program?.id)
+    }
+  }, [fetchLeaderPercentages, fetchPeople, werePercentagesFetched, werePeopleFetched, program])
+
+  useEffect(() => {
+    if (transactions.length > 0 && program && people.length > 0) {
       setIsCalculating(true)
 
       // Pequeño retraso para asegurar que el estado de carga se muestre
@@ -44,14 +66,44 @@ const ProgramProjections: React.FC = () => {
         const studentPercentage = program.financialConfig?.colporter_percentage
           ? Number.parseFloat(program.financialConfig.colporter_percentage)
           : 50
-        const leaderPercentage = program.financialConfig?.leader_percentage
+        
+        // Get global leader percentage
+        const globalLeaderPercentage = program.financialConfig?.leader_percentage
           ? Number.parseFloat(program.financialConfig.leader_percentage)
           : 15
-        const programPercentage = 100 - studentPercentage - leaderPercentage
+        
+        // Get all leaders
+        const leaders = people.filter(p => p.personType === 'LEADER')
+        
+        // Separate leaders with custom vs global percentages
+        const leadersWithCustom = leaders.filter(leader => 
+          leaderPercentages.some(p => p.leaderId === leader.id && p.isActive)
+        )
+        
+        const leadersWithGlobal = leaders.filter(leader => 
+          !leaderPercentages.some(p => p.leaderId === leader.id && p.isActive)
+        )
+        
+        // Calculate custom leaders total percentage
+        const customLeaderPercentage = leadersWithCustom.reduce((sum, leader) => {
+          const individualPercentage = leaderPercentages.find(
+            p => p.leaderId === leader.id && p.isActive
+          )
+          return sum + (individualPercentage ? individualPercentage.percentage : 0)
+        }, 0)
+        
+        // Calculate global leaders total percentage
+        // If there are leaders using global percentage, they share the global percentage equally
+        const globalLeadersTotalPercentage = leadersWithGlobal.length > 0 ? globalLeaderPercentage : 0;
+        
+        // Total leader percentage
+        const totalLeaderPercentage = customLeaderPercentage + globalLeadersTotalPercentage
+        
+        const programPercentage = 100 - studentPercentage - totalLeaderPercentage
 
         const students50 = endOfProgramProjection * (studentPercentage / 100)
-        const leaders15 = endOfProgramProjection * (leaderPercentage / 100)
-        const programProfit = endOfProgramProjection * (programPercentage / 100)
+        const leadersTotal = endOfProgramProjection * (totalLeaderPercentage / 100)
+        const programProfit = (endOfProgramProjection * (programPercentage / 100)) - (endOfProgramProjection * (projectionData.leaderBreakdown.globalLeadersPercentage / 100))
 
         setProjectionData({
           totalMayJuneJuly: totalSales,
@@ -59,8 +111,15 @@ const ProgramProjections: React.FC = () => {
           endOfProgramProjection,
           breakdown: {
             students50,
-            leaders15,
+            leaders: leadersTotal,
             programProfit,
+          },
+          leaderBreakdown: {
+            globalLeadersCount: leadersWithGlobal.length,
+            customLeadersCount: leadersWithCustom.length,
+            globalLeadersPercentage: globalLeadersTotalPercentage,
+            customLeadersPercentage: customLeaderPercentage,
+            totalLeaderPercentage,
           },
         })
 
@@ -69,7 +128,7 @@ const ProgramProjections: React.FC = () => {
 
       return () => clearTimeout(timer)
     }
-  }, [transactions, program])
+  }, [transactions, program, people, leaderPercentages])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -236,36 +295,51 @@ const ProgramProjections: React.FC = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs sm:text-sm font-medium text-purple-700 truncate">
-                        {t("common.leader")} ({program?.financialConfig?.leader_percentage || 15}%)
+                        Líderes 
                       </span>
                       <span className="text-xs sm:text-sm font-bold text-purple-900 ml-2 flex-shrink-0">
-                        {formatCurrency(projectionData.breakdown.leaders15)}
+                        {formatCurrency(projectionData.endOfProgramProjection * (projectionData.leaderBreakdown.globalLeadersPercentage / 100))}
                       </span>
                     </div>
                     <div className="w-full bg-purple-200 rounded-full h-1.5 sm:h-2">
                       <div
                         className="bg-purple-600 h-1.5 sm:h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${program?.financialConfig?.leader_percentage || 15}%` }}
+                        style={{ width: `${projectionData.leaderBreakdown.globalLeadersPercentage}%` }}
                       ></div>
                     </div>
                   </div>
                 </div>
               </div>
 
+              {projectionData.leaderBreakdown.customLeadersCount > 0 && (
+                <div className="p-2 sm:p-3 bg-yellow-50 rounded-lg">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs sm:text-sm font-medium text-yellow-700 truncate">
+                          Líderes Personalizados ({projectionData.leaderBreakdown.customLeadersCount} líderes)
+                        </span>
+                        <span className="text-xs sm:text-sm font-bold text-yellow-900 ml-2 flex-shrink-0">
+                          {formatCurrency(projectionData.endOfProgramProjection * (projectionData.leaderBreakdown.customLeadersPercentage / 100))}
+                        </span>
+                      </div>
+                      <div className="w-full bg-yellow-200 rounded-full h-1.5 sm:h-2">
+                        <div
+                          className="bg-yellow-600 h-1.5 sm:h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${projectionData.leaderBreakdown.customLeadersPercentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="p-2 sm:p-3 bg-gray-50 rounded-lg">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">
-                        {t("common.program")} (
-                        {100 -
-                          (program?.financialConfig?.colporter_percentage
-                            ? Number.parseFloat(program.financialConfig.colporter_percentage)
-                            : 50) -
-                          (program?.financialConfig?.leader_percentage
-                            ? Number.parseFloat(program.financialConfig.leader_percentage)
-                            : 15)}
-                        %)
+                        {t("common.program")} ({formatNumber(100 - (program?.financialConfig?.colporter_percentage ? Number.parseFloat(program.financialConfig.colporter_percentage) : 50) - projectionData.leaderBreakdown.totalLeaderPercentage, 1)}%)
                       </span>
                       <span className="text-xs sm:text-sm font-bold text-gray-900 ml-2 flex-shrink-0">
                         {formatCurrency(projectionData.breakdown.programProfit)}
@@ -275,7 +349,7 @@ const ProgramProjections: React.FC = () => {
                       <div
                         className="bg-gray-600 h-1.5 sm:h-2 rounded-full transition-all duration-300"
                         style={{
-                          width: `${100 - (program?.financialConfig?.colporter_percentage ? Number.parseFloat(program.financialConfig.colporter_percentage) : 50) - (program?.financialConfig?.leader_percentage ? Number.parseFloat(program.financialConfig.leader_percentage) : 15)}%`,
+                          width: `${100 - (program?.financialConfig?.colporter_percentage ? Number.parseFloat(program.financialConfig.colporter_percentage) : 50) - projectionData.leaderBreakdown.totalLeaderPercentage}%`,
                         }}
                       ></div>
                     </div>

@@ -26,6 +26,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearSca
 import { Pie, Bar } from "react-chartjs-2"
 import { useExpenseStore } from "../../stores/expenseStore"
 import LoadingScreen from "../../components/ui/LoadingScreen"
+import { useLeaderPercentageStore } from "../../stores/leaderPercentageStore"
 
 // Register ChartJS components
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title)
@@ -49,6 +50,8 @@ interface ProgramFinancials {
     leaderPercentage: number
     colporterAmount: number
     leaderAmount: number // Ahora será la suma de todas las ganancias individuales de líderes
+    defaultLeaderAmount: number
+    customLeaderAmount: number
   }
   netProfit: number
 }
@@ -79,6 +82,7 @@ const ProgramReport: React.FC = () => {
   const { charges, fetchCharges, wereChargesFetched } = useChargeStore()
   const { advances, fetchAdvances, wereAdvancesFetched } = useCashAdvanceStore()
   const { program, fetchProgram, wasProgramFetched } = useProgramStore()
+  const { leaderPercentages, fetchLeaderPercentages, werePercentagesFetched } = useLeaderPercentageStore()
   const approvedExpenses = expenses.filter((e)=> e.status === 'APPROVED')
   const approvedTransactions = transactions.filter((t) => t.status === 'APPROVED')
   const filteredCharges = charges.filter((c) => c.status === 'APPLIED')
@@ -95,6 +99,7 @@ const ProgramReport: React.FC = () => {
       !wereChargesFetched && dataToFetch.push(fetchCharges())
       !wereAdvancesFetched && dataToFetch.push(fetchAdvances())
       !wasProgramFetched && dataToFetch.push(fetchProgram())
+      !werePercentagesFetched && dataToFetch.push(fetchLeaderPercentages())
 
       try {
         await Promise.all(dataToFetch)
@@ -109,12 +114,12 @@ const ProgramReport: React.FC = () => {
   }, [fetchAllTransactions, fetchCharges, fetchAdvances, fetchProgram, t])
 
   useEffect(() => {
-    if (transactions.length > 0 || charges.length > 0 || advances.length > 0 || expenses.length > 0) {
+    if ((transactions.length > 0 || charges.length > 0 || advances.length > 0 || expenses.length > 0) && program) {
       if (!program) return
       const colporterPercentage = program.financialConfig.colporter_percentage
         ? Number.parseFloat(program.financialConfig.colporter_percentage)
         : 50
-      const leaderPercentage = program.financialConfig.leader_percentage
+      const defaultLeaderPercentage = program.financialConfig.leader_percentage
         ? Number.parseFloat(program.financialConfig.leader_percentage)
         : 15
 
@@ -169,8 +174,35 @@ const ProgramReport: React.FC = () => {
       // Cada transacción contribuye a las ganancias del líder que estuvo a cargo ese día
       let totalLeaderAmount = 0
       approvedTransactions.forEach((transaction) => {
+        // Buscar porcentaje individual del líder
+        const customPercentage = leaderPercentages.find(lp => 
+          lp.leaderId === transaction.leaderId && lp.isActive
+        )
+        
+        // Usar porcentaje personalizado o global
+        const leaderPercentage = customPercentage ? customPercentage.percentage : defaultLeaderPercentage
+        
         const leaderEarnings = Number(transaction.total) * (leaderPercentage / 100)
         totalLeaderAmount += leaderEarnings
+      })
+
+      // Separar ganancias de líderes por tipo de porcentaje
+      let defaultLeaderAmount = 0
+      let customLeaderAmount = 0
+      
+      approvedTransactions.forEach((transaction) => {
+        const customPercentage = leaderPercentages.find(lp => 
+          lp.leaderId === transaction.leaderId && lp.isActive
+        )
+        
+        const leaderPercentage = customPercentage ? customPercentage.percentage : defaultLeaderPercentage
+        const leaderEarnings = Number(transaction.total) * (leaderPercentage / 100)
+        
+        if (customPercentage) {
+          customLeaderAmount += leaderEarnings
+        } else {
+          defaultLeaderAmount += leaderEarnings
+        }
       })
 
       const totalIncome = totalDonations + totalFines
@@ -194,16 +226,18 @@ const ProgramReport: React.FC = () => {
         },
         distribution: {
           colporterPercentage,
-          leaderPercentage,
+          leaderPercentage: defaultLeaderPercentage,
           colporterAmount,
           leaderAmount: totalLeaderAmount, // Ahora es la suma de ganancias individuales
+          defaultLeaderAmount,
+          customLeaderAmount,
         },
         netProfit,
       })
 
       setColporterFinancials(Array.from(colporterMap.values()))
     }
-  }, [transactions, charges, advances, program, expenses])
+  }, [transactions, charges, advances, program, expenses, leaderPercentages])
 
   // Calcular resúmenes de líderes basado en transacciones individuales
   const leaderSummaries = React.useMemo(() => {
@@ -213,23 +247,32 @@ const ProgramReport: React.FC = () => {
     approvedTransactions.forEach((transaction) => {
       const leaderName = transaction.leaderName
       
+      // Buscar porcentaje individual del líder
+      const customPercentage = leaderPercentages.find(lp => 
+        lp.leaderId === transaction.leaderId && lp.isActive
+      )
+      
+      // Usar porcentaje personalizado o global
+      const leaderPercentage = customPercentage ? customPercentage.percentage : (program?.financialConfig?.leader_percentage 
+        ? parseFloat(program.financialConfig.leader_percentage) 
+        : 15)
+      
       if (!summaries[leaderName]) {
         summaries[leaderName] = {
           name: leaderName,
           totalDonations: 0,
           leaderEarnings: 0,
           uniqueColporters: new Set<string>(),
-          transactionCount: 0
+          transactionCount: 0,
+          percentage: leaderPercentage,
+          isCustomPercentage: !!customPercentage
         }
       }
       
       // Sumar ventas del equipo (cada transacción que supervisó)
       summaries[leaderName].totalDonations += Number(transaction.total)
       
-      // Calcular ganancias del líder para esta transacción específica
-      const leaderPercentage = program?.financialConfig?.leader_percentage 
-        ? parseFloat(program.financialConfig.leader_percentage) 
-        : 15
+      // Calcular ganancias del líder para esta transacción específica con su porcentaje
       summaries[leaderName].leaderEarnings += Number(transaction.total) * (leaderPercentage / 100)
       
       // Agregar colportor único
@@ -243,7 +286,7 @@ const ProgramReport: React.FC = () => {
     })
     
     return summaries
-  }, [approvedTransactions, program])
+  }, [approvedTransactions, program, leaderPercentages])
 
   const filteredColporterFinancials = React.useMemo(() => {
     let filtered = [...colporterFinancials]
@@ -267,33 +310,62 @@ const ProgramReport: React.FC = () => {
     }).format(amount)
   }
 
+  // Verificar si hay líderes con porcentajes personalizados
+  const hasCustomPercentages = Object.values(leaderSummaries).some(l => l.isCustomPercentage)
+
   const distributionChartData = {
-    labels: [
+    labels: hasCustomPercentages ? [
       t("dashboard.distributionExpenses"),
-      t("common.leaders"),
+      `${t("common.leaders")} (Global ${programFinancials?.distribution.leaderPercentage || 15}%)`,
+      `${t("common.leaders")} (Personalizado)`,
+      t("expenses.title"),
+      t("cashAdvance.title"),
+      t("dashboard.programSurplus"),
+    ] : [
+      t("dashboard.distributionExpenses"),
+      `${t("common.leaders")} (${programFinancials?.distribution.leaderPercentage || 15}%)`,
       t("expenses.title"),
       t("cashAdvance.title"),
       t("dashboard.programSurplus"),
     ],
     datasets: [
       {
-        data: programFinancials
-          ? [
+        data: programFinancials ? (hasCustomPercentages ? [
+              programFinancials.distribution.colporterAmount,
+              programFinancials.distribution.defaultLeaderAmount,
+              programFinancials.distribution.customLeaderAmount,
+              programFinancials.expenses.programExpenses,
+              programFinancials.expenses.advances,
+              programFinancials.netProfit,
+            ] : [
               programFinancials.distribution.colporterAmount,
               programFinancials.distribution.leaderAmount,
               programFinancials.expenses.programExpenses,
               programFinancials.expenses.advances,
               programFinancials.netProfit,
-            ]
-          : [],
-        backgroundColor: [
+            ]) : [],
+        backgroundColor: hasCustomPercentages ? [
+          "rgba(59, 130, 246, 0.8)",
+          "rgba(139, 92, 246, 0.8)", // Purple for default leaders
+          "rgba(251, 191, 36, 0.8)",  // Yellow for custom leaders
+          "rgba(249, 115, 22, 0.8)",
+          "rgba(239, 68, 68, 0.8)",
+          "rgba(16, 185, 129, 0.8)",
+        ] : [
           "rgba(59, 130, 246, 0.8)",
           "rgba(139, 92, 246, 0.8)",
           "rgba(249, 115, 22, 0.8)",
           "rgba(239, 68, 68, 0.8)",
           "rgba(16, 185, 129, 0.8)",
         ],
-        borderColor: [
+        borderColor: hasCustomPercentages ? [
+          "rgba(59, 130, 246, 1)",
+          "rgba(139, 92, 246, 1)",
+          "rgba(251, 191, 36, 1)",
+          "rgba(249, 115, 22, 1)",
+          "rgba(239, 68, 68, 1)",
+          "rgba(16, 185, 129, 1)",
+        ] : [
           "rgba(59, 130, 246, 1)",
           "rgba(139, 92, 246, 1)",
           "rgba(249, 115, 22, 1)",
@@ -316,11 +388,16 @@ const ProgramReport: React.FC = () => {
         backgroundColor: "rgba(59, 130, 246, 0.8)",
       },
       {
-        label: `${t("dashboard.revenueDistribution")} (${t("common.leaders")})`,
+        label: `${t("dashboard.revenueDistribution")} (${t("common.leaders")})${Object.values(leaderSummaries).some(l => l.isCustomPercentage) ? ' *' : ''}`,
         data: uniqueLeaders.map((leader) => {
           return leaderSummaries[leader]?.leaderEarnings || 0
         }),
-        backgroundColor: "rgba(139, 92, 246, 0.8)",
+        backgroundColor: uniqueLeaders.map((leader) => {
+          const leaderData = leaderSummaries[leader];
+          return leaderData?.isCustomPercentage 
+            ? "rgba(251, 191, 36, 0.8)"  // Yellow for custom percentage
+            : "rgba(139, 92, 246, 0.8)"; // Purple for default
+        }),
       },
     ],
   }
@@ -493,6 +570,44 @@ const ProgramReport: React.FC = () => {
       {viewType === "summary" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card title={t("dashboard.financialSummary")} icon={<PieChart size={20} />}>
+            {/* Alert for distribution issues */}
+            {programFinancials && (
+              (() => {
+                const totalDistribution = programFinancials.distribution.colporterPercentage + 
+                  (Object.values(leaderSummaries).reduce((sum, leader) => sum + leader.percentage, 0) / Object.values(leaderSummaries).length);
+                const isExcessive = totalDistribution > 100;
+                const isHigh = totalDistribution > 90;
+                
+                if (isExcessive || isHigh) {
+                  return (
+                    <div className={`p-3 mb-4 border rounded-lg ${
+                      isExcessive ? 'bg-danger-50 border-danger-200' : 'bg-warning-50 border-warning-200'
+                    }`}>
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className={`flex-shrink-0 mt-0.5 ${
+                          isExcessive ? 'text-danger-600' : 'text-warning-600'
+                        }`} size={16} />
+                        <div className={`text-xs ${
+                          isExcessive ? 'text-danger-700' : 'text-warning-700'
+                        }`}>
+                          <p className="font-medium">
+                            {isExcessive ? '⚠️ Distribución Excesiva' : '⚠️ Distribución Alta'}
+                          </p>
+                          <p>
+                            {isExcessive 
+                              ? 'Los porcentajes personalizados están causando una distribución mayor al 100%'
+                              : 'Los porcentajes personalizados están dejando poco superávit para el programa'
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()
+            )}
+            
             <div className="h-80 flex justify-center items-center">
               <Pie data={distributionChartData} options={chartOptions} />
             </div>
@@ -508,14 +623,22 @@ const ProgramReport: React.FC = () => {
                 </p>
               </div>
               <div className="p-3 bg-purple-50 rounded-lg">
-                <p className="text-sm font-medium text-purple-700">{`${t("dashboard.revenueDistribution")} (${t("common.leaders")})`
-}</p>
+                <p className="text-sm font-medium text-purple-700">
+                  {`${t("dashboard.revenueDistribution")} (${t("common.leaders")})`}
+                  {Object.values(leaderSummaries).some(l => l.isCustomPercentage) && (
+                    <span className="ml-1 text-yellow-600">*</span>
+                  )}
+                </p>
                 <p className="text-lg font-bold text-purple-800 mt-1">
                   {formatCurrency(programFinancials.distribution.leaderAmount)}
                 </p>
-                <p className="text-xs text-purple-600">
-                  {programFinancials.distribution.leaderPercentage}% {t("common.of")} {t("reports.teamSales")}
-                </p>
+                <div className="text-xs text-purple-600">
+                  {Object.values(leaderSummaries).some(l => l.isCustomPercentage) ? (
+                    <span>Porcentajes individuales aplicados</span>
+                  ) : (
+                    <span>{programFinancials.distribution.leaderPercentage}% {t("common.of")} {t("reports.teamSales")}</span>
+                  )}
+                </div>
               </div>
             </div>
           </Card>
@@ -695,9 +818,13 @@ const ProgramReport: React.FC = () => {
                 <p className="text-2xl font-bold text-purple-700 mt-2">
                   {formatCurrency(programFinancials.distribution.leaderAmount)}
                 </p>
-                <p className="text-xs text-purple-600 mt-1">
-                  {programFinancials.distribution.leaderPercentage}% {t("common.of")} {t("reports.teamSales")}
-                </p>
+                <div className="text-xs text-purple-600">
+                  {Object.values(leaderSummaries).some(l => l.isCustomPercentage) ? (
+                    <span>Porcentajes individuales aplicados</span>
+                  ) : (
+                    <span>{programFinancials.distribution.leaderPercentage}% {t("common.of")} {t("reports.teamSales")}</span>
+                  )}
+                </div>
               </div>
 
               <div className="text-center p-4 bg-primary-50 rounded-lg">
@@ -888,7 +1015,7 @@ const ProgramReport: React.FC = () => {
                       {t("dashboard.revenueDistribution")}
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      % {t("common.of")} {t("common.m")}
+                      % Individual
                     </th>
                   </tr>
                 </thead>
@@ -906,8 +1033,12 @@ const ProgramReport: React.FC = () => {
                         {formatCurrency(leader.leaderEarnings)}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                        <Badge variant="secondary">
-                          {programFinancials.income.donations > 0 ? ((leader.totalDonations / programFinancials.income.donations) * 100).toFixed(1) : 0}%
+                        <Badge 
+                          variant={leader.isCustomPercentage ? "warning" : "secondary"}
+                          className="flex items-center gap-1"
+                        >
+                          {leader.percentage}%
+                          {leader.isCustomPercentage && <span>⚙️</span>}
                         </Badge>
                       </td>
                     </tr>
@@ -926,7 +1057,11 @@ const ProgramReport: React.FC = () => {
                       {formatCurrency(programFinancials.distribution.leaderAmount)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-center font-bold">
-                      <Badge variant="secondary">100%</Badge>
+                      <Badge variant="secondary">
+                        Promedio: {Object.values(leaderSummaries).length > 0 
+                          ? (Object.values(leaderSummaries).reduce((sum, l) => sum + l.percentage, 0) / Object.values(leaderSummaries).length).toFixed(1)
+                          : programFinancials.distribution.leaderPercentage}%
+                      </Badge>
                     </td>
                   </tr>
                 </tfoot>

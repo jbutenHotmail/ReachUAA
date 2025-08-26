@@ -63,7 +63,7 @@ const Dashboard: React.FC = () => {
       console.log('Frontend today date:', today);
       !wereTransactionsFetched && fetchTransactions(today);
     }
-  }, [user]);
+  }, []);
 
 
   useEffect(() => {
