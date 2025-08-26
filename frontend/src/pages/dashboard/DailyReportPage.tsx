@@ -21,6 +21,7 @@ import Badge from '../../components/ui/Badge';
 import LoadingScreen from '../../components/ui/LoadingScreen';
 import { BookSize } from '../../types';
 import { normalizeDateString } from '../../utils/dateUtils';
+import { formatNumber } from '../../utils/numberUtils';
 
 const DailyReportPage: React.FC = () => {
   const { t } = useTranslation();
@@ -57,7 +58,7 @@ const DailyReportPage: React.FC = () => {
 
   // Filter data for this specific date and user
   const dayTransactions = transactions.filter(t => 
-    normalizeDateString(t.createdAt) === date && 
+    normalizeDateString(t.date) === date && 
     t.studentId === personalStats.person.id && 
     t.status === 'APPROVED'
   );
@@ -68,7 +69,7 @@ const DailyReportPage: React.FC = () => {
 
   // Calculate totals for this day
   const dayTotals = {
-    sales: dayTransactions.reduce((sum, t) => sum + t.total, 0),
+    sales: dayTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0),
     books: dayTransactions.reduce((sum, t) => {
       return sum + (t.books?.reduce((bookSum, book) => bookSum + book.quantity, 0) || 0);
     }, 0),
@@ -108,7 +109,8 @@ const DailyReportPage: React.FC = () => {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: 'UTC'
     });
   };
 
@@ -155,7 +157,7 @@ const DailyReportPage: React.FC = () => {
             </div>
             <p className="text-sm font-medium text-gray-500">{t('dashboard.dailySales')}</p>
             <p className="mt-1 text-2xl font-bold text-primary-600">
-              ${dayTotals.sales.toFixed(2)}
+              ${formatNumber(dayTotals.sales)}
             </p>
           </div>
         </Card>
@@ -209,26 +211,26 @@ const DailyReportPage: React.FC = () => {
                           </p>
                         </div>
                         <Badge variant="primary" size="lg">
-                          ${transaction.total.toFixed(2)}
+                          ${formatNumber(transaction.total)}
                         </Badge>
                       </div>
                       
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                         <div className="flex justify-between">
                           <span className="text-gray-500">{t('dashboard.cash')}:</span>
-                          <span>${transaction.cash.toFixed(2)}</span>
+                          <span>${formatNumber(transaction.cash)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-500">{t('dashboard.checks')}:</span>
-                          <span>${transaction.checks.toFixed(2)}</span>
+                          <span>${formatNumber(transaction.checks)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-500">{t('dashboard.atm')}:</span>
-                          <span>${transaction.atmMobile.toFixed(2)}</span>
+                          <span>${formatNumber(transaction.atmMobile)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-500">{t('dashboard.paypal')}:</span>
-                          <span>${transaction.paypal.toFixed(2)}</span>
+                          <span>${formatNumber(transaction.paypal)}</span>
                         </div>
                       </div>
                     </div>
@@ -256,7 +258,7 @@ const DailyReportPage: React.FC = () => {
                           >
                             {t(`inventory.size.${book.size.toLowerCase()}`)}
                           </Badge>
-                          <span className="text-sm text-gray-500">${book.price.toFixed(2)} {t('dashboard.perUnit')}</span>
+                          <span className="text-sm text-gray-500">${formatNumber(book.price)} {t('dashboard.perUnit')}</span>
                         </div>
                       </div>
                       <div className="text-right">
@@ -264,7 +266,7 @@ const DailyReportPage: React.FC = () => {
                           {book.quantity}
                         </Badge>
                         <p className="text-xs text-gray-500 mt-1">
-                          ${(book.price * book.quantity).toFixed(2)}
+                          ${formatNumber(book.price * book.quantity)}
                         </p>
                       </div>
                     </div>
