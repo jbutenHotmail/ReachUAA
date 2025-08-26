@@ -578,32 +578,29 @@ const ProgramReport: React.FC = () => {
                 const isExcessive = totalDistribution > 100;
                 const isHigh = totalDistribution > 90;
                 
-                if (isExcessive || isHigh) {
-                  return (
-                    <div className={`p-3 mb-4 border rounded-lg ${
-                      isExcessive ? 'bg-danger-50 border-danger-200' : 'bg-warning-50 border-warning-200'
-                    }`}>
-                      <div className="flex items-start gap-2">
-                        <AlertTriangle className={`flex-shrink-0 mt-0.5 ${
-                          isExcessive ? 'text-danger-600' : 'text-warning-600'
-                        }`} size={16} />
-                        <div className={`text-xs ${
-                          isExcessive ? 'text-danger-700' : 'text-warning-700'
-                        }`}>
-                          <p className="font-medium">
-                            {isExcessive ? '⚠️ Distribución Excesiva' : '⚠️ Distribución Alta'}
-                          </p>
-                          <p>
-                            {isExcessive 
-                              ? 'Los porcentajes personalizados están causando una distribución mayor al 100%'
-                              : 'Los porcentajes personalizados están dejando poco superávit para el programa'
-                            }
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
+                // if (isExcessive || isHigh) {
+                //   return (
+                //     <div className={`p-3 mb-4 border rounded-lg ${
+                //       isExcessive ? 'bg-danger-50 border-danger-200' : 'bg-warning-50 border-warning-200'
+                //     }`}>
+                //       <div className="flex items-start gap-2">
+                //         <AlertTriangle className={`flex-shrink-0 mt-0.5 ${
+                //           isExcessive ? 'text-danger-600' : 'text-warning-600'
+                //         }`} size={16} />
+                       
+                //           {/* <p className="font-medium">
+                //             {isExcessive ? '⚠️ Distribución Excesiva' : '⚠️ Distribución Alta'}
+                //           </p> */}
+                //           {/* <p>
+                //             {isExcessive 
+                //               ? 'Los porcentajes personalizados están causando una distribución mayor al 100%'
+                //               : 'Los porcentajes personalizados están dejando poco superávit para el programa'
+                //             }
+                //           </p> */}
+                //       </div>
+                //     </div>
+                //   );
+                // }
                 return null;
               })()
             )}

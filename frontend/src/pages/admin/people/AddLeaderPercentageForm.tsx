@@ -251,7 +251,7 @@ const AddLeaderPercentageForm: React.FC<AddLeaderPercentageFormProps> = ({
                   
                   {percentageDifference !== 0 && (
                     <div className="mt-2 flex justify-between items-center">
-                      <span className="text-sm text-gray-600">{t('common.difference')}:</span>
+                      <span className="text-sm text-gray-600">{t('transactionDetails.difference')}:</span>
                       <div className={`flex items-center gap-1 ${
                         isHigherThanDefault ? 'text-success-600' : 'text-warning-600'
                       }`}>

@@ -233,7 +233,7 @@ export default {
     excessiveDistributionIssue: "Problema: La distribución excede el 100%. Esto causará un déficit en el programa.",
     lowSurplusWarning: "Advertencia: El programa tendrá un superávit muy bajo ({{percentage}}%).",
     percentageOverrideInfo: "Este porcentaje sobrescribirá el porcentaje global del programa ({{percentage}}%)",
-    appliedToFutureEarnings: "Se aplicará a todas las ganancias futuras del líder",
+    appliedToFutureEarnings: "Se aplicará a todas las ganancias del líder",
     teamSalesCalculation: "Los cálculos se basan en las ventas totales del equipo del líder",
     temporaryDeactivation: "Puedes desactivar temporalmente sin perder la configuración"
   },

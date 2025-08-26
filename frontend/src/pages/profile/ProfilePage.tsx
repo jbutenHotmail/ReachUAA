@@ -41,10 +41,13 @@ const ProfilePage: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    // Only update fields other than name
+    if (name !== 'name') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleImageChange = (file: File | null) => {
@@ -105,7 +108,6 @@ const ProfilePage: React.FC = () => {
       }
       
       await updateProfile({
-        name: formData.name,
         phone: formData.phone,
         address: formData.address,
         profileImage: finalImageUrl
@@ -227,6 +229,7 @@ const ProfilePage: React.FC = () => {
                       value={formData.name}
                       onChange={handleChange}
                       required
+                      disabled // Disable the name input field
                     />
                     
                     <Input
