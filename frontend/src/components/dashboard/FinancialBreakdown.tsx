@@ -121,7 +121,6 @@ const FinancialBreakdown: React.FC = () => {
         const studentsAmount = totalRevenue * (studentPercentage / 100);
         const globalLeadersAmount = totalRevenue * (globalLeadersTotalPercentage / 100);
         const customLeadersAmount = totalRevenue * (customLeaderPercentage / 100);
-        const totalLeadersAmount = globalLeadersAmount + customLeadersAmount;
         
         const advancesAmount = advances
           .filter(a => a.status === 'APPROVED')
