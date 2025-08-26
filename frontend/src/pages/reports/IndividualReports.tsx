@@ -179,7 +179,6 @@ const IndividualReports: React.FC = () => {
       })
 
       const data: ReportData = response;// Assuming the API returns data in this format
-      console.log(response, startDate, endDate)
       // Filter charges for this person from local data
       const personCharges = data.charges.filter(
         (c) => c.personId === selectedPerson.id && c.status === "APPLIED",
@@ -264,7 +263,6 @@ const IndividualReports: React.FC = () => {
 
   // Generate all dates in the range
   const allDates = generateDateRange(startDate, endDate)
-  console.log('allDates', allDates)
   let currentWeek: Array<{ date: string; dayName: string; amount: number; isColportableDay: boolean }> = []
   let weekStartDate: string | null = null
 

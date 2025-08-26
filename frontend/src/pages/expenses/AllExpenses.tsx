@@ -88,7 +88,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
       matchesStatus
     );
   });
-  console.log('filteredExpenses', filteredExpenses)
   // Calculate totals - ONLY APPROVED EXPENSES
   const approvedExpenses = filteredExpenses.filter(e => e.status === 'APPROVED' || !e.status);
   const totalAmount = approvedExpenses.reduce((sum, expense) => Number(sum) + Number(expense.amount), 0);

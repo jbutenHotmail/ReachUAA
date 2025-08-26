@@ -10,7 +10,7 @@ const Footer: React.FC = () => {
           &copy; {currentYear} Reach UAA. All rights reserved. Developed by Wilmer Buten.
         </div>
         <div className="text-sm text-gray-500">
-          Version 1.0.0
+          Version 1.0.6
         </div>
       </div>
     </footer>

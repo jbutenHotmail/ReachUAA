@@ -235,7 +235,6 @@ const SummerColporterReport: React.FC = () => {
 
     validTransactions.forEach((transaction) => {
       // Add sales for this day
-      console.log(transaction)
       dailySalesData[transaction.date] = (dailySalesData[transaction.date] || 0) + transaction.total
 
       // Initialize books for this day
@@ -256,7 +255,6 @@ const SummerColporterReport: React.FC = () => {
         })
       }
     })
-    console.log(dailyBooksData)
     const salesEntries = Object.entries(dailySalesData)
     let bestDay = { date: "", amount: 0 }
     let worstDay = { date: "", amount: 0 }

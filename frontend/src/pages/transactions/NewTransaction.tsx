@@ -7,7 +7,6 @@ import { useUserStore } from '../../stores/userStore';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { useProgramStore } from '../../stores/programStore';
-import { useAuthStore } from '../../stores/authStore';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -15,7 +14,7 @@ import Badge from '../../components/ui/Badge';
 import LoadingScreen from '../../components/ui/LoadingScreen';
 import { getCurrentDate } from '../../utils/dateUtils';
 import { isColportableDay, getNextColportableDay } from '../../utils/programUtils';
-import { UserRole, BookSize } from '../../types';
+import { BookSize } from '../../types';
 
 const NewTransaction: React.FC = () => {
   const { t } = useTranslation();
@@ -24,7 +23,6 @@ const NewTransaction: React.FC = () => {
   const { createTransaction } = useTransactionStore();
   const { books, fetchBooks, wereBooksLoaded } = useInventoryStore();
   const { fetchProgram, wasProgramFetched } = useProgramStore();
-  const { user } = useAuthStore();
   const [leaderSearch, setLeaderSearch] = useState('');
   const [colporterSearch, setColporterSearch] = useState('');
   const [selectedLeader, setSelectedLeader] = useState<{ id: string; name: string } | null>(null);
@@ -51,7 +49,6 @@ const NewTransaction: React.FC = () => {
   const selectedDateObj = useMemo(() => new Date(selectedDate + 'T00:00:00'), [selectedDate]);
   const isSelectedDateColportable = useMemo(() => isColportableDay(selectedDateObj), [selectedDateObj]);
   const nextColportableDay = useMemo(() => getNextColportableDay(selectedDateObj), [selectedDateObj]);
-  const today = useMemo(() => new Date(), []);
   const isToday = selectedDate === getCurrentDate();
 
   useEffect(() => {
@@ -132,7 +129,6 @@ const NewTransaction: React.FC = () => {
     setIsLoading(true);
     try {
       // Use the consistent date format for today
-      const todayFormatted = getCurrentDate();
       await createTransaction({
         leaderId: selectedLeader.id,
         leaderName: selectedLeader.name,

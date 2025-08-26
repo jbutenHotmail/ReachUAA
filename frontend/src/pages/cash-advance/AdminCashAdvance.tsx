@@ -440,7 +440,6 @@ const AdminCashAdvance: React.FC = () => {
                   </thead>
                   <tbody>
                     <tr>
-                      {console.log(currentWeekSales)}
                       {Object.entries(currentWeekSales.dailySales).map(([date, amount]) => (
                         <td
                           key={date}

@@ -108,7 +108,7 @@ const AddLeaderPercentageForm: React.FC<AddLeaderPercentageFormProps> = ({
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">
-                {initialData ? 'Editar Porcentaje de Líder' : 'Agregar Porcentaje de Líder'}
+                {t(initialData ? 'leaderPercentages.editFormTitle' : 'leaderPercentages.addFormTitle')}
               </h2>
               <button
                 type="button"
@@ -124,7 +124,7 @@ const AddLeaderPercentageForm: React.FC<AddLeaderPercentageFormProps> = ({
               {!initialData && (
                 <div className="relative" ref={leaderDropdownRef}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Seleccionar Líder
+                    {t('leaderPercentages.selectLeader')}
                   </label>
                   <div
                     className={clsx(
@@ -135,7 +135,7 @@ const AddLeaderPercentageForm: React.FC<AddLeaderPercentageFormProps> = ({
                     <div className="flex items-center">
                       <input
                         type="text"
-                        placeholder="Buscar líder..."
+                        placeholder={t('leaderPercentages.searchLeaderPlaceholder')}
                         value={leaderSearch}
                         onChange={(e) => {
                           setLeaderSearch(e.target.value);
@@ -202,7 +202,7 @@ const AddLeaderPercentageForm: React.FC<AddLeaderPercentageFormProps> = ({
                           ))
                         ) : (
                           <div className="px-4 py-2 text-sm text-gray-500">
-                            No se encontraron líderes disponibles
+                            {t('leaderPercentages.noLeadersFound')}
                           </div>
                         )}
                       </div>
@@ -222,7 +222,7 @@ const AddLeaderPercentageForm: React.FC<AddLeaderPercentageFormProps> = ({
                       <p className="text-sm font-medium text-gray-900">{initialData.leaderName}</p>
                       <p className="text-xs text-gray-500">ID: {initialData.leaderId}</p>
                     </div>
-                    <Badge variant="success" size="sm">Líder</Badge>
+                    <Badge variant="success" size="sm">{t('leaderPercentages.leader')}</Badge>
                   </div>
                 </div>
               )}
@@ -230,7 +230,7 @@ const AddLeaderPercentageForm: React.FC<AddLeaderPercentageFormProps> = ({
               {/* Percentage Input */}
               <div>
                 <Input
-                  label="Porcentaje de Ganancias (%)"
+                  label={t('leaderPercentages.earningsPercentage')}
                   type="number"
                   name="percentage"
                   value={formData.percentage || ''}
@@ -245,13 +245,13 @@ const AddLeaderPercentageForm: React.FC<AddLeaderPercentageFormProps> = ({
                 {/* Comparison with default */}
                 <div className="mt-2 p-3 bg-gray-50 rounded-lg">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Porcentaje Global del Programa:</span>
+                    <span className="text-sm text-gray-600">{t('leaderPercentages.globalPercentage')}:</span>
                     <Badge variant="secondary">{defaultPercentage}%</Badge>
                   </div>
                   
                   {percentageDifference !== 0 && (
                     <div className="mt-2 flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Diferencia:</span>
+                      <span className="text-sm text-gray-600">{t('common.difference')}:</span>
                       <div className={`flex items-center gap-1 ${
                         isHigherThanDefault ? 'text-success-600' : 'text-warning-600'
                       }`}>
@@ -279,7 +279,7 @@ const AddLeaderPercentageForm: React.FC<AddLeaderPercentageFormProps> = ({
                     className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                   />
                   <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
-                    Porcentaje activo (se aplica en cálculos)
+                    {t('leaderPercentages.activePercentage')}
                   </label>
                 </div>
               )}
@@ -289,77 +289,76 @@ const AddLeaderPercentageForm: React.FC<AddLeaderPercentageFormProps> = ({
                 <div className="flex items-start gap-3">
                   <AlertCircle className="text-primary-600 flex-shrink-0 mt-0.5" size={20} />
                   <div className="text-sm text-primary-700">
-                    <p className="font-medium mb-2">Información Importante:</p>
+                    <p className="font-medium mb-2">{t('leaderPercentages.importantInfo')}:</p>
                     <ul className="space-y-1 text-xs">
-                      <li>• Este porcentaje sobrescribirá el porcentaje global del programa ({defaultPercentage}%)</li>
-                      <li>• Se aplicará a todas las ganancias futuras del líder</li>
-                      <li>• Los cálculos se basan en las ventas totales del equipo del líder</li>
-                      <li>• Puedes desactivar temporalmente sin perder la configuración</li>
+                      <li>{t('leaderPercentages.percentageOverrideInfo', { percentage: defaultPercentage })}</li>
+                      <li>{t('leaderPercentages.appliedToFutureEarnings')}</li>
+                      <li>{t('leaderPercentages.teamSalesCalculation')}</li>
+                      <li>{t('leaderPercentages.temporaryDeactivation')}</li>
                     </ul>
                   </div>
                 </div>
               </div>
-            </div>
 
-
-          {/* Distribution Impact Warning */}
-          {distributionImpact && (
-            <div className={`p-4 border rounded-lg ${
-              distributionImpact.isExcessive 
-                ? 'bg-danger-50 border-danger-200' 
-                : distributionImpact.isLow 
-                  ? 'bg-warning-50 border-warning-200'
-                  : 'bg-success-50 border-success-200'
-            }`}>
-              <div className="flex items-start gap-3">
-                <AlertCircle className={`flex-shrink-0 mt-0.5 ${
+              {/* Distribution Impact Warning */}
+              {distributionImpact && (
+                <div className={`p-4 border rounded-lg ${
                   distributionImpact.isExcessive 
-                    ? 'text-danger-600' 
+                    ? 'bg-danger-50 border-danger-200' 
                     : distributionImpact.isLow 
-                      ? 'text-warning-600'
-                      : 'text-success-600'
-                }`} size={20} />
-                <div className={`text-sm ${
-                  distributionImpact.isExcessive 
-                    ? 'text-danger-700' 
-                    : distributionImpact.isLow 
-                      ? 'text-warning-700'
-                      : 'text-success-700'
+                      ? 'bg-warning-50 border-warning-200'
+                      : 'bg-success-50 border-success-200'
                 }`}>
-                  <p className="font-medium">
-                    {distributionImpact.isExcessive 
-                      ? '⚠️ Distribución Excesiva Detectada'
-                      : distributionImpact.isLow 
-                        ? '⚠️ Bajo Superávit del Programa'
-                        : '✅ Distribución Balanceada'
-                    }
-                  </p>
-                  <div className="mt-2 space-y-1">
-                    <p>• Colportores: {distributionImpact.colporterPercentage}%</p>
-                    <p>• Este Líder: {distributionImpact.leaderPercentage}%</p>
-                    <p>• Programa: {distributionImpact.programPercentage}%</p>
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className={`flex-shrink-0 mt-0.5 ${
+                      distributionImpact.isExcessive 
+                        ? 'text-danger-600' 
+                        : distributionImpact.isLow 
+                          ? 'text-warning-600'
+                          : 'text-success-600'
+                    }`} size={20} />
+                    <div className={`text-sm ${
+                      distributionImpact.isExcessive 
+                        ? 'text-danger-700' 
+                        : distributionImpact.isLow 
+                          ? 'text-warning-700'
+                          : 'text-success-700'
+                    }`}>
+                      <p className="font-medium">
+                        {t(distributionImpact.isExcessive 
+                          ? 'leaderPercentages.excessiveDistribution' 
+                          : distributionImpact.isLow 
+                            ? 'leaderPercentages.lowProgramSurplus'
+                            : 'leaderPercentages.balancedDistribution')}
+                      </p>
+                      <div className="mt-2 space-y-1">
+                        <p>{t('leaderPercentages.colporters')}: {distributionImpact.colporterPercentage}%</p>
+                        <p>{t('leaderPercentages.thisLeader')}: {distributionImpact.leaderPercentage}%</p>
+                        <p>{t('leaderPercentages.program')}: {distributionImpact.programPercentage}%</p>
+                      </div>
+                      {distributionImpact.isExcessive && (
+                        <p className="mt-2 text-xs">
+                          <strong>{t('common.problem')}:</strong> {t('leaderPercentages.excessiveDistributionIssue')}
+                        </p>
+                      )}
+                      {distributionImpact.isLow && (
+                        <p className="mt-2 text-xs">
+                          <strong>{t('common.warning')}:</strong> {t('leaderPercentages.lowSurplusWarning', { percentage: distributionImpact.programPercentage })}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  {distributionImpact.isExcessive && (
-                    <p className="mt-2 text-xs">
-                      <strong>Problema:</strong> La distribución excede el 100%. Esto causará un déficit en el programa.
-                    </p>
-                  )}
-                  {distributionImpact.isLow && (
-                    <p className="mt-2 text-xs">
-                      <strong>Advertencia:</strong> El programa tendrá un superávit muy bajo ({distributionImpact.programPercentage}%).
-                    </p>
-                  )}
                 </div>
-              </div>
+              )}
             </div>
-          )}
+
             <div className="flex justify-end gap-3">
               <Button
                 type="button"
                 variant="outline"
                 onClick={onClose}
               >
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button
                 type="submit"
@@ -369,7 +368,7 @@ const AddLeaderPercentageForm: React.FC<AddLeaderPercentageFormProps> = ({
                   (distributionImpact?.isExcessive)
                 }
               >
-                {initialData ? 'Guardar Cambios' : 'Crear Porcentaje'}
+                {t(initialData ? 'leaderPercentages.saveChanges' : 'leaderPercentages.createPercentage')}
               </Button>
             </div>
           </form>
