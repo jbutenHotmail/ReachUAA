@@ -359,22 +359,6 @@ const ProfilePage: React.FC = () => {
                   )}
                 </div>
               </div>
-              
-              <div>
-                <p className="text-sm font-medium text-gray-500">{t('profile.status')}</p>
-                <div className="mt-1">
-                  {user.status === 'ACTIVE' ? (
-                    <Badge variant="success">
-                      {t('profile.active')}
-                    </Badge>
-                  ) : (
-                    <Badge variant="danger">
-                      {t('profile.inactive')}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              
               {user.lastLogin && (
                 <div>
                   <p className="text-sm font-medium text-gray-500">Last Login</p>
