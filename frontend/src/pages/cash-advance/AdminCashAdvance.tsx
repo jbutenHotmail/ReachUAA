@@ -42,6 +42,8 @@ const AdminCashAdvance: React.FC = () => {
   const [customPercentage, setCustomPercentage] = useState<number>(0) // Will be set from program config
   const [localWeeklySales, setLocalWeeklySales] = useState<any>(null)
   const [isCalculatingLocally, setIsCalculatingLocally] = useState(false)
+  const [selectedWeekStart, setSelectedWeekStart] = useState<string>('')
+  const [selectedWeekEnd, setSelectedWeekEnd] = useState<string>('')
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -78,16 +80,23 @@ const AdminCashAdvance: React.FC = () => {
       // Calculate weekly sales locally if we have transactions and advances
       if (wereTransactionsFetched && wereAdvancesFetched) {
         setIsCalculatingLocally(true)
-        calculateWeeklySalesLocally(selectedPerson.id, selectedPerson.personType)
+        // Use selected week if available, otherwise use current week
+        if (selectedWeekStart && selectedWeekEnd) {
+          calculateWeeklySalesForSpecificWeek(selectedPerson.id, selectedPerson.personType, selectedWeekStart, selectedWeekEnd)
+        } else {
+          calculateWeeklySalesLocally(selectedPerson.id, selectedPerson.personType)
+        }
       } else {
         // Otherwise fetch from API
-        fetchWeeklySales(selectedPerson.id).catch((err) => {
+        const weekStart = selectedWeekStart || undefined;
+        const weekEnd = selectedWeekEnd || undefined;
+        fetchWeeklySales(selectedPerson.id, weekStart, weekEnd).catch((err) => {
           setError(t("cashAdvance.errorFetchingSales"))
           console.error("Error fetching weekly sales:", err)
         })
       }
     }
-  }, [selectedPerson, fetchWeeklySales, program, wereTransactionsFetched, wereAdvancesFetched])
+  }, [selectedPerson, fetchWeeklySales, program, wereTransactionsFetched, wereAdvancesFetched, selectedWeekStart, selectedWeekEnd])
 
   // Calculate weekly sales locally
   const calculateWeeklySalesLocally = (personId: string, personType: "COLPORTER" | "LEADER") => {
@@ -98,21 +107,31 @@ const AdminCashAdvance: React.FC = () => {
     const date = today.getDate()
     const dayOfWeek = today.getDay() // 0 = Sunday, 1 = Monday, etc.
     
-    // Get leader percentage for calculations
-    const leaderPercentage = program?.financialConfig?.leader_percentage 
-      ? parseFloat(program.financialConfig.leader_percentage) 
-      : 15;
-    
-    // Calculate start of week (Sunday) - if today is Sunday (0), go back 7 days to previous Sunday
-    // if today is Monday (1), go back 1 day to Sunday, etc.
-    const daysToSubtract = dayOfWeek === 0 ? 0 : dayOfWeek // If Sunday, don't subtract, otherwise subtract dayOfWeek
+    // Calculate start of week (Sunday)
+    const daysToSubtract = dayOfWeek === 0 ? 0 : dayOfWeek
     const startOfWeek = new Date(year, month, date - daysToSubtract)
     
-    // Calculate end of week (Saturday) - 6 days after Sunday
+    // Calculate end of week (Saturday)
     const endOfWeek = new Date(year, month, date - daysToSubtract + 6)
     
     const weekStartDate = formatDateToString(startOfWeek)
     const weekEndDate = formatDateToString(endOfWeek)
+    
+    // Set the selected week to current week
+    setSelectedWeekStart(weekStartDate)
+    setSelectedWeekEnd(weekEndDate)
+    
+    calculateWeeklySalesForSpecificWeek(personId, personType, weekStartDate, weekEndDate)
+  }
+
+  // Calculate weekly sales for a specific week
+  const calculateWeeklySalesForSpecificWeek = (personId: string, personType: "COLPORTER" | "LEADER", weekStartDate: string, weekEndDate: string) => {
+    // Get current date
+    
+    // Get leader percentage for calculations
+    const leaderPercentage = program?.financialConfig?.leader_percentage 
+      ? parseFloat(program.financialConfig.leader_percentage) 
+      : 15;
     
     // Filter transactions for this person and this week
     const personTransactions = transactions.filter((t) => {
@@ -140,8 +159,10 @@ const AdminCashAdvance: React.FC = () => {
     const dailySales: Record<string, number> = {}
     
     // Initialize all 7 days of the week with 0
+    const startDate = new Date(weekStartDate)
     for (let i = 0; i < 7; i++) {
-      const dayDate = new Date(year, month, date - daysToSubtract + i);
+      const dayDate = new Date(startDate)
+      dayDate.setDate(startDate.getDate() + i)
       const dayDateStr = formatDateToString(dayDate);
       dailySales[dayDateStr] = 0;
     }
@@ -183,6 +204,68 @@ const AdminCashAdvance: React.FC = () => {
     setLocalWeeklySales(calculatedWeeklySales)
     setAdvanceAmount(0)
     setIsCalculatingLocally(false)
+  }
+
+  // Generate week options (last 8 weeks)
+  const generateWeekOptions = () => {
+    const weeks = []
+    const today = new Date()
+    
+    for (let i = 0; i < 8; i++) {
+      const weekDate = new Date(today)
+      weekDate.setDate(today.getDate() - (i * 7))
+      
+      const dayOfWeek = weekDate.getDay()
+      const daysToSubtract = dayOfWeek === 0 ? 0 : dayOfWeek
+      
+      const startOfWeek = new Date(weekDate)
+      startOfWeek.setDate(weekDate.getDate() - daysToSubtract)
+      
+      const endOfWeek = new Date(startOfWeek)
+      endOfWeek.setDate(startOfWeek.getDate() + 6)
+      
+      const weekStartStr = formatDateToString(startOfWeek)
+      const weekEndStr = formatDateToString(endOfWeek)
+      
+      weeks.push({
+        start: weekStartStr,
+        end: weekEndStr,
+        label: `${startOfWeek.toLocaleDateString('es-ES', { 
+          month: 'short', 
+          day: 'numeric' 
+        })} - ${endOfWeek.toLocaleDateString('es-ES', { 
+          month: 'short', 
+          day: 'numeric' 
+        })}`,
+        isCurrent: i === 0
+      })
+    }
+    
+    return weeks
+  }
+
+  const weekOptions = generateWeekOptions()
+
+  // Handle week selection
+  const handleWeekChange = (weekStart: string, weekEnd: string) => {
+    setSelectedWeekStart(weekStart)
+    setSelectedWeekEnd(weekEnd)
+    setLocalWeeklySales(null)
+    setAdvanceAmount(0)
+    setError('')
+    setSuccess('')
+    
+    if (selectedPerson) {
+      if (wereTransactionsFetched && wereAdvancesFetched) {
+        setIsCalculatingLocally(true)
+        calculateWeeklySalesForSpecificWeek(selectedPerson.id, selectedPerson.personType, weekStart, weekEnd)
+      } else {
+        fetchWeeklySales(selectedPerson.id, weekStart, weekEnd).catch((err) => {
+          setError(t("cashAdvance.errorFetchingSales"))
+          console.error("Error fetching weekly sales:", err)
+        })
+      }
+    }
   }
 
   // Handle outside click to close dropdown
@@ -422,6 +505,37 @@ const AdminCashAdvance: React.FC = () => {
         <>
           <Card title={t("cashAdvance.weeklySales")} icon={<Calendar size={20} />}>
             <div className="space-y-6">
+              {/* Week Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t("cashAdvance.selectWeek")}
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {weekOptions.map((week) => (
+                    <button
+                      key={week.start}
+                      type="button"
+                      onClick={() => handleWeekChange(week.start, week.end)}
+                      className={clsx(
+                        'p-3 text-left border rounded-lg transition-colors',
+                        selectedWeekStart === week.start && selectedWeekEnd === week.end
+                          ? 'border-primary-500 bg-primary-50 text-primary-700'
+                          : 'border-gray-200 hover:border-primary-300 hover:bg-primary-50/30'
+                      )}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">{week.label}</span>
+                        {week.isCurrent && (
+                          <Badge variant="primary" size="sm">
+                            {t("cashAdvance.currentWeek")}
+                          </Badge>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead>
@@ -560,4 +674,4 @@ const AdminCashAdvance: React.FC = () => {
   )
 }
 
-export default AdminCashAdvance
+export default AdminCashAdvance;

@@ -540,6 +540,8 @@ export default {
     title: "Cash Advance",
     description: "Create cash advances for colporters and leaders",
     success: "Success",
+    selectWeek: "Select Week",
+    currentWeek: "Current Week",
     selectPerson: "Select Person",
     searchPlaceholder: "Search colporter or leader...",
     noPeopleFound: "No people found",

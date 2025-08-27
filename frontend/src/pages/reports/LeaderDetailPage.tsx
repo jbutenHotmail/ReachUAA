@@ -326,7 +326,7 @@ const LeaderDetailPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Users className="text-primary-600" size={28} />
-            {name} - {t('dashboard.title')}
+            {name} - {t('common.leader')}
           </h1>
           <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
             <Calendar size={16} />

@@ -1,5 +1,18 @@
 import * as db from '../config/database.js';
 
+// Helper function to format date to DDMMYYYY
+const formatDateToDDMMYYYY = (date) => {
+  const d = new Date(date);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${year}-${month}-${day}`;
+};
+const formatDateToYYYYMMDD = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toISOString().split('T')[0];
+};
 // Get daily report (unchanged)
 export const getDailyReport = async (req, res) => {
   try {
@@ -987,16 +1000,16 @@ export const getIndividualEarningsReport = async (req, res) => {
     const { startDate, endDate, type } = req.query;
     let reportStartDate = startDate;
     let reportEndDate = endDate;
-    
+
     if (!startDate || !endDate) {
       const today = new Date();
       const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
       const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      
-      reportStartDate = firstDay.toISOString().split('T')[0];
-      reportEndDate = lastDay.toISOString().split('T')[0];
+
+      reportStartDate = formatDateToYYYYMMDD(firstDay);
+      reportEndDate = formatDateToYYYYMMDD(lastDay);
     }
-    
+
     const person = await db.getOne(
       `SELECT id, CONCAT(first_name, ' ', last_name) as name, email, phone, person_type, program_id, 
        CASE 
@@ -1008,16 +1021,16 @@ export const getIndividualEarningsReport = async (req, res) => {
        WHERE ${type === 'user' ? 'id IN (SELECT person_id FROM users WHERE id = ?)' : 'id = ?'}`,
       [type === 'user' ? id : id]
     );
-    
+
     if (!person) {
       return res.status(404).json({ message: 'Person not found' });
     }
-    
+
     const financialConfig = await db.getOne(
       'SELECT * FROM program_financial_config WHERE program_id = ?',
       [person.program_id]
     );
-    
+
     let transactionsQuery = `
       SELECT t.*, 
        CONCAT(lp.first_name, ' ', lp.last_name) as leader_name
@@ -1029,7 +1042,7 @@ export const getIndividualEarningsReport = async (req, res) => {
        ORDER BY t.transaction_date, t.created_at DESC
     `;
     let transactionParams = [person.id, reportStartDate, reportEndDate];
-    
+
     if (person.person_type === 'LEADER') {
       transactionsQuery = `
         SELECT t.*, 
@@ -1043,35 +1056,43 @@ export const getIndividualEarningsReport = async (req, res) => {
       `;
       transactionParams = [person.id, reportStartDate, reportEndDate];
     }
-    
+
     const transactions = await db.query(transactionsQuery, transactionParams);
-    
-    for (let i = 0; i < transactions.length; i++) {
+
+    // Format transaction_date in transactions
+    const formattedTransactions = transactions.map((transaction) => ({
+      ...transaction,
+      transaction_date: formatDateToYYYYMMDD(transaction.transaction_date),
+    }));
+
+    for (let i = 0; i < formattedTransactions.length; i++) {
       const books = await db.query(
         `SELECT tb.book_id as id, b.title, b.size, tb.quantity, tb.price
          FROM transaction_books tb
          JOIN books b ON tb.book_id = b.id
          WHERE tb.transaction_id = ?`,
-        [transactions[i].id]
+        [formattedTransactions[i].id]
       );
-      
-      transactions[i].books = books;
+      formattedTransactions[i].books = books;
     }
-    
-    const totals = transactions.reduce((acc, t) => ({
-      cash: Number(acc.cash) + Number(t.cash),
-      checks: Number(acc.checks) + Number(t.checks),
-      atmMobile: Number(acc.atmMobile) + Number(t.atm_mobile),
-      paypal: Number(acc.paypal) + Number(t.paypal),
-      total: Number(acc.total) + Number(t.total)
-    }), {
-      cash: 0,
-      checks: 0,
-      atmMobile: 0,
-      paypal: 0,
-      total: 0
-    });
-    
+
+    const totals = formattedTransactions.reduce(
+      (acc, t) => ({
+        cash: Number(acc.cash) + Number(t.cash),
+        checks: Number(acc.checks) + Number(t.checks),
+        atmMobile: Number(acc.atmMobile) + Number(t.atm_mobile),
+        paypal: Number(acc.paypal) + Number(t.paypal),
+        total: Number(acc.total) + Number(t.total),
+      }),
+      {
+        cash: 0,
+        checks: 0,
+        atmMobile: 0,
+        paypal: 0,
+        total: 0,
+      }
+    );
+
     let percentage;
     if (person.person_type === 'COLPORTER') {
       percentage = financialConfig?.colporter_percentage ? parseFloat(financialConfig.colporter_percentage) : 50;
@@ -1080,13 +1101,15 @@ export const getIndividualEarningsReport = async (req, res) => {
         'SELECT percentage FROM leader_percentages WHERE leader_id = ? AND program_id = ? AND is_active = TRUE',
         [person.id, person.program_id]
       );
-      percentage = individualPercentage 
+      percentage = individualPercentage
         ? parseFloat(individualPercentage.percentage)
-        : (financialConfig?.leader_percentage ? parseFloat(financialConfig.leader_percentage) : 15);
+        : financialConfig?.leader_percentage
+        ? parseFloat(financialConfig.leader_percentage)
+        : 15;
     }
-    
+
     const earnings = totals.total * (percentage / 100);
-    
+
     const charges = await db.query(
       `SELECT c.id, c.amount, c.reason, c.description, c.category, c.status, c.charge_date as date
        FROM charges c
@@ -1096,8 +1119,15 @@ export const getIndividualEarningsReport = async (req, res) => {
        ORDER BY c.charge_date DESC`,
       [person.id, reportStartDate, reportEndDate]
     );
-    const totalCharges = charges.reduce((sum, c) => sum + Number(c.amount), 0);
-    
+
+    // Format charge_date in charges
+    const formattedCharges = charges.map((charge) => ({
+      ...charge,
+      date: formatDateToYYYYMMDD(charge.date),
+    }));
+
+    const totalCharges = formattedCharges.reduce((sum, c) => sum + Number(c.amount), 0);
+
     const advances = await db.query(
       `SELECT ca.id, ca.advance_amount as amount, ca.week_start_date, ca.week_end_date, ca.status, ca.request_date as date
        FROM cash_advances ca
@@ -1107,8 +1137,17 @@ export const getIndividualEarningsReport = async (req, res) => {
        ORDER BY ca.week_start_date DESC`,
       [person.id, reportStartDate, reportEndDate]
     );
-    const totalAdvances = advances.reduce((sum, a) => sum + Number(a.amount), 0);
-    
+
+    // Format dates in advances
+    const formattedAdvances = advances.map((advance) => ({
+      ...advance,
+      week_start_date: formatDateToYYYYMMDD(advance.week_start_date),
+      week_end_date: formatDateToYYYYMMDD(advance.week_end_date),
+      date: formatDateToYYYYMMDD(advance.date),
+    }));
+
+    const totalAdvances = formattedAdvances.reduce((sum, a) => sum + Number(a.amount), 0);
+
     let expenses = [];
     let totalExpenses = 0;
     if (person.person_type === 'LEADER') {
@@ -1122,30 +1161,36 @@ export const getIndividualEarningsReport = async (req, res) => {
          ORDER BY e.expense_date DESC`,
         [person.id, reportStartDate, reportEndDate]
       );
+
+      // Format expense_date in expenses
+      expenses = expenses.map((expense) => ({
+        ...expense,
+        date: formatDateToYYYYMMDD(expense.date),
+        createdAt: formatDateToYYYYMMDD(expense.createdAt),
+        updatedAt: formatDateToYYYYMMDD(expense.updatedAt),
+      }));
+
       totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
     }
-    
+
     const finalEarnings = earnings - totalCharges - totalAdvances - totalExpenses;
-    
+
     const dailyEarnings = {};
-    
-    transactions.forEach(transaction => {
-      const date = formatDateToDDMMYYYY(transaction.transaction_date);
-      
+
+    formattedTransactions.forEach((transaction) => {
+      const date = formatDateToYYYYMMDD(transaction.transaction_date);
       if (!dailyEarnings[date]) {
         dailyEarnings[date] = 0;
       }
-      
       dailyEarnings[date] += Number(transaction.total);
     });
-    
+
     const bookSales = new Map();
-    
-    for (const transaction of transactions) {
+
+    for (const transaction of formattedTransactions) {
       if (transaction.books && transaction.books.length > 0) {
-        transaction.books.forEach(book => {
+        transaction.books.forEach((book) => {
           const bookKey = `${book.id}-${book.title}`;
-          
           if (!bookSales.has(bookKey)) {
             bookSales.set(bookKey, {
               id: book.id,
@@ -1154,25 +1199,24 @@ export const getIndividualEarningsReport = async (req, res) => {
               price: book.price,
               image_url: null,
               totalQuantity: 0,
-              totalRevenue: 0
+              totalRevenue: 0,
             });
           }
-          
           const bookData = bookSales.get(bookKey);
           bookData.totalQuantity += book.quantity;
           bookData.totalRevenue += book.price * book.quantity;
         });
       }
     }
-    
+
     if (bookSales.size > 0) {
-      const bookIds = Array.from(bookSales.keys()).map(key => key.split('-')[0]);
+      const bookIds = Array.from(bookSales.keys()).map((key) => key.split('-')[0]);
       const bookImages = await db.query(
         `SELECT id, image_url FROM books WHERE id IN (${bookIds.map(() => '?').join(',')})`,
         bookIds
       );
-      
-      bookImages.forEach(bookImg => {
+
+      bookImages.forEach((bookImg) => {
         for (const [key, bookData] of bookSales.entries()) {
           if (bookData.id == bookImg.id) {
             bookData.image_url = bookImg.image_url;
@@ -1180,19 +1224,18 @@ export const getIndividualEarningsReport = async (req, res) => {
         }
       });
     }
-    
-    const topSellerBook = Array.from(bookSales.values())
-      .sort((a, b) => b.totalQuantity - a.totalQuantity)[0] || null;
-    
+
+    const topSellerBook = Array.from(bookSales.values()).sort((a, b) => b.totalQuantity - a.totalQuantity)[0] || null;
+
     const bookTotals = {
       large: 0,
       small: 0,
-      total: 0
+      total: 0,
     };
-    
-    transactions.forEach(transaction => {
+
+    formattedTransactions.forEach((transaction) => {
       if (transaction.books && transaction.books.length > 0) {
-        transaction.books.forEach(book => {
+        transaction.books.forEach((book) => {
           if (book.size === 'LARGE') {
             bookTotals.large += book.quantity;
           } else {
@@ -1202,38 +1245,38 @@ export const getIndividualEarningsReport = async (req, res) => {
         });
       }
     });
-    
+
     const dailySalesEntries = Object.entries(dailyEarnings);
     let bestDay = { date: '', amount: 0 };
     let worstDay = { date: '', amount: 0 };
-    
+
     if (dailySalesEntries.length > 0) {
-      bestDay = dailySalesEntries.reduce((best, [date, amount]) => 
-        amount > best.amount ? { date, amount } : best, 
+      bestDay = dailySalesEntries.reduce(
+        (best, [date, amount]) => (amount > best.amount ? { date, amount } : best),
         { date: '', amount: 0 }
       );
-      
+
       const daysWithSales = dailySalesEntries.filter(([_, amount]) => amount > 0);
       if (daysWithSales.length > 0) {
-        worstDay = daysWithSales.reduce((worst, [date, amount]) => 
-          amount < worst.amount ? { date, amount } : worst, 
+        worstDay = daysWithSales.reduce(
+          (worst, [date, amount]) => (amount < worst.amount ? { date, amount } : worst),
           { date: '', amount: Infinity }
         );
       }
-      
+
       if (worstDay.amount === Infinity) {
         worstDay = { date: '', amount: 0 };
       }
     }
-    
+
     res.json({
       person: {
         ...person,
-        personType: person.person_type
+        personType: person.person_type,
       },
-      startDate: reportStartDate,
-      endDate: reportEndDate,
-      transactions,
+      startDate: formatDateToYYYYMMDD(reportStartDate),
+      endDate: formatDateToYYYYMMDD(reportEndDate),
+      transactions: formattedTransactions,
       totals,
       earnings: {
         gross: totals.total,
@@ -1242,16 +1285,16 @@ export const getIndividualEarningsReport = async (req, res) => {
         charges: totalCharges,
         advances: totalAdvances,
         expenses: totalExpenses,
-        final: finalEarnings
+        final: finalEarnings,
       },
-      charges,
-      advances,
+      charges: formattedCharges,
+      advances: formattedAdvances,
       expenses,
       dailyEarnings,
       bookTotals,
       topSellerBook,
       bestDay,
-      worstDay
+      worstDay,
     });
   } catch (error) {
     console.error('Error getting individual earnings report:', error);
@@ -1510,14 +1553,7 @@ export const getFinancialSummary = async (req, res) => {
   }
 };
 
-// Helper function to format date to DDMMYYYY
-const formatDateToDDMMYYYY = (date) => {
-  const d = new Date(date);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${year}-${month}-${day}`;
-};
+
 
 export default {
   getDailyReport,

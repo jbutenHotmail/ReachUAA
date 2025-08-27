@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
@@ -68,7 +66,7 @@ const SummerColporterReport: React.FC = () => {
           programId: program?.id,
         }
         const colporters: Colporter[] = await api.get("/people/colporters", { params })
-        const colporter = colporters.find((p: any) => `${p.name} ${p.apellido}` === name || p.name === name)
+        const colporter = colporters.find((p: any) => `${p.name} ${p.apellido}`.trim() === name.trim() || p.name === name.trim())
         if (colporter) {
           setPersonId(colporter.id)
           setPersonType("COLPORTER")

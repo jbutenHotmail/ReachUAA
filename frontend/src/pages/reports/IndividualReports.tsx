@@ -180,15 +180,13 @@ const IndividualReports: React.FC = () => {
 
       const data: ReportData = response;// Assuming the API returns data in this format
       // Filter charges for this person from local data
-      const personCharges = data.charges.filter(
-        (c) => c.personId === selectedPerson.id && c.status === "APPLIED",
-      )
+      const personCharges = data.charges;
 
       // Filter advances for this person from local data
-      const personAdvances = data.charges.filter(
-        (a) => a.personId === selectedPerson.id && isDateInRange(a.date, startDate, endDate),
-      )
-
+      const personAdvances = data.advances;
+      console.log(selectedPerson);
+      console.log(data.advances);
+      console.log(personAdvances);
       // Construct dailyEarnings from API response (assuming data.dailyEarnings exists)
       const dailyEarnings: Record<string, number> = data.dailyEarnings || {}
 
@@ -209,8 +207,8 @@ const IndividualReports: React.FC = () => {
         advances: personAdvances.map((a) => ({
           id: a.id,
           date: a.date,
-          weekStartDate: a.weekStartDate,
-          weekEndDate: a.weekEndDate,
+          weekStartDate: a.week_start_date,
+          weekEndDate: a.week_end_date,
           amount: a.amount,
         })),
         netAmount: data.earnings?.final || 0,
@@ -503,9 +501,7 @@ const IndividualReports: React.FC = () => {
                   </td>
                   <td class="advances-cell">
                     ${(() => {
-                      const weekAdvances = reportData.advances.filter((advance) => {
-                        return isDateInRange(advance.date, week.startDate, week.endDate)
-                      })
+                      const weekAdvances = reportData.advances;
                       const advanceTotal = weekAdvances.reduce((sum, a) => sum + a.amount, 0)
                       return advanceTotal > 0 ? `-${advanceTotal.toFixed(2)}` : "-"
                     })()}
@@ -681,9 +677,7 @@ const IndividualReports: React.FC = () => {
         const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
         csvContent += `${chargeTotal > 0 ? "-" + chargeTotal.toFixed(2) : "-"},`
 
-        const weekAdvances = reportData.advances.filter((advance) => {
-          return isDateInRange(advance.date, week.startDate, week.endDate)
-        })
+        const weekAdvances = reportData.advances;
         const advanceTotal = weekAdvances.reduce((sum, a) => sum + a.amount, 0)
         csvContent += `${advanceTotal > 0 ? "-" + advanceTotal.toFixed(2) : "-"}\r\n`
       })
@@ -956,142 +950,129 @@ const IndividualReports: React.FC = () => {
               </div>
 
               {reportData.personType === "COLPORTER" ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr>
-                        <th
-                          rowSpan={2}
-                          className="border border-gray-400 px-3 py-2 bg-[#0052B4] text-white text-sm align-middle"
-                        >
-                          {t("common.week")}
-                        </th>
-                        <th colSpan={8} className="border border-gray-400 px-3 py-2 bg-[#0052B4] text-white text-sm">
-                          {t("dashboard.earningsBreakdown")}
-                        </th>
-                        <th
-                          rowSpan={2}
-                          className="border border-gray-400 px-3 py-2 bg-red-700 text-white text-sm align-middle"
-                        >
-                          {t("charges.title")}
-                        </th>
-                        <th
-                          rowSpan={2}
-                          className="border border-gray-400 px-3 py-2 bg-purple-700 text-white text-sm align-middle"
-                        >
-                          {t("cashAdvance.title")}
-                        </th>
-                      </tr>
-                      <tr>
-                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => (
-                          <th
-                            key={dayName}
-                            className="border border-gray-400 px-3 py-2 bg-[#0052B4] text-white text-sm"
-                          >
-                            {t(`programSettings.days.${dayName.toLowerCase()}`)}
-                          </th>
-                        ))}
-                        <th className="border border-gray-400 px-3 py-2 bg-[#0052B4] text-white text-sm">
-                          {t("common.total")}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate).map((week, index) => (
-                        <tr
-                          key={week.startDate}
-                          className={clsx(
-                            "hover:bg-gray-50 transition-colors",
-                            index % 2 === 0 ? "bg-yellow-50" : "bg-white",
-                          )}
-                        >
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-white bg-[#0052B4] sticky left-0 z-10">
-                            {index + 1}) {week.weekLabel}
-                          </td>
-                          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => {
-                            const dayData = week.days.find((d) => d.dayName === dayName)
-                            return (
-                              <td
-                                key={dayName}
-                                className={clsx(
-                                  "px-4 py-3 text-sm text-center whitespace-nowrap",
-                                  dayData && !dayData.isColportableDay ? "bg-red-50" : "",
-                                )}
-                              >
-                                {dayData ? dayData.amount.toFixed(2) : "-"}
-                                {dayData && !dayData.isColportableDay && (
-                                  <div className="text-[9px] text-red-600">{t("individualReports.nonColportable")}</div>
-                                )}
-                              </td>
-                            )
-                          })}
-                          <td className="px-4 py-3 text-sm text-center font-medium whitespace-nowrap">
-                            {formatNumber(week.weekTotal)}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-50">
-                            {(() => {
-                              const weekCharges = reportData.charges.filter((charge) =>
-                                isDateInRange(charge.date, week.startDate, week.endDate),
-                              )
-                              const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
-                              return chargeTotal > 0 ? `-${chargeTotal.toFixed(2)}` : "-"
-                            })()}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-purple-50">
-                            {(() => {
-                              const weekAdvances = reportData.advances.filter((advance) =>
-                                isDateInRange(advance.date, week.startDate, week.endDate),
-                              )
-                              const advanceTotal = weekAdvances.reduce((sum, a) => sum + a.amount, 0)
-                              return advanceTotal > 0 ? `-${advanceTotal.toFixed(2)}` : "-"
-                            })()}
-                          </td>
-                        </tr>
-                      ))}
-                      <tr className="bg-gray-100 font-semibold">
-                        <td className="px-4 py-3 text-sm font-bold text-white bg-[#0052B4] sticky left-0 z-10">
-                          {t("common.totals")}
-                        </td>
-                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => {
-                          const dayTotal = groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate).reduce((sum, week) => {
-                            const dayData = week.days.find((d) => d.dayName === dayName)
-                            return sum + (dayData ? dayData.amount : 0)
-                          }, 0)
-                          return (
-                            <td key={dayName} className="px-4 py-3 text-sm text-center whitespace-nowrap">
-                              {formatNumber(dayTotal)}
-                            </td>
-                          )
-                        })}
-                        <td className="px-4 py-3 text-sm text-center whitespace-nowrap">
-                          {formatNumber(Number(reportData.totalEarnings))}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-100">
-                          {(() => {
-                            const chargeTotal = reportData.charges.reduce((sum, c) => sum + c.amount, 0)
-                            return chargeTotal > 0 ? `-${chargeTotal.toFixed(2)}` : "-"
-                          })()}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-purple-100">
-                          {(() => {
-                            const advanceTotal = reportData.advances.reduce((sum, a) => sum + a.amount, 0)
-                            return advanceTotal > 0 ? `-${advanceTotal.toFixed(2)}` : "-"
-                          })()}
-                        </td>
-                      </tr>
-                      <tr className="bg-success-100 font-bold">
-                        <td colSpan={8} className="px-4 py-3 text-sm font-bold text-success-800">
-                          {t("dashboard.finalAmount")} ({reportData.percentage}% {t("common.of")} {t("dashboard.sales")}{" "}
-                          - {t("charges.title")} - {t("cashAdvance.title")})
-                        </td>
-                        <td colSpan={3} className="px-4 py-3 text-center text-sm font-bold text-success-800">
-                          {reportData.netAmount.toFixed(2)}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
+  <div className="overflow-x-auto">
+    <table className="w-full border-collapse">
+      <thead>
+        <tr>
+          <th rowSpan={2} className="border border-gray-400 px-3 py-2 bg-[#0052B4] text-white text-sm align-middle">
+            {t("common.week")}
+          </th>
+          <th colSpan={8} className="border border-gray-400 px-3 py-2 bg-[#0052B4] text-white text-sm">
+            {t("dashboard.earningsBreakdown")}
+          </th>
+          <th rowSpan={2} className="border border-gray-400 px-3 py-2 bg-red-700 text-white text-sm align-middle">
+            {t("charges.title")}
+          </th>
+          <th rowSpan={2} className="border border-gray-400 px-3 py-2 bg-purple-700 text-white text-sm align-middle">
+            {t("cashAdvance.title")}
+          </th>
+        </tr>
+        <tr>
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => (
+            <th key={dayName} className="border border-gray-400 px-3 py-2 bg-[#0052B4] text-white text-sm">
+              {t(`programSettings.days.${dayName.toLowerCase()}`)}
+            </th>
+          ))}
+          <th className="border border-gray-400 px-3 py-2 bg-[#0052B4] text-white text-sm">
+            {t("common.total")}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate).map((week, index) => (
+          <tr
+            key={week.startDate}
+            className={clsx("hover:bg-gray-50 transition-colors", index % 2 === 0 ? "bg-yellow-50" : "bg-white")}
+          >
+            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-white bg-[#0052B4] sticky left-0 z-10">
+              {index + 1}) {week.weekLabel}
+            </td>
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => {
+              const dayData = week.days.find((d) => d.dayName === dayName);
+              return (
+                <td
+                  key={dayName}
+                  className={clsx(
+                    "px-4 py-3 text-sm text-center whitespace-nowrap",
+                    dayData && !dayData.isColportableDay ? "bg-red-50" : ""
+                  )}
+                >
+                  {dayData ? dayData.amount.toFixed(2) : "-"}
+                  {dayData && !dayData.isColportableDay && (
+                    <div className="text-[9px] text-red-600">{t("individualReports.nonColportable")}</div>
+                  )}
+                </td>
+              );
+            })}
+            <td className="px-4 py-3 text-sm text-center font-medium whitespace-nowrap">
+              {formatNumber(week.weekTotal)}
+            </td>
+            <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-50">
+              {(() => {
+                const weekCharges = reportData.charges.filter((charge) =>
+                  isDateInRange(charge.date, week.startDate, week.endDate),
+                );
+                const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0);
+                return chargeTotal > 0 ? `-${chargeTotal.toFixed(2)}` : "-";
+              })()}
+            </td>
+            <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-purple-50">
+              {(() => {
+                const weekAdvances = reportData.advances.filter(
+                  (advance) => parseDate(advance.weekStartDate).toISOString().split("T")[0] === week.startDate
+                );
+                const advanceTotal = weekAdvances.reduce((sum, a) => sum + a.amount, 0);
+                return advanceTotal > 0 ? `-${advanceTotal.toFixed(2)}` : "-";
+              })()}
+            </td>
+          </tr>
+        ))}
+        <tr className="bg-gray-100 font-semibold">
+          <td className="px-4 py-3 text-sm font-bold text-white bg-[#0052B4] sticky left-0 z-10">
+            {t("common.totals")}
+          </td>
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => {
+            const dayTotal = groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate).reduce(
+              (sum, week) => {
+                const dayData = week.days.find((d) => d.dayName === dayName);
+                return sum + (dayData ? dayData.amount : 0);
+              },
+              0
+            );
+            return (
+              <td key={dayName} className="px-4 py-3 text-sm text-center whitespace-nowrap">
+                {formatNumber(dayTotal)}
+              </td>
+            );
+          })}
+          <td className="px-4 py-3 text-sm text-center whitespace-nowrap">
+            {formatNumber(Number(reportData.totalEarnings))}
+          </td>
+          <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-100">
+            {(() => {
+              const chargeTotal = reportData.charges.reduce((sum, c) => sum + c.amount, 0);
+              return chargeTotal > 0 ? `-${chargeTotal.toFixed(2)}` : "-";
+            })()}
+          </td>
+          <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-purple-100">
+            {(() => {
+              const advanceTotal = reportData.advances.reduce((sum, a) => sum + a.amount, 0);
+              return advanceTotal > 0 ? `-${advanceTotal.toFixed(2)}` : "-";
+            })()}
+          </td>
+        </tr>
+        <tr className="bg-success-100 font-bold">
+          <td colSpan={8} className="px-4 py-3 text-sm font-bold text-success-800">
+            {t("dashboard.finalAmount")} ({reportData.percentage}% {t("common.of")} {t("dashboard.sales")} - {t("charges.title")} - {t("cashAdvance.title")})
+          </td>
+          <td colSpan={3} className="px-4 py-3 text-center text-sm font-bold text-success-800">
+            {reportData.netAmount.toFixed(2)}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+) : (
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead>
