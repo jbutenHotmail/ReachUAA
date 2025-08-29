@@ -66,7 +66,6 @@ export const getColporters = async (req, res) => {
 export const getColporterById = async (req, res) => {
   try {
     const { id } = req.params;
-    
     const colporter = await db.getOne(
       `SELECT id, first_name as name, last_name as apellido, email, phone, 
        address, profile_image_url as profileImage, status, school, age, program_id as programId,
