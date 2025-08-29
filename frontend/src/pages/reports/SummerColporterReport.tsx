@@ -1,3 +1,5 @@
+"use client"
+
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
@@ -10,7 +12,7 @@ import { useProgramStore } from "../../stores/programStore"
 import { api } from "../../api"
 import LoadingScreen from "../../components/ui/LoadingScreen"
 import type { Colporter, Leader } from "../../types"
-import { formatNumber } from '../../utils/numberUtils'
+import { formatNumber } from "../../utils/numberUtils"
 
 interface ColporterSummerStats {
   bruto: {
@@ -24,6 +26,10 @@ interface ColporterSummerStats {
   libros: {
     grandes: number
     pequenos: number
+  }
+  hoursWorked: {
+    total: number
+    average: number
   }
   workingDays: number
   bestDay: {
@@ -66,7 +72,9 @@ const SummerColporterReport: React.FC = () => {
           programId: program?.id,
         }
         const colporters: Colporter[] = await api.get("/people/colporters", { params })
-        const colporter = colporters.find((p: any) => `${p.name} ${p.apellido}`.trim() === name.trim() || p.name === name.trim())
+        const colporter = colporters.find(
+          (p: any) => `${p.name} ${p.apellido}`.trim() === name.trim() || p.name === name.trim(),
+        )
         if (colporter) {
           setPersonId(colporter.id)
           setPersonType("COLPORTER")
@@ -104,7 +112,6 @@ const SummerColporterReport: React.FC = () => {
       try {
         // Get colporter report data which includes transactions, bible studies, and top seller
         const reportData: any = await api.get(`/reports/colporter/${personId}`)
-
         // Set the data from the report
         setBibleStudies(reportData.bibleStudies || [])
         setTopSellerBook(reportData.topSellerBook || null)
@@ -148,9 +155,10 @@ const SummerColporterReport: React.FC = () => {
         const colporterTransactions = leaderTransactions.filter(
           (t) => t.studentId === colporter.id && t.status === "APPROVED",
         )
-
+        console.log(leaderTransactions)
         // Calculate total sales
         const totalSales = colporterTransactions.reduce((sum, t) => sum + t.total, 0)
+        const totalHours = colporterTransactions.reduce((sum, t) => Number(sum) + (Number(t.hours_worked) || 0), 0)
 
         // Calculate book counts
         const books = {
@@ -174,6 +182,7 @@ const SummerColporterReport: React.FC = () => {
           id: colporter.id,
           name: `${colporter.name} ${colporter.apellido}`,
           totalSales,
+          hoursWorked: totalHours,
           books,
           transactionCount: colporterTransactions.length,
         }
@@ -218,8 +227,10 @@ const SummerColporterReport: React.FC = () => {
 
     // Calculate total sales
     const totalSales = validTransactions.reduce((sum, t) => sum + t.total, 0)
+    const totalHours = validTransactions.reduce((sum, t) => Number(sum) + (Number(t.hours_worked) || 0), 0)
     const workingDays = validTransactions.length
     const averagePerDay = totalSales / workingDays
+    const averageHoursPerDay = totalHours / workingDays
 
     // Process books
     const totalBooks = {
@@ -327,6 +338,10 @@ const SummerColporterReport: React.FC = () => {
         promedio: averagePerDay * (percentage / 100),
       },
       libros: totalBooks,
+      hoursWorked: {
+        total: totalHours,
+        average: averageHoursPerDay,
+      },
       workingDays,
       bestDay,
       worstDay,
@@ -397,7 +412,7 @@ const SummerColporterReport: React.FC = () => {
       </div>
 
       {/* Summary Statistics */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <Card>
           <div className="text-center">
             <div className="flex items-center justify-center mb-2">
@@ -434,6 +449,17 @@ const SummerColporterReport: React.FC = () => {
           </div>
         </Card>
 
+        <Card>
+          <div className="text-center">
+            <div className="flex items-center justify-center mb-2">
+              <Calendar className="text-blue-600" size={24} />
+            </div>
+            <p className="text-sm font-medium text-gray-500">Horas Trabajadas</p>
+            <p className="mt-1 text-2xl font-bold text-blue-600">{formatNumber(stats.hoursWorked.total)}</p>
+            <p className="text-xs text-gray-500">Promedio: {formatNumber(stats.hoursWorked.average)}</p>
+          </div>
+        </Card>
+
         {topSellerBook && (
           <Card>
             <div className="text-center">
@@ -442,7 +468,8 @@ const SummerColporterReport: React.FC = () => {
                   <img
                     src={
                       topSellerBook.image_url ||
-                      "https://images.pexels.com/photos/159711/books-bookstore-book-reading-159711.jpeg"
+                      "https://images.pexels.com/photos/159711/books-bookstore-book-reading-159711.jpeg" ||
+                      "/placeholder.svg"
                     }
                     alt={topSellerBook.title}
                     className="h-12 w-8 object-cover rounded shadow-sm"
@@ -575,7 +602,7 @@ const SummerColporterReport: React.FC = () => {
 
       {/* Performance Highlights - More Compact */}
       <Card title={t("summerColporterReport.performanceHighlights")} icon={<TrendingUp size={20} />}>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="p-3 bg-success-50 rounded-lg">
             <h4 className="font-semibold text-success-700 text-sm">{t("summerColporterReport.bestDay")}</h4>
             <p className="text-xs text-success-600 mt-1">
@@ -614,6 +641,12 @@ const SummerColporterReport: React.FC = () => {
             <p className="text-base font-bold text-info-700">${formatNumber(stats.bruto.promedio)}</p>
           </div>
 
+          <div className="p-3 bg-blue-50 rounded-lg">
+            <h4 className="font-semibold text-blue-700 text-sm">Horas Promedio</h4>
+            <p className="text-xs text-blue-600 mt-1">Por día trabajado</p>
+            <p className="text-base font-bold text-blue-700">{formatNumber(stats.hoursWorked.average)}</p>
+          </div>
+
           <div className="p-3 bg-purple-50 rounded-lg">
             <h4 className="font-semibold text-purple-700 text-sm">Estudios Bíblicos</h4>
             <p className="text-xs text-purple-600 mt-1">Registrados</p>
@@ -635,6 +668,9 @@ const SummerColporterReport: React.FC = () => {
                     {t("summerColporterReport.totalSales")}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Horas
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {t("summerColporterReport.largeBooks")}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -653,6 +689,9 @@ const SummerColporterReport: React.FC = () => {
                       ${formatNumber(member.totalSales)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                      <Badge variant="info">{member.hoursWorked.toFixed(1)}</Badge>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
                       <Badge variant="primary">{member.books.large}</Badge>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
@@ -667,6 +706,9 @@ const SummerColporterReport: React.FC = () => {
                   <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">{t("common.totals")}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
                     ${teamMembers.reduce((sum, m) => sum + m.totalSales, 0).toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center font-bold">
+                    <Badge variant="info">{teamMembers.reduce((sum, m) => sum + m.hoursWorked, 0).toFixed(1)}</Badge>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-center font-bold">
                     <Badge variant="primary">{teamMembers.reduce((sum, m) => sum + m.books.large, 0)}</Badge>

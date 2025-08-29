@@ -14,6 +14,10 @@ import Spinner from '../../components/ui/Spinner';
 import { useProgramStore } from '../../stores/programStore';
 import { BookSize } from '../../types';
 import DashboardTabs from '../../components/dashboard/DashboardTabs';
+import { RefreshCw } from 'lucide-react';
+import { clsx } from 'clsx';
+import Button from '../../components/ui/Button';
+
 const Dashboard: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuthStore();
@@ -49,6 +53,7 @@ const Dashboard: React.FC = () => {
   
   const [booksData, setBooksData] = useState<Array<{date: string; large: number; small: number}>>([]);
   const [totalBooks, setTotalBooks] = useState({ large: 0, small: 0, total: 0 });
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   useEffect(() => {
     if (user) {
@@ -142,6 +147,25 @@ const Dashboard: React.FC = () => {
     }
   }, [transactions]);
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Force refresh dashboard stats
+      await fetchDashboardStats(true);
+      
+      // Force refresh transactions
+      const today = getCurrentDate();
+      await fetchTransactions(today);
+      
+      // Force refresh all transactions for books data
+      await fetchAllTransactions('APPROVED');
+    } catch (error) {
+      console.error('Error refreshing dashboard:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const isLoading = isFinancialLoading || isTransactionsLoading || isDashboardLoading || isProgramLoading;
 
   // Calculate change percentages by comparing to previous periods
@@ -226,7 +250,17 @@ const Dashboard: React.FC = () => {
           <p className="text-gray-600 mt-1 text-sm sm:text-base">
             {t('dashboard.welcome')}, {user?.name}!
           </p>
-        </div>        
+        </div>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          leftIcon={<RefreshCw size={16} className={clsx(isRefreshing && 'animate-spin')} />}
+        >
+          {t('common.refresh')}
+        </Button>
       </div>
       {stats && (
         <DashboardTabs 

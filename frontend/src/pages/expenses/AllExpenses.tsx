@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Utensils, ChevronFirst as FirstAid, ShoppingBag, Wrench, Car, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Plus, Search, Utensils, ChevronFirst as FirstAid, ShoppingBag, Wrench, Car, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -31,7 +31,8 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const { wereExpensesFetched, fetchExpenses, expenses, createExpense, updateExpense, deleteExpense, approveExpense, rejectExpense, isLoading } = useExpenseStore();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { wereExpensesFetched, fetchExpenses, expenses, createExpense, updateExpense, approveExpense, rejectExpense, isLoading } = useExpenseStore();
   const isAdmin = user?.role === UserRole.ADMIN;
 
   useEffect(() => {
@@ -199,6 +200,20 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
     }
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      // Force refresh by resetting the fetch flag and calling fetchExpenses
+      useExpenseStore.setState({ wereExpensesFetched: false });
+      await fetchExpenses();
+    } catch (error) {
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <LoadingScreen message={t('expenses.loading')} />
@@ -320,14 +335,25 @@ const AllExpenses: React.FC<AllExpensesProps> = ({
             </div>
             
             <div className="flex-shrink-0">
-              <Button
-                variant="primary"
-                leftIcon={<Plus size={18} />}
-                onClick={() => setShowAddForm(true)}
-                className="w-full sm:w-auto"
-              >
-                {t('expenses.addExpense')}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  leftIcon={<RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />}
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="w-full sm:w-auto"
+                >
+                  {t('common.refresh')}
+                </Button>
+                <Button
+                  variant="primary"
+                  leftIcon={<Plus size={18} />}
+                  onClick={() => setShowAddForm(true)}
+                  className="w-full sm:w-auto"
+                >
+                  {t('expenses.addExpense')}
+                </Button>
+              </div>
             </div>
           </div>
 

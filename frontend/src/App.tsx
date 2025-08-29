@@ -6,6 +6,7 @@ import ProtectedRoute from './utils/ProtectedRoute';
 import { UserRole } from './types';
 import Layout from './components/layout/Layout';
 import LoadingScreen from './components/ui/LoadingScreen';
+import BonificationsPage from './pages/bonifications/BonificationPage';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/auth/Login'));
@@ -296,6 +297,13 @@ function App() {
               </Suspense>
             } />
           </Route>
+
+          {/* Bonifications - All authenticated users can access */}
+          <Route path="bonifications" element={
+            <Suspense fallback={<LoadingScreen message="Loading bonifications..." />}>
+              <BonificationsPage />
+            </Suspense>
+          } />
 
           <Route path="reports">
             {/* Access control for reports - only ADMIN can access reports */}

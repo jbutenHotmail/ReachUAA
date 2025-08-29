@@ -8,8 +8,7 @@ import ImageUpload from '../../../components/ui/ImageUpload';
 import { useSettingsStore } from '../../../stores/settingsStore';
 
 // Import logo
-const logoReach = '/src/assets/logo_reach.webp';
-
+import logoReach from '../../../assets/logo_reach_1.webp';
 interface ProgramFormData {
   name: string;
   motto: string;

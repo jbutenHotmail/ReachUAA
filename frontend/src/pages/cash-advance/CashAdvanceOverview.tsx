@@ -9,7 +9,8 @@ import {
   DollarSign, 
   User, 
   Filter, 
-  X as XIcon
+  X as XIcon,
+  RefreshCw
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
@@ -29,6 +30,7 @@ const CashAdvanceOverview: React.FC = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Check if user is admin (only admins can approve/reject)
   const isAdmin = user?.role === UserRole.ADMIN;
@@ -74,6 +76,22 @@ const CashAdvanceOverview: React.FC = () => {
       setActionError(error instanceof Error ? error.message : t('cashAdvance.errorReject'));
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      // Force refresh by resetting the fetch flag and calling fetchAdvances
+      useCashAdvanceStore.setState({ wereAdvancesFetched: false });
+      await fetchAdvances();
+    } catch (error) {
+      setActionError('Failed to refresh cash advances');
+      setTimeout(() => setActionError(null), 5000);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -206,13 +224,23 @@ const CashAdvanceOverview: React.FC = () => {
 
       {/* Filters */}
       <div className="flex justify-between items-center">
-        <Button
-          variant="outline"
-          leftIcon={<Filter size={16} />}
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          {showFilters ? t('cashAdvance.hideFilters') : t('cashAdvance.showFilters')}
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            leftIcon={<RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />}
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            {t('common.refresh')}
+          </Button>
+          <Button
+            variant="outline"
+            leftIcon={<Filter size={16} />}
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            {showFilters ? t('cashAdvance.hideFilters') : t('cashAdvance.showFilters')}
+          </Button>
+        </div>
         
         {(statusFilter || personTypeFilter || weekFilter) && (
           <Button

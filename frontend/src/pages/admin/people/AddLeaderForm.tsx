@@ -230,20 +230,6 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
                 />
               </div>
 
-              {program && (
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Program
-                  </label>
-                  <div className="p-3 bg-primary-50 rounded-lg border border-primary-200">
-                    <p className="text-sm text-primary-700">
-                      This person will be associated with the current program: <strong>{program.name}</strong>
-                    </p>
-                    <input type="hidden" name="programId" value={program.id} />
-                  </div>
-                </div>
-              )}
-
               {!initialData && formData.createUser && formData.name && formData.apellido && formData.email && (
                 <div className="md:col-span-2 p-3 bg-primary-50 rounded-lg">
                   <p className="text-sm text-primary-700">
