@@ -11,6 +11,7 @@ import Badge from '../../components/ui/Badge';
 import AddChargeForm from './AddChargeForm';
 import { UserRole, Charge } from '../../types';
 import LoadingScreen from '../../components/ui/LoadingScreen';
+import { RefreshCw } from 'lucide-react';
 
 const ChargesPage: React.FC = () => {
   const { t } = useTranslation();
@@ -23,6 +24,7 @@ const ChargesPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
   const [success, setSuccess] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     !wereChargesFetched && fetchCharges();
@@ -94,6 +96,20 @@ const ChargesPage: React.FC = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setSuccess(null);
+    try {
+      // Force refresh by resetting the fetch flag and calling fetchCharges
+      useChargeStore.setState({ wereChargesFetched: false });
+      await fetchCharges();
+    } catch (error) {
+      console.error('Error refreshing charges:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':
@@ -152,13 +168,23 @@ const ChargesPage: React.FC = () => {
           </p>
         </div>
         
-        <Button
-          variant="primary"
-          leftIcon={<Plus size={18} />}
-          onClick={() => setShowAddForm(true)}
-        >
-          {t('charges.addCharge')}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            leftIcon={<RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />}
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            {t('common.refresh')}
+          </Button>
+          <Button
+            variant="primary"
+            leftIcon={<Plus size={18} />}
+            onClick={() => setShowAddForm(true)}
+          >
+            {t('charges.addCharge')}
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}

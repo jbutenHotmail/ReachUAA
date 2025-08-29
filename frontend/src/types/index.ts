@@ -195,6 +195,7 @@ export interface Transaction {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt: string;
   updatedAt: string;
+  hoursWorked: number;
   books?: Array<{
     id: string;
     title: string;
@@ -358,4 +359,34 @@ export interface LeaderPercentage {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+// Bonification interfaces
+export interface BonificationLevel {
+  type: 'GOLD' | 'SILVER';
+  requiredHours: number;
+  requiredAmount: number;
+  rewardAmount: number;
+}
+
+export interface ColporterBonificationStatus {
+  colporterId: string;
+  colporterName: string;
+  currentHours: number;
+  currentNetAmount: number;
+  silverStatus: {
+    achieved: boolean;
+    hoursProgress: number;
+    amountProgress: number;
+    hoursRemaining: number;
+    amountRemaining: number;
+  };
+  goldStatus: {
+    achieved: boolean;
+    hoursProgress: number;
+    amountProgress: number;
+    hoursRemaining: number;
+    amountRemaining: number;
+  };
+  nextTarget: 'SILVER' | 'GOLD' | 'COMPLETED';
 }

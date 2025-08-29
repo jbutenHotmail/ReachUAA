@@ -7,7 +7,7 @@ import {
   X, DollarSign, ChevronDown, ClipboardList, 
   Receipt, Wallet, Utensils, ChevronFirst as FirstAid, ShoppingBag, Wrench, 
   Fuel, Users, UserPlus, BookOpen, UserCog, UsersRound, Percent,
-  Package, TrendingUp, Calendar, AlertTriangle, FileText, Plus, Lock
+  Package, TrendingUp, Calendar, AlertTriangle, FileText, Plus, Lock, Award
 } from 'lucide-react';
 import logoReach from '../../assets/logo_reach.webp';
 import logoReach1 from '../../assets/logo_reach_1.webp';
@@ -66,6 +66,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
           label: 'Estudios Bíblicos',
           icon: <BookOpen size={20} />,
         },
+        {
+          path: '/bonifications',
+          label: 'Bonificaciones',
+          icon: <Award size={20} />,
+        },
         settingsItem
       ];
     }
@@ -96,7 +101,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
             path: '/bible-studies',
             label: 'Estudios Bíblicos',
             icon: <BookOpen size={20} />,
-          }
+          },
         ],
       },
       {
@@ -171,6 +176,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
         path: '/charges', 
         label: 'Charges & Fines', 
         icon: <AlertTriangle size={20} />, 
+      },
+      { 
+        path: '/bonifications', 
+        label: 'Bonificaciones', 
+        icon: <Award size={20} />, 
       },
       {
         label: t('navigation.reports.reports'),

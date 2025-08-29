@@ -7,8 +7,10 @@ import {
   PiggyBank, 
   BarChart3, 
   User,
+  Plus,
   Globe,
-  BookOpen
+  BookOpen,
+  Award
 } from 'lucide-react';
 import { UserRole } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
@@ -59,7 +61,7 @@ const MobileNav: React.FC = () => {
         },
         { 
           path: '/reports/program', 
-          label: t('navigation.reports.reports'), 
+          label: t('navigation.reports'), 
           icon: <BarChart3 size={18} />, 
         },
         baseItems[3], // Profile
@@ -67,7 +69,20 @@ const MobileNav: React.FC = () => {
     }
     
     // For Viewer role, just return the base items
-    return baseItems;
+    return [
+      baseItems[0], // Dashboard
+      { 
+        path: '/transactions/new', 
+        label: 'New Transaction', 
+        icon: <Plus size={18} />, 
+      },
+      { 
+        path: '/bonifications', 
+        label: 'Bonificaciones', 
+        icon: <Award size={18} />, 
+      },
+      baseItems[3], // Profile
+    ];
   };
   
   const navItems = getNavItems();

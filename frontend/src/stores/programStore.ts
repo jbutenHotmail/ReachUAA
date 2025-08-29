@@ -12,6 +12,7 @@ import { useUserStore } from './userStore';
 import { useDashboardStore } from './dashboardStore';
 import { useBibleStudyStore } from './bibleStudyStore';
 import { useLeaderPercentageStore } from './leaderPercentageStore';
+import { useBonificationStore } from './bonificationStore';
 
 interface ProgramConfig {
   id: number;
@@ -252,6 +253,9 @@ export const useProgramStore = create<ProgramStore>()(
 
         const leaderPercentageStore = useLeaderPercentageStore.getState();
         leaderPercentageStore.resetStore && leaderPercentageStore.resetStore();
+      
+        const bonificationStore = useBonificationStore.getState();
+        bonificationStore.resetStore && bonificationStore.resetStore();
       },
 
       // New method to update financial config

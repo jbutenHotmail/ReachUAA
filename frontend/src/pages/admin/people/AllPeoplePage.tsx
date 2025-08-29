@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { 
   UserPlus, Search, Download, 
   Mail, Phone, Building2, MapPin, User,
-  Pencil, Trash2, UserCog, X
+  Pencil, Trash2, UserCog, X, RefreshCw
 } from 'lucide-react';
 import {
   createColumnHelper,
@@ -36,6 +36,7 @@ const AllPeoplePage: React.FC = () => {
   const [editingPerson, setEditingPerson] = useState<Person | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const {program} = useProgramStore();
   const [error, setError] = useState<string | null>(null);
 
@@ -124,6 +125,22 @@ const AllPeoplePage: React.FC = () => {
         // Clear error message after 5 seconds
         setTimeout(() => setError(null), 5000);
       }
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      // Force refresh by resetting the fetch flag and calling fetchPeople
+      useUserStore.setState({ werePeopleFetched: false });
+      await fetchPeople(program?.id);
+    } catch (error) {
+      setError('Failed to refresh people data');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -335,6 +352,15 @@ const AllPeoplePage: React.FC = () => {
             </div>
             
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                leftIcon={<RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />}
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+              >
+                {t('common.refresh')}
+              </Button>
+              
               <Button
                 variant="outline"
                 leftIcon={<Download size={18} />}
