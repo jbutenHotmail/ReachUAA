@@ -176,7 +176,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     set({ isLoadingPersonalStats: true, personalStatsError: null });
     try {
       // Get program dates from the program store
-      const { program, availablePrograms } = useProgramStore.getState();
+      const { program } = useProgramStore.getState();
       
       let startDateStr: string;
       let endDateStr: string;
