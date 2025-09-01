@@ -175,16 +175,25 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     
     set({ isLoadingPersonalStats: true, personalStatsError: null });
     try {
-      // Get current date
-      const today = new Date();
+      // Get program dates from the program store
+      const { program } = useProgramStore.getState();
       
-      // Calculate start of month
-      const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-      const startDateStr = startDate.toISOString().split('T')[0];
+      let startDateStr: string;
+      let endDateStr: string;
       
-      // Calculate end of month
-      const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      const endDateStr = endDate.toISOString().split('T')[0];
+      console.log(program);
+      if (program) {
+        // Use program start and end dates (complete program period)
+        startDateStr = program.start_date;
+        endDateStr = program.end_date;
+      } else {
+        // Fallback to current year if no program is available
+        const today = new Date();
+        const startDate = new Date(today.getFullYear(), 0, 1); // Start of year
+        const endDate = new Date(today.getFullYear(), 11, 31); // End of year
+        startDateStr = startDate.toISOString().split('T')[0];
+        endDateStr = endDate.toISOString().split('T')[0];
+      }
       
       // Fetch personal earnings report - ONLY APPROVED TRANSACTIONS
       const personalStats = await api.get<PersonalStats>(`/reports/earnings/${userId}`, {
