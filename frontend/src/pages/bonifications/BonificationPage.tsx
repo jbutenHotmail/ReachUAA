@@ -317,7 +317,7 @@ const BonificationsPage: React.FC = () => {
 
                 <div className="mt-4 p-4 bg-success-50 rounded-lg border border-success-200">
                   <p className="text-lg font-bold text-success-700">
-                    {t("bonifications.total")}: ${formatNumber(1496 + 2160)}
+                    {t("common.total")}: ${formatNumber(1496 + 2160)}
                   </p>
                 </div>
               </div>
