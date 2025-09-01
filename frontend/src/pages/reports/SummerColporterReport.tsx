@@ -111,7 +111,14 @@ const SummerColporterReport: React.FC = () => {
       setIsLoading(true)
       try {
         // Get colporter report data which includes transactions, bible studies, and top seller
-        const reportData: any = await api.get(`/reports/colporter/${personId}`)
+        // Send program start and end dates as parameters
+        const params: Record<string, string> = {};
+        if (program) {
+          params.startDate = program.start_date;
+          params.endDate = program.end_date;
+        }
+        
+        const reportData: any = await api.get(`/reports/colporter/${personId}`, { params })
         // Set the data from the report
         setBibleStudies(reportData.bibleStudies || [])
         setTopSellerBook(reportData.topSellerBook || null)

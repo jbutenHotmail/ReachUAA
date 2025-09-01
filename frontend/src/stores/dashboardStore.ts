@@ -180,8 +180,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       
       let startDateStr: string;
       let endDateStr: string;
-      
-      console.log(program);
+
       if (program) {
         // Use program start and end dates (complete program period)
         startDateStr = program.start_date;

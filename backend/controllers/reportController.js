@@ -366,7 +366,6 @@ export const getColporterReport = async (req, res) => {
     const { startDate, endDate } = req.query
     let reportStartDate = startDate
     let reportEndDate = endDate
-
     if (!startDate || !endDate) {
       const today = new Date()
       const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
