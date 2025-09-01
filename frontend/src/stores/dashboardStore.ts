@@ -176,12 +176,11 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     set({ isLoadingPersonalStats: true, personalStatsError: null });
     try {
       // Get program dates from the program store
-      const { program } = useProgramStore.getState();
+      const { program, availablePrograms } = useProgramStore.getState();
       
       let startDateStr: string;
       let endDateStr: string;
       
-      console.log(program);
       if (program) {
         // Use program start and end dates (complete program period)
         startDateStr = program.start_date;
