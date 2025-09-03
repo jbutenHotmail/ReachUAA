@@ -39,7 +39,6 @@ const BonificationsPage: React.FC = () => {
     bonificationStatus,
     allColporterStatuses,
     availablePrograms,
-    selectedPrograms,
     bonificationConfig,
     isLoading,
     fetchBonificationStatus,
@@ -48,7 +47,6 @@ const BonificationsPage: React.FC = () => {
     fetchBonificationConfig,
     updateBonificationConfig,
     wereBonificationsFetched,
-    setSelectedPrograms,
   } = useBonificationStore();
 
   const [activeTab, setActiveTab] = useState<"personal" | "overview">("personal");
@@ -258,30 +256,6 @@ const BonificationsPage: React.FC = () => {
 
       {activeTab === "personal" && bonificationStatus && (
         <div className="space-y-6">
-          {/* Display Program Names */}
-          {bonificationStatus.programs?.length > 0 && (
-            <Card className="bg-blue-50 border-blue-200">
-              <div className="p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                  <Calendar className="text-blue-600" size={20} />
-                  {t("bonifications.programDataSource")}
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  {t("bonifications.programDataSourceDescription", {
-                    count: bonificationStatus.programs.length,
-                  })}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {bonificationStatus.programs.map((prog) => (
-                    <Badge key={prog.programId} variant="info">
-                      {prog.programName}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          )}
-
           {bonificationStatus.nextTarget === "COMPLETED" && (
             <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
               <div className="text-center">
@@ -317,7 +291,10 @@ const BonificationsPage: React.FC = () => {
 
                 <div className="mt-4 p-4 bg-success-50 rounded-lg border border-success-200">
                   <p className="text-lg font-bold text-success-700">
-                    {t("common.total")}: ${formatNumber(1496 + 2160)}
+                    {t("bonifications.totalEarned")}: ${formatNumber(2160)}
+                  </p>
+                  <p className="text-xs text-success-600 mt-1">
+                    La bonificación de oro reemplaza a la de plata
                   </p>
                 </div>
               </div>
@@ -860,7 +837,7 @@ const BonificationsPage: React.FC = () => {
                       {t("bonifications.gold")}
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t("bonifications.nextTarget")}
+                      {t("bonifications.earnedAmount")}
                     </th>
                   </tr>
                 </thead>
@@ -913,7 +890,9 @@ const BonificationsPage: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-center">
                           {colporter.silverStatus.achieved ? (
-                            <Badge variant="success">{t("bonifications.achieved")}</Badge>
+                            <Badge variant={colporter.goldStatus.achieved ? "secondary" : "success"}>
+                              {colporter.goldStatus.achieved ? "Superado" : t("bonifications.achieved")}
+                            </Badge>
                           ) : (
                             <div className="text-xs">
                               <div className="text-gray-600">
@@ -940,12 +919,12 @@ const BonificationsPage: React.FC = () => {
                           )}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-center">
-                          {colporter.nextTarget === "COMPLETED" ? (
-                            <Badge variant="success">{t("bonifications.completed")}</Badge>
+                          {colporter.goldStatus.achieved ? (
+                            <Badge variant="warning" size="lg">${formatNumber(2160)}</Badge>
+                          ) : colporter.silverStatus.achieved ? (
+                            <Badge variant="success" size="lg">${formatNumber(1496)}</Badge>
                           ) : (
-                            <Badge variant={colporter.nextTarget === "GOLD" ? "warning" : "primary"}>
-                              {colporter.nextTarget === "GOLD" ? t("bonifications.gold") : t("bonifications.silver")}
-                            </Badge>
+                            <Badge variant="secondary" size="lg">$0</Badge>
                           )}
                         </td>
                       </tr>

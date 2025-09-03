@@ -7,7 +7,9 @@ import {
   X, DollarSign, ChevronDown, ClipboardList, 
   Receipt, Wallet, Utensils, ChevronFirst as FirstAid, ShoppingBag, Wrench, 
   Fuel, Users, UserPlus, BookOpen, UserCog, UsersRound, Percent,
-  Package, TrendingUp, Calendar, AlertTriangle, FileText, Plus, Lock, Award
+  Package, TrendingUp, Calendar, AlertTriangle, FileText, Plus, Lock, Award,
+  Cookie,
+  Gift
 } from 'lucide-react';
 import logoReach from '../../assets/logo_reach.webp';
 import logoReach1 from '../../assets/logo_reach_1.webp';
@@ -63,12 +65,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
         newTransactionItem,
         {
           path: '/bible-studies',
-          label: 'Estudios Bíblicos',
+          label: t('bibleStudyDetails.studyTypeBibleStudy'),
           icon: <BookOpen size={20} />,
         },
         {
           path: '/bonifications',
-          label: 'Bonificaciones',
+          label: t('bonifications.title'),
           icon: <Award size={20} />,
         },
         settingsItem
@@ -169,6 +171,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
             path: '/expenses/fuel',
             label: t('expenses.fuel'),
             icon: <Fuel size={20} />,
+          },
+          {
+            path: '/expenses/snacks',
+            label: t('expenses.snacks'),
+            icon: <Cookie size={20} />,
+          },
+          {
+            path: '/expenses/incentivos',
+            label: t('expenses.incentivos'),
+            icon: <Gift size={20} />,
           }
         ],
       },
@@ -179,7 +191,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
       },
       { 
         path: '/bonifications', 
-        label: 'Bonificaciones', 
+        label: t('bonifications.title'),
         icon: <Award size={20} />, 
       },
       {

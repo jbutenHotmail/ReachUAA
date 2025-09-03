@@ -7,6 +7,8 @@ import { UserRole } from './types';
 import Layout from './components/layout/Layout';
 import LoadingScreen from './components/ui/LoadingScreen';
 import BonificationsPage from './pages/bonifications/BonificationPage';
+import SnacksExpenses from './pages/expenses/SnacksExpenses';
+import IncentivosExpenses from './pages/expenses/IncentivosExpenses';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/auth/Login'));
@@ -254,6 +256,8 @@ function App() {
             <Route path="supplies" element={<Suspense fallback={<LoadingScreen />}><SuppliesExpenses /></Suspense>} />
             <Route path="maintenance" element={<Suspense fallback={<LoadingScreen />}><MaintenanceExpenses /></Suspense>} />
             <Route path="fuel" element={<Suspense fallback={<LoadingScreen />}><FuelExpenses /></Suspense>} />
+            <Route path="snacks" element={<Suspense fallback={<LoadingScreen />}><SnacksExpenses /></Suspense>} />
+            <Route path="incentivos" element={<Suspense fallback={<LoadingScreen />}><IncentivosExpenses /></Suspense>} />
           </Route>
 
           {/* Cash Advance - Restricted for Viewer role */}

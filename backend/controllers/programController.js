@@ -306,6 +306,12 @@ export const getProgram = async (req, res) => {
       [program.id]
     );
 
+    // Get expense budgets
+    const expenseBudgets = await db.query(
+      "SELECT * FROM program_expense_budgets WHERE program_id = ?",
+      [program.id]
+    );
+
     // Get working days
     const workingDays = await db.query(
       "SELECT * FROM program_working_days WHERE program_id = ?",
@@ -327,7 +333,8 @@ export const getProgram = async (req, res) => {
     const programResponse = {
       ...program,
       financialConfig: {
-        ...financialConfig
+        ...financialConfig,
+        expense_budgets: expenseBudgets || []
       },
       workingDays: workingDays.map(day => ({
         ...day
@@ -423,6 +430,12 @@ export const switchProgram = async (req, res) => {
       [id]
     );
 
+    // Get expense budgets
+    const expenseBudgets = await db.query(
+      "SELECT * FROM program_expense_budgets WHERE program_id = ?",
+      [id]
+    );
+
     // Get working days
     const workingDays = await db.query(
       "SELECT * FROM program_working_days WHERE program_id = ?",
@@ -444,7 +457,8 @@ export const switchProgram = async (req, res) => {
     const programResponse = {
       ...updatedProgram,
       financialConfig: {
-        ...financialConfig
+        ...financialConfig,
+        expense_budgets: expenseBudgets || []
       },
       workingDays: workingDays.map(day => ({
         ...day
@@ -566,9 +580,15 @@ export const getFinancialConfig = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Get financial config
+    // Get financial config and expense budgets
     const financialConfig = await db.getOne(
       "SELECT * FROM program_financial_config WHERE program_id = ?",
+      [id]
+    );
+    
+    // Get expense budgets
+    const expenseBudgets = await db.query(
+      "SELECT * FROM program_expense_budgets WHERE program_id = ?",
       [id]
     );
 
@@ -578,7 +598,10 @@ export const getFinancialConfig = async (req, res) => {
         .json({ message: "Financial configuration not found" });
     }
 
-    res.json(financialConfig);
+    res.json({
+      ...financialConfig,
+      expense_budgets: expenseBudgets || []
+    });
   } catch (error) {
     console.error("Error getting financial config:", error);
     res.status(500).json({ message: "Server error", error: error.message });
@@ -594,19 +617,44 @@ export const updateFinancialConfig = async (req, res) => {
       leader_percentage,
       colporter_cash_advance_percentage,
       leader_cash_advance_percentage,
+      expense_budgets,
+      allow_budget_override
     } = req.body;
 
-    // Update financial config
-    await db.update(
-      "UPDATE program_financial_config SET colporter_percentage = ?, leader_percentage = ?, colporter_cash_advance_percentage = ?, leader_cash_advance_percentage = ?, updated_at = NOW() WHERE program_id = ?",
-      [
-        colporter_percentage,
-        leader_percentage,
-        colporter_cash_advance_percentage,
-        leader_cash_advance_percentage,
-        id,
-      ]
-    );
+    // Start transaction to update both financial config and expense budgets
+    await db.transaction(async (connection) => {
+      // Update financial config
+      await connection.execute(
+        "UPDATE program_financial_config SET colporter_percentage = ?, leader_percentage = ?, colporter_cash_advance_percentage = ?, leader_cash_advance_percentage = ?, allow_budget_override = ?, updated_at = NOW() WHERE program_id = ?",
+        [
+          colporter_percentage,
+          leader_percentage,
+          colporter_cash_advance_percentage,
+          leader_cash_advance_percentage,
+          allow_budget_override !== undefined ? allow_budget_override : false,
+          id,
+        ]
+      );
+      
+      // Update expense budgets if provided
+      if (expense_budgets && Array.isArray(expense_budgets)) {
+        // Delete existing budgets
+        await connection.execute(
+          "DELETE FROM program_expense_budgets WHERE program_id = ?",
+          [id]
+        );
+        
+        // Insert new budgets
+        for (const budget of expense_budgets) {
+          if (budget.category && budget.budget_amount > 0) {
+            await connection.execute(
+              "INSERT INTO program_expense_budgets (program_id, category, budget_amount) VALUES (?, ?, ?)",
+              [id, budget.category, budget.budget_amount]
+            );
+          }
+        }
+      }
+    });
 
     res.json({ message: "Financial configuration updated successfully" });
   } catch (error) {

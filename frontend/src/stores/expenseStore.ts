@@ -62,13 +62,26 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
         programId: expenseData.programId || programId
       };
       
-      const newExpense = await api.post<Expense>('/expenses', dataWithProgram);
+      const response = await api.post<any>('/expenses', dataWithProgram);
+      
+      // Always handle as single expense (parent expense for distributions)
+      const newExpense = response;
       set(state => ({
         expenses: [...state.expenses, newExpense],
         isLoading: false,
       }));
       return newExpense;
     } catch (error) {
+      // Handle budget exceeded error specifically
+      if (error && typeof error === 'object' && 'data' in error && error.data?.budgetExceeded) {
+        const budgetError = new Error(`Presupuesto excedido para ${error.data.budgetInfo.category}. Presupuesto: $${error.data.budgetInfo.budgetAmount}, Gastado: $${error.data.budgetInfo.currentSpending}, Disponible: $${error.data.budgetInfo.remaining}, Solicitado: $${error.data.budgetInfo.requestedAmount}`);
+        set({ 
+          error: budgetError.message,
+          isLoading: false 
+        });
+        throw budgetError;
+      }
+      
       set({ 
         error: error instanceof Error ? error.message : 'An unknown error occurred',
         isLoading: false 

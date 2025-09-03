@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ProgramBook, WorkingDay, CustomDay } from '../types';
+import { ProgramConfig } from '../types';
 import { api } from '../api';
 import { useAuthStore } from './authStore';
 import { useTransactionStore } from './transactionStore';
@@ -14,31 +14,6 @@ import { useBibleStudyStore } from './bibleStudyStore';
 import { useLeaderPercentageStore } from './leaderPercentageStore';
 import { useBonificationStore } from './bonificationStore';
 
-interface ProgramConfig {
-  id: number;
-  name: string;
-  motto: string;
-  start_date: string;
-  end_date: string;
-  financial_goal: string;
-  logo_url: string | null;
-  is_active: number | boolean;
-  created_at: string;
-  updated_at: string;
-  financialConfig: {
-    id: number;
-    program_id: number;
-    colporter_percentage: string;
-    leader_percentage: string;
-    colporter_cash_advance_percentage: string;
-    leader_cash_advance_percentage: string;
-    created_at: string;
-    updated_at: string;
-  };
-  workingDays: WorkingDay[];
-  customDays: CustomDay[];
-  books: ProgramBook[];
-}
 
 interface ProgramState {
   program: ProgramConfig | null;
@@ -272,7 +247,8 @@ export const useProgramStore = create<ProgramStore>()(
                   ...state.program,
                   financialConfig: {
                     ...state.program.financialConfig,
-                    ...configData
+                    ...configData,
+                    expense_budgets: configData.expense_budgets || state.program.financialConfig.expense_budgets || []
                   }
                 },
                 isLoading: false

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, useNavigate, useLocation, NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Utensils, ChevronFirst as FirstAid, ShoppingBag, Wrench, Fuel, LayoutGrid } from 'lucide-react';
+import { Utensils, ChevronFirst as FirstAid, ShoppingBag, Wrench, Fuel, LayoutGrid, Cookie, Gift } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const ExpenseLayout: React.FC = () => {
@@ -22,6 +22,8 @@ const ExpenseLayout: React.FC = () => {
     { path: 'supplies', label: t('expenses.supplies'), icon: <ShoppingBag size={18} /> },
     { path: 'maintenance', label: t('expenses.maintenance'), icon: <Wrench size={18} /> },
     { path: 'fuel', label: t('expenses.fuel'), icon: <Fuel size={18} /> },
+    { path: 'snacks', label: t('expenses.snacks'), icon: <Cookie size={18} /> },
+    { path: 'incentivos', label: t('expenses.incentivos'), icon: <Gift size={18} /> },
   ];
 
   return (

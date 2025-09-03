@@ -12,6 +12,7 @@ import {
   BookText,
   DollarSign,
   Lock,
+  AlertTriangle,
 } from "lucide-react";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
@@ -65,6 +66,13 @@ const ProgramSettings: React.FC = () => {
   // Working days state
   const [workingDays, setWorkingDays] = useState<WorkingDay[]>([]);
   const [customDays, setCustomDays] = useState<CustomDay[]>([]);
+  
+  // Expense budgets state
+  const [expenseBudgets, setExpenseBudgets] = useState<Array<{
+    category: string;
+    budget_amount: number;
+  }>>([]);
+  const [allowBudgetOverride, setAllowBudgetOverride] = useState(false);
 
   // Load program data
   useEffect(() => {
@@ -96,6 +104,43 @@ const ProgramSettings: React.FC = () => {
           colporterCashAdvancePercentage: parseFloat(program.financialConfig.colporter_cash_advance_percentage) || 20,
           leaderCashAdvancePercentage: parseFloat(program.financialConfig.leader_cash_advance_percentage) || 25,
         });
+        
+        // Update budget override setting
+        setAllowBudgetOverride(program.financialConfig.allow_budget_override || false);
+        
+        // Update expense budgets
+       if (program.financialConfig.expense_budgets) {
+  const defaultCategories = [
+    'food',
+    'health',
+    'supplies',
+    'maintenance',
+    'fuel',
+    'snacks',
+    'incentivos'
+  ];
+
+  // Ensure all default categories are present
+  let updatedBudgets = [...program.financialConfig.expense_budgets];
+  defaultCategories.forEach(category => {
+    if (!updatedBudgets.some(budget => budget.category === category)) {
+      updatedBudgets.push({ category, budget_amount: 0 });
+    }
+  });
+
+  setExpenseBudgets(updatedBudgets);
+} else {
+  // Initialize with default categories
+  setExpenseBudgets([
+    { category: 'food', budget_amount: 0 },
+    { category: 'health', budget_amount: 0 },
+    { category: 'supplies', budget_amount: 0 },
+    { category: 'maintenance', budget_amount: 0 },
+    { category: 'fuel', budget_amount: 0 },
+    { category: 'snacks', budget_amount: 0 },
+    { category: 'incentivos', budget_amount: 0 }
+  ]);
+}
       }
 
       // Update working days
@@ -232,6 +277,8 @@ const ProgramSettings: React.FC = () => {
           financialConfig.colporterCashAdvancePercentage,
         leader_cash_advance_percentage:
           financialConfig.leaderCashAdvancePercentage,
+        expense_budgets: expenseBudgets,
+        allow_budget_override: allowBudgetOverride,
       });
 
       setIsSaved(true);
@@ -242,6 +289,29 @@ const ProgramSettings: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  const handleBudgetChange = (category: string, amount: number) => {
+    setExpenseBudgets(prev => 
+      prev.map(budget => 
+        budget.category === category 
+          ? { ...budget, budget_amount: amount }
+          : budget
+      )
+    );
+  };
+  
+  const getCategoryIcon = (category: string) => {
+    const icons = {
+      food: '🍽️',
+      health: '🏥',
+      supplies: '📦',
+      maintenance: '🔧',
+      fuel: '⛽',
+      snacks: '🍪',
+      incentivos: '🎁'
+    };
+    return icons[category as keyof typeof icons] || '📋';
   };
 
   const calculateProgramDuration = () => {
@@ -507,6 +577,84 @@ const ProgramSettings: React.FC = () => {
                 </div>
               </div>
 
+              <div className="flex justify-end">
+                <Button
+                  variant="primary"
+                  onClick={handleSaveFinancialConfig}
+                  isLoading={isLoading}
+                  leftIcon={<Save size={18} />}
+                >
+                  {t("programSettings.saveFinancialConfiguration")}
+                </Button>
+              </div>
+            </div>
+          </Card>
+
+          {/* Expense Budgets Configuration */}
+          <Card title="Presupuestos de Gastos" icon={<DollarSign size={20} />}>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div>
+                  <h4 className="font-medium text-blue-800">Control de Presupuestos</h4>
+                  <p className="text-sm text-blue-600 mt-1">
+                    {allowBudgetOverride 
+                      ? "Los gastos pueden exceder el presupuesto asignado" 
+                      : "Los gastos están limitados por el presupuesto asignado"}
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={allowBudgetOverride}
+                    onChange={(e) => setAllowBudgetOverride(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                  <span className="ml-3 text-sm font-medium text-blue-700">
+                    Permitir exceder presupuesto
+                  </span>
+                </label>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {expenseBudgets.map((budget) => (
+                  <div key={budget.category} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-lg">{getCategoryIcon(budget.category)}</span>
+                      <h4 className="font-medium text-gray-900 capitalize">
+                        {t(`expenses.${budget.category}`)}
+                      </h4>
+                    </div>
+                    
+                    <Input
+                      label="Presupuesto ($)"
+                      type="number"
+                      value={budget.budget_amount || ''}
+                      onChange={(e) => handleBudgetChange(budget.category, parseFloat(e.target.value) || 0)}
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                    />
+                    
+                  </div>
+                ))}
+              </div>
+              
+              <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="text-warning-500 flex-shrink-0 mt-0.5" size={20} />
+                  <div className="text-sm text-warning-700">
+                    <p className="font-medium mb-2">Información sobre Presupuestos:</p>
+                    <ul className="space-y-1 text-xs">
+                      <li>• Los presupuestos se aplican solo a gastos aprobados</li>
+                      <li>• Si "Permitir exceder presupuesto" está desactivado, no se podrán crear gastos que excedan el límite</li>
+                      <li>• Los presupuestos de $0 significan sin límite para esa categoría</li>
+                      <li>• Los gastos pendientes no cuentan hacia el presupuesto hasta ser aprobados</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              
               <div className="flex justify-end">
                 <Button
                   variant="primary"

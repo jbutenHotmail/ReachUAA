@@ -6,7 +6,8 @@ import {
   updateExpense, 
   deleteExpense,
   approveExpense,
-  rejectExpense
+  rejectExpense,
+  getChildExpenses
 } from '../controllers/expenseController.js';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
 
@@ -32,5 +33,8 @@ router.patch('/:id/approve', authenticateToken, authorizeRoles(['ADMIN']), appro
 
 // Reject expense (admin only)
 router.patch('/:id/reject', authenticateToken, authorizeRoles(['ADMIN']), rejectExpense);
+
+// Get child expenses for a parent expense
+router.get('/:id/children', authenticateToken, authorizeRoles(['ADMIN', 'SUPERVISOR']), getChildExpenses);
 
 export default router;

@@ -85,6 +85,7 @@ export interface Expense {
   category: string;
   notes?: string;
   date: string;
+  isParentExpense?: boolean;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdBy: string;
   createdByName: string;
@@ -267,6 +268,7 @@ export interface Leader {
 }
 
 // Updated ProgramConfig interface with achieved property
+
 export interface ProgramConfig {
   id: number;
   name: string;
@@ -278,7 +280,6 @@ export interface ProgramConfig {
   is_active: number | boolean;
   created_at: string;
   updated_at: string;
-  achieved?: number; // Added this property
   financialConfig: {
     id: number;
     program_id: number;
@@ -286,23 +287,20 @@ export interface ProgramConfig {
     leader_percentage: string;
     colporter_cash_advance_percentage: string;
     leader_cash_advance_percentage: string;
+    expense_budgets: Array<{
+      category: string;
+      budget_amount: number;
+    }>;
+    
+    allow_budget_override: boolean;
     created_at: string;
     updated_at: string;
   };
-  workingDays: {
-    id: number;
-    program_id: number;
-    day_of_week: string;
-    is_working_day: number | boolean;
-  }[];
-  customDays: {
-    id: number;
-    program_id: number;
-    date: string;
-    is_working_day: number | boolean;
-  }[];
+  workingDays: WorkingDay[];
+  customDays: CustomDay[];
   books: ProgramBook[];
 }
+
 
 // App settings interface
 export interface AppSettings {
