@@ -898,7 +898,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
                 className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               >
                 <option value="">
-                  {t("common.all")} {t("common.leader").toLowerCase()}s
+                  {t("common.all")} los Responsables
                 </option>
                 <option value="program">{t("expenses.program")}</option>
                 {uniqueLeaders.map((leader) => (
