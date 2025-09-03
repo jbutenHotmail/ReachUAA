@@ -101,13 +101,13 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
     !werePeopleFetched && fetchPeople();
     fetchUsers();
     !wereTransactionsFetched && fetchAllTransactions('APPROVED');
-  }, [fetchUsers]);
+  }, [fetchUsers, fetchPeople, fetchAllTransactions, werePeopleFetched, wereTransactionsFetched]);
   
-  // Check budget when amount or category changes
+  // Check budget when amount, category, program, or selectedLeader changes
   useEffect(() => {
     if (formData.category && formData.amount > 0 && program?.financialConfig?.expense_budgets && shouldShowBudgetInfo()) {
       checkBudgetConstraints();
-    } else if (formData.category && program?.financialConfig?.expense_budgets && shouldShowBudgetInfo()) {
+    } else {
       setBudgetWarning(null);
       setBudgetInfo(null);
     }
@@ -117,21 +117,12 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
   const shouldShowBudgetInfo = () => {
     // Only show budget info if:
     // 1. Category is selected
-    // 2. Either it's proportional distribution OR the selected leader is "program"
-    return formData.category && (
-      (isIncentivosCategory && formData.distributionType === 'proportional') ||
-      (!isIncentivosCategory && selectedLeader?.id === 'program') ||
-      (isIncentivosCategory && formData.distributionType === 'specific' && selectedLeader?.id === 'program')
+    // 2. The selected leader is "program" and it's either a non-incentivos category or a specific incentivos expense
+    return formData.category && selectedLeader?.id === 'program' && (
+      (formData.category !== 'incentivos') ||
+      (formData.category === 'incentivos' && formData.distributionType === 'specific')
     );
   };
-  
-  // Clear warnings when leader changes and it's not program
-  useEffect(() => {
-    if (selectedLeader && selectedLeader.id !== 'program' && !isProportionalDistribution) {
-      setBudgetWarning(null);
-      setBudgetInfo(null);
-    }
-  }, [selectedLeader]);
   
   const checkBudgetConstraints = async () => {
     if (!program?.financialConfig?.expense_budgets) return;
@@ -143,25 +134,25 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
     if (!budget || budget.budget_amount <= 0) {
       // Show unlimited budget info
       try {
-        // Get current spending for this category even if no budget is set
-        const response = await api.get<Expense[]>('/expenses', {
+        const response = await api.get<{ total: number }>('/budget/spending', {
           params: {
             category: formData.category,
             status: 'APPROVED',
-            programId: program.id
+            programId: program.id,
+            isParentExpense: 'FALSE'
           }
         });
         
-        const currentSpending = response.reduce((sum: number, expense: any) => sum + Number(expense.amount), 0);
+        const currentSpending = response.total;
         
         setBudgetInfo({
           category: formData.category,
-          budgetAmount: 0, // 0 indicates unlimited
+          budgetAmount: 0,
           currentSpending,
-          remaining: -1, // -1 indicates unlimited
-          percentageUsed: 0 // 0 for unlimited
+          remaining: -1,
+          percentageUsed: 0
         });
-        setBudgetWarning(null); // Clear warning for unlimited budgets
+        setBudgetWarning(null);
       } catch (error) {
         console.error('Error fetching expenses:', error);
       }
@@ -169,31 +160,16 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
     }
     
     try {
-      // Get current spending for this category
-      const response = await api.get('/expenses', {
+      const response = await api.get<{ total: number }>('/expenses', {
         params: {
           category: formData.category,
           status: 'APPROVED',
-          programId: program.id
+          programId: program.id,
+          isParentExpense: 'FALSE'
         }
       });
       
-      const currentSpending = response.reduce((sum: number, expense: any) => sum + Number(expense.amount), 0);
-      
-      // Handle categories without budget (unlimited)
-      if (!budget || budget.budget_amount <= 0) {
-        setBudgetInfo({
-          category: formData.category,
-          budgetAmount: 0, // 0 indicates unlimited
-          currentSpending,
-          remaining: 0, // Not applicable for unlimited
-          percentageUsed: 0 // Not applicable for unlimited
-        });
-        
-        // Don't set warning here, let checkBudgetConstraints handle it
-        setBudgetWarning(null);
-        return;
-      }
+      const currentSpending = response.total;
       
       const remaining = budget.budget_amount - currentSpending;
       const percentageUsed = (currentSpending / budget.budget_amount) * 100;
@@ -206,9 +182,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
         percentageUsed
       });
       
-      const requestedAmount = formData.distributionType === 'proportional' && leaderSalesData.length > 0
-        ? leaderSalesData.reduce((sum, leader) => sum + leader.incentiveAmount, 0)
-        : formData.amount;
+      const requestedAmount = formData.amount;
       
       setBudgetWarning({
         category: formData.category,
@@ -228,12 +202,17 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
   useEffect(() => {
     if (formData.category === 'incentivos' && formData.distributionType === 'proportional' && transactions.length > 0) {
       calculateLeaderSales();
+    } else {
+      setLeaderSalesData([]);
+      setFormData(prev => ({
+        ...prev,
+        leaderDistribution: []
+      }));
     }
   }, [formData.category, formData.distributionType, transactions, formData.amount]);
 
   const calculateLeaderSales = () => {
     const leaders = getLeaders();
-    console.log(transactions);
     const totalSales = transactions.reduce((sum, transaction) => sum + Number(transaction.total), 0);
     
     const leaderDistribution = leaders.map(leader => {
@@ -255,7 +234,6 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
     
     setLeaderSalesData(leaderDistribution);
     
-    // Update form data with distribution
     setFormData(prev => ({
       ...prev,
       leaderDistribution: leaderDistribution
@@ -293,7 +271,6 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
       [name]: name === 'amount' ? parseFloat(value) || 0 : value,
     }));
     
-    // Reset distribution type when category changes
     if (name === 'category') {
       setFormData(prev => ({
         ...prev,
@@ -321,7 +298,6 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // For proportional distribution, submit the parent expense with distribution data
     if (isProportionalDistribution && leaderSalesData.length > 0) {
       onSubmit({
         ...formData,
@@ -332,7 +308,6 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
       return;
     }
     
-    // For regular expenses or specific leader incentivos
     onSubmit({
       ...formData,
       leaderId: selectedLeader?.id,
@@ -363,14 +338,13 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
 
         <div className="flex-1 overflow-y-auto p-6">
           <form onSubmit={handleFormSubmit} className="space-y-6">
-            {/* Budget Information Display - Moved to top */}
             {budgetInfo && shouldShowBudgetInfo() && (
               <div className={`p-4 border rounded-lg ${
                 budgetInfo.budgetAmount === 0
                   ? 'bg-blue-50 border-blue-200'
-                  : budgetInfo.percentageUsed >= 90 
+                  : budgetInfo.percentageUsed >= 90 && !program?.financialConfig?.allow_budget_override
                     ? 'bg-danger-50 border-danger-200' 
-                    : budgetInfo.percentageUsed >= 75
+                    : budgetInfo.percentageUsed >= 75 && !program?.financialConfig?.allow_budget_override
                       ? 'bg-warning-50 border-warning-200'
                       : 'bg-success-50 border-success-200'
               }`}>
@@ -378,9 +352,9 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                   <h4 className={`font-medium ${
                     budgetInfo.budgetAmount === 0
                       ? 'text-blue-700'
-                      : budgetInfo.percentageUsed >= 90 
+                      : budgetInfo.percentageUsed >= 90 && !program?.financialConfig?.allow_budget_override
                         ? 'text-danger-700' 
-                        : budgetInfo.percentageUsed >= 75
+                        : budgetInfo.percentageUsed >= 75 && !program?.financialConfig?.allow_budget_override
                           ? 'text-warning-700'
                           : 'text-success-700'
                   }`}>
@@ -393,8 +367,10 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                   ) : (
                     <Badge 
                       variant={
-                        budgetInfo.percentageUsed >= 90 ? 'danger' :
-                        budgetInfo.percentageUsed >= 75 ? 'warning' : 'success'
+                        budgetInfo.percentageUsed >= 90 && !program?.financialConfig?.allow_budget_override
+                          ? 'danger' :
+                          budgetInfo.percentageUsed >= 75 && !program?.financialConfig?.allow_budget_override
+                            ? 'warning' : 'success'
                       }
                       size="sm"
                     >
@@ -404,7 +380,6 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                 </div>
                 
                 {budgetInfo.budgetAmount === 0 ? (
-                  // Unlimited budget display
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="text-center">
                       <p className="text-blue-600">Presupuesto</p>
@@ -416,7 +391,6 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                     </div>
                   </div>
                 ) : (
-                  // Limited budget display
                   <div className="grid grid-cols-3 gap-4 text-sm">
                     <div className="text-center">
                       <p className="text-gray-600">Presupuesto Total</p>
@@ -429,7 +403,8 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                     <div className="text-center">
                       <p className="text-gray-600">Disponible</p>
                       <p className={`font-bold ${
-                        budgetInfo.remaining <= 0 ? 'text-danger-600' : 'text-success-600'
+                        budgetInfo.remaining <= 0 && !program?.financialConfig?.allow_budget_override
+                          ? 'text-danger-600' : 'text-success-600'
                       }`}>
                         ${formatNumber(budgetInfo.remaining)}
                       </p>
@@ -437,15 +412,14 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                   </div>
                 )}
                 
-                {/* Progress Bar */}
                 {budgetInfo.budgetAmount > 0 && (
                   <div className="mt-3">
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div 
                         className={`h-2 rounded-full transition-all duration-300 ${
-                          budgetInfo.percentageUsed >= 90 
+                          budgetInfo.percentageUsed >= 90 && !program?.financialConfig?.allow_budget_override
                             ? 'bg-danger-500' 
-                            : budgetInfo.percentageUsed >= 75
+                            : budgetInfo.percentageUsed >= 75 && !program?.financialConfig?.allow_budget_override
                               ? 'bg-warning-500'
                               : 'bg-success-500'
                         }`}
@@ -455,24 +429,30 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                   </div>
                 )}
                 
-                {budgetInfo.budgetAmount > 0 && budgetInfo.percentageUsed >= 90 && (
+                {budgetInfo.budgetAmount > 0 && budgetInfo.percentageUsed >= 90 && !program?.financialConfig?.allow_budget_override && (
                   <div className="mt-2 text-xs text-danger-600">
                     ⚠️ Presupuesto casi agotado. Quedan solo ${formatNumber(budgetInfo.remaining)} disponibles.
                   </div>
                 )}
                 
-                {budgetInfo.budgetAmount > 0 && budgetInfo.remaining <= 0 && (
+                {budgetInfo.budgetAmount > 0 && budgetInfo.remaining <= 0 && !program?.financialConfig?.allow_budget_override && (
                   <div className="mt-2 text-xs text-danger-600 font-medium">
                     🚫 Presupuesto agotado. No se pueden crear más gastos en esta categoría.
                   </div>
                 )}
                 
-                 <div className="mt-3 pt-2 border-t border-gray-200">
-                   <p className="text-xs text-gray-600">
-                     💡 <strong>Nota:</strong> Los presupuestos solo se aplican a gastos del programa. 
-                     Los gastos de líderes individuales no afectan estos límites.
-                   </p>
-                 </div>
+                {budgetInfo.budgetAmount > 0 && program?.financialConfig?.allow_budget_override && (
+                  <div className="mt-2 text-xs text-blue-600">
+                    💡 <strong>Nota:</strong> Se permite superar el presupuesto para esta categoría.
+                  </div>
+                )}
+                
+                <div className="mt-3 pt-2 border-t border-gray-200">
+                  <p className="text-xs text-gray-600">
+                    💡 <strong>Nota:</strong> Los presupuestos solo se aplican a gastos del programa. 
+                    Los gastos de líderes individuales no afectan estos límites.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -521,7 +501,6 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
               </div>
             </div>
 
-            {/* Distribution Type Selection - Only show for incentivos category */}
             {isIncentivosCategory && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -554,7 +533,6 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
               </div>
             )}
 
-            {/* Proportional Distribution Preview */}
             {isProportionalDistribution && leaderSalesData.length > 0 && (
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                 <h4 className="font-medium text-gray-900 mb-3">Vista Previa de Distribución</h4>
@@ -582,7 +560,6 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
               </div>
             )}
 
-            {/* Leader Selection - Only show for non-proportional incentivos or other categories */}
             {!isProportionalDistribution && (
               <div className="relative" ref={leaderDropdownRef}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -685,7 +662,6 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
               </div>
             )}
 
-            {/* For Leader Selection - Only show for non-proportional distribution */}
             {!isProportionalDistribution && (
               <div className="relative" ref={forLeaderDropdownRef}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -818,7 +794,6 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
               </div>
             )}
 
-            {/* Information box for proportional distribution */}
             {isProportionalDistribution && (
               <div className="md:col-span-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-start gap-3">
@@ -829,26 +804,31 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                       <li>• La distribución se basa en las ventas totales de cada equipo</li>
                       <li>• El líder con más ventas recibirá una mayor proporción</li>
                       <li>• Se crearán gastos individuales para cada líder</li>
+                      <li>• Estos gastos no afectan el presupuesto del programa</li>
                     </ul>
                   </div>
                 </div>
               </div>
             )}
             
-            {/* Budget Warning */}
-            {budgetWarning && (
+            {budgetWarning && shouldShowBudgetInfo() && (
               <div className={`md:col-span-3 p-4 border rounded-lg ${
-                budgetWarning.wouldExceed ? 'bg-danger-50 border-danger-200' : 'bg-warning-50 border-warning-200'
+                budgetWarning.wouldExceed && !program?.financialConfig?.allow_budget_override
+                  ? 'bg-danger-50 border-danger-200'
+                  : 'bg-warning-50 border-warning-200'
               }`}>
                 <div className="flex items-start gap-3">
                   <AlertTriangle className={`w-5 h-5 mt-0.5 ${
-                    budgetWarning.wouldExceed ? 'text-danger-600' : 'text-warning-600'
+                    budgetWarning.wouldExceed && !program?.financialConfig?.allow_budget_override
+                      ? 'text-danger-600' : 'text-warning-600'
                   }`} />
                   <div className="text-sm">
                     <p className={`font-medium mb-2 ${
-                      budgetWarning.wouldExceed ? 'text-danger-700' : 'text-warning-700'
+                      budgetWarning.wouldExceed && !program?.financialConfig?.allow_budget_override
+                        ? 'text-danger-700' : 'text-warning-700'
                     }`}>
-                      {budgetWarning.wouldExceed ? 'Presupuesto Excedido' : 'Advertencia de Presupuesto'}
+                      {budgetWarning.wouldExceed && !program?.financialConfig?.allow_budget_override
+                        ? 'Presupuesto Excedido' : 'Advertencia de Presupuesto'}
                     </p>
                     <p className="text-gray-600 mb-2">
                       Presupuesto para {t(`expenses.${budgetWarning.category}`)}: ${formatNumber(budgetWarning.budgetAmount)}
@@ -859,9 +839,14 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                     <p className="text-gray-600 mb-2">
                       Disponible: ${formatNumber(budgetWarning.remaining)}
                     </p>
-                    {budgetWarning.wouldExceed && (
+                    {budgetWarning.wouldExceed && !program?.financialConfig?.allow_budget_override && (
                       <p className="text-danger-600 font-medium">
                         Este gasto excedería el presupuesto disponible.
+                      </p>
+                    )}
+                    {budgetWarning.wouldExceed && program?.financialConfig?.allow_budget_override && (
+                      <p className="text-blue-600 font-medium">
+                        Este gasto excedería el presupuesto, pero está permitido superarlo.
                       </p>
                     )}
                   </div>
@@ -886,8 +871,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
               disabled={
                 isProportionalDistribution 
                   ? leaderSalesData.length === 0 || formData.amount <= 0 || !formData.motivo
-                  : !selectedLeader || !formData.motivo || !formData.category ||
-                    (budgetWarning?.wouldExceed && !program?.financialConfig?.allow_budget_override)
+                  : !selectedLeader || !formData.motivo || !formData.category
               }
               onClick={handleFormSubmit}
             >

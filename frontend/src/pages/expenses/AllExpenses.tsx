@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import {
@@ -103,6 +104,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [isFeedbackVisible, setIsFeedbackVisible] = useState(false) // New state for animation
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [expandedExpenses, setExpandedExpenses] = useState<Set<string>>(new Set())
   const [childExpenses, setChildExpenses] = useState<Record<string, any[]>>({})
@@ -138,11 +140,25 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
   } = useExpenseStore()
   const isAdmin = user?.role === UserRole.ADMIN
 
+  // Handle feedback animation
+  useEffect(() => {
+    if (success || error) {
+      setIsFeedbackVisible(true)
+      const timer = setTimeout(() => {
+        setIsFeedbackVisible(false)
+        setTimeout(() => {
+          setSuccess(null)
+          setError(null)
+        }, 300) // Wait for animation to complete before clearing state
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [success, error])
+
   useEffect(() => {
     !wereExpensesFetched && fetchExpenses()
   }, [fetchExpenses, wereExpensesFetched])
 
-  // Update category filter when defaultCategory changes
   useEffect(() => {
     if (defaultCategory) {
       setSelectedCategory(defaultCategory)
@@ -153,7 +169,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
     if (program?.financialConfig?.expense_budgets) {
       loadAllBudgetsInfo()
     } else {
-      // Initialize with default categories if no budgets are defined
       const defaultBudgets = defaultCategories.map((category) => ({
         category,
         budget_amount: 0,
@@ -162,12 +177,10 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
     }
   }, [program, expenses])
 
-  // Load budget info when category filter changes
   useEffect(() => {
     if (categoryFilter && program?.financialConfig?.expense_budgets) {
       loadBudgetInfo()
     } else if (categoryFilter) {
-      // Handle case where categoryFilter is set but no budgets are defined
       loadBudgetInfo(defaultCategories.includes(categoryFilter) ? [{ category: categoryFilter, budget_amount: 0 }] : [])
     } else {
       setBudgetInfo(null)
@@ -180,48 +193,41 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
     setIsLoadingAllBudgets(true)
     const budgetsInfo = []
 
-    // Ensure all default categories are present
     let updatedBudgets = [...budgets]
     defaultCategories.forEach((category) => {
       if (!updatedBudgets.some((budget) => budget.category === category)) {
         updatedBudgets.push({ category, budget_amount: 0 })
       }
     })
-
     for (const budget of updatedBudgets) {
       let currentSpending = 0
-
       try {
-        // Get current spending for this category (only program expenses)
         const response: Expense[] = await api.get("/expenses", {
           params: {
             category: budget.category,
             status: "APPROVED",
             programId: program?.id,
-            leaderId: "program", // Only count program expenses for budget
+            leaderId: "program",
           },
         })
-
-        currentSpending = response.reduce((sum: number, expense: any) => sum + Number(expense.amount), 0)
+        console.log(response)
+        currentSpending = response.total;
+        // console.log(currentSpending, budget)
       } catch (error) {
         console.error(`Error loading budget info for ${budget.category}:`, error)
-        // Continue with currentSpending = 0 if API call fails
       }
 
       if (!budget || budget.budget_amount <= 0) {
-        // Unlimited budget
         budgetsInfo.push({
           category: budget.category,
-          budgetAmount: 0, // 0 indicates unlimited
+          budgetAmount: 0,
           currentSpending,
-          remaining: -1, // -1 indicates unlimited
-          percentageUsed: 0, // 0 for unlimited
+          remaining: -1,
+          percentageUsed: 0,
         })
       } else {
-        // Limited budget
         const remaining = budget.budget_amount - currentSpending
         const percentageUsed = (currentSpending / budget.budget_amount) * 100
-
         budgetsInfo.push({
           category: budget.category,
           budgetAmount: budget.budget_amount,
@@ -231,7 +237,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
         })
       }
     }
-
+    console.log(budgetsInfo)
     setAllBudgetsInfo(budgetsInfo)
     setIsLoadingAllBudgets(false)
   }
@@ -245,36 +251,30 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
 
     let currentSpending = 0
     try {
-      // Get current spending for this category (only program expenses)
       const response: Expense[] = await api.get("/expenses", {
         params: {
           category: categoryFilter,
           status: "APPROVED",
           programId: program?.id,
-          leaderId: "program", // Only count program expenses for budget
+          leaderId: "program",
         },
       })
-
-      currentSpending = response.reduce((sum: number, expense: any) => sum + Number(expense.amount), 0)
+      currentSpending = response.total;
     } catch (error) {
       console.error("Error loading budget info:", error)
-      // Continue with currentSpending = 0 if API call fails
     }
 
     if (!budget || budget.budget_amount <= 0) {
-      // Unlimited budget
       setBudgetInfo({
         category: categoryFilter,
-        budgetAmount: 0, // 0 indicates unlimited
+        budgetAmount: 0,
         currentSpending,
-        remaining: -1, // -1 indicates unlimited
-        percentageUsed: 0, // 0 for unlimited
+        remaining: -1,
+        percentageUsed: 0,
       })
     } else {
-      // Limited budget
       const remaining = budget.budget_amount - currentSpending
       const percentageUsed = (currentSpending / budget.budget_amount) * 100
-
       setBudgetInfo({
         category: categoryFilter,
         budgetAmount: budget.budget_amount,
@@ -287,39 +287,25 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
   }
 
   const filteredExpenses = expenses.filter((expense) => {
-    // Search term filter
     const matchesSearchTerm = searchTerm ? expense.motivo.toLowerCase().includes(searchTerm.toLowerCase()) : true
-
-    // Category filter
     const matchesCategory = categoryFilter ? expense.category === categoryFilter : true
-
-    // Date filter
     const matchesDate = dateFilter ? new Date(expense.date).toISOString().split("T")[0] === dateFilter : true
-
-    // Leader filter
     const matchesLeader = leaderFilter
       ? leaderFilter === "program"
-        ? !expense.leaderId // Program expenses have no leaderId
+        ? !expense.leaderId
         : Number(expense.leaderId) === Number(leaderFilter)
       : true
-
-    // For Leader filter (beneficiary)
     const matchesForLeader = forLeaderFilter ? Number(expense.forLeaderId) === Number(forLeaderFilter) : true
-
-    // Status filter
     const matchesStatus = statusFilter
-      ? expense.status === statusFilter || (!expense.status && statusFilter === "APPROVED") // Handle backward compatibility
+      ? expense.status === statusFilter || (!expense.status && statusFilter === "APPROVED")
       : true
-
     return matchesSearchTerm && matchesCategory && matchesDate && matchesLeader && matchesForLeader && matchesStatus
   })
 
-  // Calculate totals - ONLY APPROVED EXPENSES
   const approvedExpenses = filteredExpenses.filter((e) => e.status === "APPROVED" || !e.status)
   const totalAmount = approvedExpenses.reduce((sum, expense) => Number(sum) + Number(expense.amount), 0)
   const averagePerDay = totalAmount / (approvedExpenses.length || 1)
 
-  // Get unique leaders from expenses
   const uniqueLeaders = Array.from(new Set(expenses.filter((e) => e.leaderId).map((e) => e.leaderId)))
     .filter(Boolean)
     .map((id) => ({
@@ -327,7 +313,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
       name: expenses.find((e) => e.leaderId === id)?.leaderName as string,
     }))
 
-  // Get unique "for leaders" from expenses
   const uniqueForLeaders = Array.from(new Set(expenses.filter((e) => e.forLeaderId).map((e) => e.forLeaderId)))
     .filter(Boolean)
     .map((id) => ({
@@ -377,7 +362,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
           </Badge>
         )
       default:
-        return <Badge variant="success">{t("expenses.approved")}</Badge> // Default for backward compatibility
+        return <Badge variant="success">{t("expenses.approved")}</Badge>
     }
   }
 
@@ -388,11 +373,9 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
       await createExpense(data)
       setShowAddForm(false)
       setSuccess(t("expenses.successCreated"))
-      setTimeout(() => setSuccess(null), 5000)
     } catch (error) {
       console.error("Error creating expense:", error)
       setError(t("expenses.errorCreate"))
-      setTimeout(() => setError(null), 5000)
     }
   }
 
@@ -404,22 +387,17 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
         await updateExpense(editingExpense.id, data)
         setEditingExpense(null)
         setSuccess(t("expenses.successUpdated"))
-        setTimeout(() => setSuccess(null), 5000)
       } catch (error) {
         console.error("Error updating expense:", error)
         setError(t("expenses.errorUpdate"))
-        setTimeout(() => setError(null), 5000)
       }
     }
   }
 
   const handleApproveExpense = async (id: string) => {
     if (!isAdmin) return
-
     try {
       await approveExpense(id)
-
-      // Update child expenses state if this is a child expense
       setChildExpenses((prev) => {
         const updated = { ...prev }
         Object.keys(updated).forEach((parentId) => {
@@ -429,23 +407,21 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
         })
         return updated
       })
-
+      if (categoryFilter) {
+        await loadBudgetInfo()
+      }
+      await loadAllBudgetsInfo()
       setSuccess(t("expenses.successApproved"))
-      setTimeout(() => setSuccess(null), 5000)
     } catch (error) {
       console.error("Error approving expense:", error)
       setError(t("expenses.errorApprove"))
-      setTimeout(() => setError(null), 5000)
     }
   }
 
   const handleRejectExpense = async (id: string) => {
     if (!isAdmin) return
-
     try {
       await rejectExpense(id)
-
-      // Update child expenses state if this is a child expense
       setChildExpenses((prev) => {
         const updated = { ...prev }
         Object.keys(updated).forEach((parentId) => {
@@ -455,28 +431,20 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
         })
         return updated
       })
-
       setSuccess(t("expenses.successRejected"))
-      setTimeout(() => setSuccess(null), 5000)
     } catch (error) {
       console.error("Error rejecting expense:", error)
       setError(t("expenses.errorReject"))
-      setTimeout(() => setError(null), 5000)
     }
   }
 
   const handleBulkApprove = async (parentExpenseId: string) => {
     if (!isAdmin) return
-
     if (!window.confirm("¿Aprobar toda la distribución de incentivos?")) {
       return
     }
-
     try {
-      // Get child expenses first
-      const children = childExpenses[parentExpenseId] || []
-
-      // If not loaded, load them first
+      let children = childExpenses[parentExpenseId] || []
       if (children.length === 0) {
         const childrenData = await api.get(`/expenses/${parentExpenseId}/children`, {
           params: { programId: program?.id },
@@ -485,67 +453,43 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
           ...prev,
           [parentExpenseId]: childrenData,
         }))
-
-        // Approve all children
-        for (const child of childrenData) {
-          if (child.status === "PENDING") {
-            await approveExpense(child.id)
-          }
-        }
-
-        // Update child expenses state to approved
-        setChildExpenses((prev) => ({
-          ...prev,
-          [parentExpenseId]: childrenData.map((child) => ({ ...child, status: "APPROVED" })),
-        }))
-      } else {
-        // Approve all pending children
-        for (const child of children) {
-          if (child.status === "PENDING") {
-            await approveExpense(child.id)
-          }
-        }
-
-        // Update child expenses state to approved
-        setChildExpenses((prev) => ({
-          ...prev,
-          [parentExpenseId]: prev[parentExpenseId].map((child) =>
-            child.status === "PENDING" ? { ...child, status: "APPROVED" } : child,
-          ),
-        }))
+        children = childrenData
       }
-
-      // Also approve the parent expense
+      for (const child of children) {
+        if (child.status === "PENDING") {
+          await approveExpense(child.id)
+        }
+      }
+      setChildExpenses((prev) => ({
+        ...prev,
+        [parentExpenseId]: children.map((child) =>
+          child.status === "PENDING" ? { ...child, status: "APPROVED" } : child,
+        ),
+      }))
       await approveExpense(parentExpenseId)
-
-      // Update the parent expense in the main expenses state
       useExpenseStore.setState((state) => ({
         expenses: state.expenses.map((expense) =>
           expense.id === parentExpenseId ? { ...expense, status: "APPROVED" } : expense,
         ),
       }))
-
+      if (categoryFilter) {
+        await loadBudgetInfo()
+      }
+      await loadAllBudgetsInfo()
       setSuccess("Distribución de incentivos aprobada completamente")
-      setTimeout(() => setSuccess(null), 5000)
     } catch (error) {
       console.error("Error approving bulk expenses:", error)
       setError("Error al aprobar la distribución")
-      setTimeout(() => setError(null), 5000)
     }
   }
 
   const handleBulkReject = async (parentExpenseId: string) => {
     if (!isAdmin) return
-
     if (!window.confirm("¿Rechazar toda la distribución de incentivos?")) {
       return
     }
-
     try {
-      // Get child expenses first
-      const children = childExpenses[parentExpenseId] || []
-
-      // If not loaded, load them first
+      let children = childExpenses[parentExpenseId] || []
       if (children.length === 0) {
         const childrenData = await api.get(`/expenses/${parentExpenseId}/children`, {
           params: { programId: program?.id },
@@ -554,52 +498,29 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
           ...prev,
           [parentExpenseId]: childrenData,
         }))
-
-        // Reject all children
-        for (const child of childrenData) {
-          if (child.status === "PENDING") {
-            await rejectExpense(child.id)
-          }
-        }
-
-        // Update child expenses state to rejected
-        setChildExpenses((prev) => ({
-          ...prev,
-          [parentExpenseId]: childrenData.map((child) => ({ ...child, status: "REJECTED" })),
-        }))
-      } else {
-        // Reject all pending children
-        for (const child of children) {
-          if (child.status === "PENDING") {
-            await rejectExpense(child.id)
-          }
-        }
-
-        // Update child expenses state to rejected
-        setChildExpenses((prev) => ({
-          ...prev,
-          [parentExpenseId]: prev[parentExpenseId].map((child) =>
-            child.status === "PENDING" ? { ...child, status: "REJECTED" } : child,
-          ),
-        }))
+        children = childrenData
       }
-
-      // Also reject the parent expense
+      for (const child of children) {
+        if (child.status === "PENDING") {
+          await rejectExpense(child.id)
+        }
+      }
+      setChildExpenses((prev) => ({
+        ...prev,
+        [parentExpenseId]: children.map((child) =>
+          child.status === "PENDING" ? { ...child, status: "REJECTED" } : child,
+        ),
+      }))
       await rejectExpense(parentExpenseId)
-
-      // Update the parent expense in the main expenses state
       useExpenseStore.setState((state) => ({
         expenses: state.expenses.map((expense) =>
           expense.id === parentExpenseId ? { ...expense, status: "REJECTED" } : expense,
         ),
       }))
-
       setSuccess("Distribución de incentivos rechazada completamente")
-      setTimeout(() => setSuccess(null), 5000)
     } catch (error) {
       console.error("Error rejecting bulk expenses:", error)
       setError("Error al rechazar la distribución")
-      setTimeout(() => setError(null), 5000)
     }
   }
 
@@ -608,10 +529,8 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
     setError(null)
     setSuccess(null)
     try {
-      // Force refresh by resetting the fetch flag and calling fetchExpenses
       useExpenseStore.setState({ wereExpensesFetched: false })
       await fetchExpenses()
-      // Clear expanded state on refresh
       setExpandedExpenses(new Set())
       setChildExpenses({})
     } catch (error) {
@@ -622,23 +541,17 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
 
   const toggleExpenseExpansion = async (expenseId: string) => {
     const newExpanded = new Set(expandedExpenses)
-
     if (expandedExpenses.has(expenseId)) {
-      // Collapse
       newExpanded.delete(expenseId)
       setExpandedExpenses(newExpanded)
     } else {
-      // Expand - fetch child expenses if not already loaded
       newExpanded.add(expenseId)
       setExpandedExpenses(newExpanded)
-
       if (!childExpenses[expenseId]) {
         setLoadingChildren((prev) => new Set(prev).add(expenseId))
         try {
           const children = await api.get(`/expenses/${expenseId}/children`, {
-            params: {
-              programId: program?.id,
-            },
+            params: { programId: program?.id },
           })
           setChildExpenses((prev) => ({
             ...prev,
@@ -661,16 +574,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
     return <LoadingScreen message={t("expenses.loading")} />
   }
 
-  if (error) {
-    return (
-      <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
-        <p className="font-medium">{t("expenses.errorTitle")}</p>
-        <p>{error}</p>
-      </div>
-    )
-  }
-
-  // Calculate totals by status
   const pendingTotal = filteredExpenses
     .filter((e) => e.status === "PENDING")
     .reduce((sum, e) => Number(sum) + Number(e.amount), 0)
@@ -680,9 +583,15 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
 
   return (
     <div className="space-y-6">
-      {success && (
-        <div className="p-4 bg-success-50 border border-success-200 rounded-lg text-success-700">
-          <p className="font-medium">{success}</p>
+      {(success || error) && (
+        <div
+          className={clsx(
+            "p-4 border rounded-lg transition-all duration-300 ease-in-out transform",
+            isFeedbackVisible ? "opacity-100 scale-100" : "opacity-0 scale-95",
+            success ? "bg-success-50 border-success-200 text-success-700" : "bg-danger-50 border-danger-200 text-danger-700",
+          )}
+        >
+          <p className="font-medium">{success || error}</p>
         </div>
       )}
 
@@ -736,7 +645,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
                       </Badge>
                     )}
                   </div>
-
                   <div className="space-y-1">
                     <div className="text-xs text-gray-600">
                       Gastado: <span className="font-medium">${formatNumber(budget.currentSpending)}</span>
@@ -801,7 +709,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
                   </Badge>
                 )}
               </div>
-
               <div className="flex items-center gap-4 text-sm">
                 {budgetInfo.budgetAmount === 0 ? (
                   <span className="text-blue-700">
@@ -819,7 +726,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
                 )}
               </div>
             </div>
-
             {budgetInfo.budgetAmount > 0 && (
               <div className="mt-2">
                 <div className="w-full bg-gray-200 rounded-full h-1.5">
@@ -847,7 +753,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
             <p className="mt-1 text-sm text-gray-500">{t("expenses.totalExpenses")}</p>
           </div>
         </Card>
-
         <Card>
           <div className="text-center">
             <p className="text-sm font-medium text-gray-500">{t("expenses.pending")}</p>
@@ -855,7 +760,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
             <p className="mt-1 text-sm text-gray-500">{t("expenses.awaiting")}</p>
           </div>
         </Card>
-
         <Card>
           <div className="text-center">
             <p className="text-sm font-medium text-gray-500">{t("expenses.approved")}</p>
@@ -863,7 +767,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
             <p className="mt-1 text-sm text-gray-500">{t("expenses.confirmed")}</p>
           </div>
         </Card>
-
         <Card>
           <div className="text-center">
             <p className="text-sm font-medium text-gray-500">{t("expenses.dailyAverage")}</p>
@@ -884,14 +787,12 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
                 leftIcon={<Search size={18} />}
                 className="w-full sm:w-64"
               />
-
               <Input
                 type="date"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
                 className="w-full sm:w-auto"
               />
-
               <select
                 value={leaderFilter}
                 onChange={(e) => setLeaderFilter(e.target.value)}
@@ -907,7 +808,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
                   </option>
                 ))}
               </select>
-
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -918,7 +818,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
                 <option value="APPROVED">{t("expenses.approved")}</option>
                 <option value="REJECTED">{t("expenses.rejected")}</option>
               </select>
-
               <select
                 value={forLeaderFilter}
                 onChange={(e) => setForLeaderFilter(e.target.value)}
@@ -932,7 +831,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
                 ))}
               </select>
             </div>
-
             <div className="flex-shrink-0">
               <div className="flex gap-2">
                 <Button
@@ -955,7 +853,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
               </div>
             </div>
           </div>
-
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
@@ -1078,7 +975,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
                         ) : (
                           ""
                         )}
-
                         {expense.isParentExpense && expense.status === "PENDING" && isAdmin ? (
                           <div className="flex items-center justify-center gap-2">
                             <Button
@@ -1107,7 +1003,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
                         ) : (
                           ""
                         )}
-
                         {!expense.isParentExpense && expense.status === "APPROVED" ? (
                           <Badge variant="success" size="sm">
                             <CheckCircle size={14} />
@@ -1122,7 +1017,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
                         ) : (
                           ""
                         )}
-
                         {expense.isParentExpense && expense.status === "APPROVED" ? (
                           <div className="flex items-center justify-center gap-2">
                             <Badge variant="info" size="sm">
@@ -1143,7 +1037,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
                         )}
                       </td>
                     </tr>
-
                     {expense.isParentExpense && expandedExpenses.has(expense.id) ? (
                       <>
                         {loadingChildren.has(expense.id) ? (

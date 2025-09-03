@@ -3,11 +3,15 @@ import * as db from '../config/database.js';
 // Get all expenses
 export const getExpenses = async (req, res) => {
   try {
-    const { leaderId, category, startDate, endDate, status, programId } = req.query;
+    const { leaderId, category, startDate, endDate, status, programId, isParentExpense } = req.query;
     
     let query = `
       SELECT e.id, e.leader_id as leaderId, 
-      CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
+      CASE 
+        WHEN e.is_parent_expense = TRUE THEN 'Líderes'
+        WHEN e.leader_id IS NULL THEN 'Program'
+        ELSE CONCAT(p.first_name, ' ', p.last_name)
+      END as leaderName,
       e.for_leader_id as forLeaderId,
       CASE WHEN e.for_leader_id IS NOT NULL THEN CONCAT(fp.first_name, ' ', fp.last_name) ELSE NULL END as forLeaderName,
       e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
@@ -24,8 +28,15 @@ export const getExpenses = async (req, res) => {
     const params = [];
     const conditions = [];
     
-    // Only show parent expenses and non-distributed expenses
+    // Only show parent expenses and non-distributed expenses by default
     conditions.push('(e.parent_expense_id IS NULL)');
+    
+    // Exclude expenses with non-null parent_expense_id, is_parent_expense = TRUE, or non-null leader_id for budget calculations
+    if (category && status === 'APPROVED') {
+      conditions.push('e.parent_expense_id IS NULL');
+      conditions.push('e.is_parent_expense = FALSE');
+      conditions.push('e.leader_id IS NULL');
+    }
     
     if (leaderId) {
       if (leaderId === 'program') {
@@ -65,6 +76,11 @@ export const getExpenses = async (req, res) => {
       params.push(req.user.currentProgramId);
     }
     
+    if (isParentExpense !== undefined) {
+      conditions.push('e.is_parent_expense = ?');
+      params.push(isParentExpense === 'TRUE' ? 1 : 0);
+    }
+    
     if (conditions.length > 0) {
       query += ' WHERE ' + conditions.join(' AND ');
     }
@@ -73,9 +89,41 @@ export const getExpenses = async (req, res) => {
     
     const expenses = await db.query(query, params);
     
-    res.json(expenses);
+    // If fetching for budget calculation, return total spending
+    if (category && status === 'APPROVED') {
+      console.log(expenses);
+      const total = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+      res.json({ total });
+    } else {
+      res.json(expenses);
+    }
   } catch (error) {
     console.error('Error getting expenses:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Get program expense budget
+export const getProgramExpenseBudget = async (req, res) => {
+  try {
+    const { programId, category } = req.query;
+    
+    if (!programId || !category) {
+      return res.status(400).json({ message: 'Program ID and category are required' });
+    }
+    
+    const budget = await db.getOne(
+      'SELECT budget_amount FROM program_expense_budgets WHERE program_id = ? AND category = ?',
+      [programId, category]
+    );
+    
+    if (!budget) {
+      return res.status(404).json({ message: 'Budget not found for this category' });
+    }
+    
+    res.json(budget);
+  } catch (error) {
+    console.error('Error getting program expense budget:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
@@ -87,7 +135,11 @@ export const getExpenseById = async (req, res) => {
     
     const expense = await db.getOne(
       `SELECT e.id, e.leader_id as leaderId, 
-       CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
+       CASE 
+         WHEN e.is_parent_expense = TRUE THEN 'Líderes'
+         WHEN e.leader_id IS NULL THEN 'Program'
+         ELSE CONCAT(p.first_name, ' ', p.last_name)
+       END as leaderName,
        e.for_leader_id as forLeaderId,
        CASE WHEN e.for_leader_id IS NOT NULL THEN CONCAT(fp.first_name, ' ', fp.last_name) ELSE NULL END as forLeaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
@@ -125,7 +177,7 @@ export const createExpense = async (req, res) => {
       category,
       notes,
       date,
-      status = 'PENDING', // Default to PENDING status
+      status = 'PENDING',
       programId,
       distributionType,
       leaderDistribution,
@@ -136,71 +188,69 @@ export const createExpense = async (req, res) => {
 
     // Check budget constraints before creating expense
     if (category && amount > 0) {
-      // Only check budget for program expenses (leaderId is null or 'program')
+      // Only check budget for program expenses (leaderId is null or 'program') and not for proportional distributions
       const isLeaderExpense = leaderId && leaderId !== 'program';
+      const isProportionalDistribution = distributionType === 'proportional' && leaderDistribution && Array.isArray(leaderDistribution);
       
-      if (!isLeaderExpense) {
-      // Get program financial config to check if budget override is allowed
-      const programConfig = await db.getOne(
-        "SELECT allow_budget_override FROM program_financial_config WHERE program_id = ?",
-        [currentProgramId]
-      );
-
-      const allowBudgetOverride = programConfig?.allow_budget_override || false;
-
-      if (!allowBudgetOverride) {
-        // Get budget for this category
-        const budget = await db.getOne(
-          "SELECT budget_amount FROM program_expense_budgets WHERE program_id = ? AND category = ?",
-          [currentProgramId, category]
+      if (!isLeaderExpense && !isProportionalDistribution) {
+        // Get program financial config to check if budget override is allowed
+        const programConfig = await db.getOne(
+          "SELECT allow_budget_override FROM program_financial_config WHERE program_id = ?",
+          [currentProgramId]
         );
 
-        if (budget && budget.budget_amount > 0) {
-          // Calculate current spending in this category (approved expenses only)
-          const currentSpending = await db.getOne(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE program_id = ? AND category = ? AND status = 'APPROVED'",
+        const allowBudgetOverride = programConfig?.allow_budget_override || false;
+
+        if (!allowBudgetOverride) {
+          // Get budget for this category
+          const budget = await db.getOne(
+            "SELECT budget_amount FROM program_expense_budgets WHERE program_id = ? AND category = ?",
             [currentProgramId, category]
           );
 
-          const totalSpending = currentSpending.total;
+          if (budget && budget.budget_amount > 0) {
+            // Calculate current spending in this category (approved expenses only, exclude parent expenses)
+            const currentSpending = await db.getOne(
+              "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE program_id = ? AND category = ? AND status = 'APPROVED' AND is_parent_expense = FALSE",
+              [currentProgramId, category]
+            );
 
-          // For proportional distribution, check total amount
-          const newExpenseAmount =
-            distributionType === 'proportional' && leaderDistribution
-              ? leaderDistribution.reduce((sum, leader) => sum + (leader.incentiveAmount || 0), 0)
-              : amount;
+            const totalSpending = currentSpending.total;
 
-          // Check if this expense would exceed the budget
-          if (totalSpending + newExpenseAmount > budget.budget_amount) {
-            const remaining = budget.budget_amount - totalSpending;
-            return res.status(400).json({
-              message: `Budget exceeded for category ${category}. Budget: $${budget.budget_amount}, Current spending: $${totalSpending}, Remaining: $${remaining}, Requested: $${newExpenseAmount}`,
-              budgetExceeded: true,
-              budgetInfo: {
-                category,
-                budgetAmount: budget.budget_amount,
-                currentSpending: totalSpending,
-                remaining,
-                requestedAmount: newExpenseAmount
-              }
-            });
+            // Use the provided amount for the expense
+            const newExpenseAmount = amount;
+
+            // Check if this expense would exceed the budget
+            if (totalSpending + newExpenseAmount > budget.budget_amount) {
+              const remaining = budget.budget_amount - totalSpending;
+              return res.status(400).json({
+                message: `Budget exceeded for category ${category}. Budget: $${budget.budget_amount}, Current spending: $${totalSpending}, Remaining: $${remaining}, Requested: $${newExpenseAmount}`,
+                budgetExceeded: true,
+                budgetInfo: {
+                  category,
+                  budgetAmount: budget.budget_amount,
+                  currentSpending: totalSpending,
+                  remaining,
+                  requestedAmount: newExpenseAmount
+                }
+              });
+            }
           }
         }
       }
-    }
     }
 
     // Handle proportional distribution for incentivos
     if (category === 'incentivos' && distributionType === 'proportional' && leaderDistribution && Array.isArray(leaderDistribution)) {
       // Create one parent expense and multiple child expenses
       const { parentExpenseId } = await db.transaction(async (connection) => {
-        // Create parent expense
+        // Create parent expense (not counted toward budget)
         const [parentResult] = await connection.execute(
           'INSERT INTO expenses (leader_id, for_leader_id, amount, motivo, category, notes, expense_date, created_by, status, program_id, is_parent_expense) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
           [
-            null, // Parent expense has no specific leader
             null,
-            amount, // Total amount
+            null,
+            amount,
             motivo,
             category,
             notes || `Distribución proporcional de incentivos entre ${leaderDistribution.length} líderes`,
@@ -208,7 +258,7 @@ export const createExpense = async (req, res) => {
             userId,
             status,
             currentProgramId,
-            true // Mark as parent expense
+            true
           ]
         );
 
@@ -221,7 +271,7 @@ export const createExpense = async (req, res) => {
               'INSERT INTO expenses (leader_id, for_leader_id, amount, motivo, category, notes, expense_date, created_by, status, program_id, parent_expense_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
               [
                 leader.id === 'program' ? null : leader.id,
-                null, // for_leader_id not used in proportional distribution
+                null,
                 leader.incentiveAmount,
                 `${motivo} (${leader.percentage.toFixed(1)}% - ${leader.name})`,
                 category,
@@ -247,7 +297,11 @@ export const createExpense = async (req, res) => {
       // Fetch the created parent expense
       const parentExpense = await db.getOne(
         `SELECT e.id, e.leader_id as leaderId, e.for_leader_id as forLeaderId,
-         CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
+         CASE 
+           WHEN e.is_parent_expense = TRUE THEN 'Líderes'
+           WHEN e.leader_id IS NULL THEN 'Program'
+           ELSE CONCAT(p.first_name, ' ', p.last_name)
+         END as leaderName,
          CASE WHEN e.for_leader_id IS NOT NULL THEN CONCAT(fp.first_name, ' ', fp.last_name) END as forLeaderName,
          e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
          e.status, e.program_id as programId, e.is_parent_expense as isParentExpense,
@@ -259,7 +313,7 @@ export const createExpense = async (req, res) => {
          JOIN users u ON e.created_by = u.id
          JOIN people cp ON u.person_id = cp.id
          WHERE e.id = ?`,
-        [parentExpenseId] // Fixed: Use parentExpenseId instead of result.parentExpenseId
+        [parentExpenseId]
       );
 
       if (!parentExpense) {
@@ -301,7 +355,11 @@ export const createExpense = async (req, res) => {
     // Get the created expense
     const expense = await db.getOne(
       `SELECT e.id, e.leader_id as leaderId, e.for_leader_id as forLeaderId,
-       CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
+       CASE 
+         WHEN e.is_parent_expense = TRUE THEN 'Líderes'
+         WHEN e.leader_id IS NULL THEN 'Program'
+         ELSE CONCAT(p.first_name, ' ', p.last_name)
+       END as leaderName,
        CASE WHEN e.for_leader_id IS NOT NULL THEN CONCAT(fp.first_name, ' ', fp.last_name) END as forLeaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
        e.status, e.program_id as programId,
@@ -385,7 +443,11 @@ export const updateExpense = async (req, res) => {
     // Get the updated expense
     const updatedExpense = await db.getOne(
       `SELECT e.id, e.leader_id as leaderId, e.for_leader_id as forLeaderId,
-       CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
+       CASE 
+         WHEN e.is_parent_expense = TRUE THEN 'Líderes'
+         WHEN e.leader_id IS NULL THEN 'Program'
+         ELSE CONCAT(p.first_name, ' ', p.last_name)
+       END as leaderName,
        CASE WHEN e.for_leader_id IS NOT NULL THEN CONCAT(fp.first_name, ' ', fp.last_name) ELSE NULL END as forLeaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
        e.status, e.program_id as programId,
@@ -464,7 +526,11 @@ export const approveExpense = async (req, res) => {
     // Get the updated expense
     const updatedExpense = await db.getOne(
       `SELECT e.id, e.leader_id as leaderId, e.for_leader_id as forLeaderId,
-       CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
+       CASE 
+         WHEN e.is_parent_expense = TRUE THEN 'Líderes'
+         WHEN e.leader_id IS NULL THEN 'Program'
+         ELSE CONCAT(p.first_name, ' ', p.last_name)
+       END as leaderName,
        CASE WHEN e.for_leader_id IS NOT NULL THEN CONCAT(fp.first_name, ' ', fp.last_name) ELSE NULL END as forLeaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
        e.status, e.program_id as programId, e.is_parent_expense as isParentExpense,
@@ -514,8 +580,11 @@ export const rejectExpense = async (req, res) => {
     // Get the updated expense
     const updatedExpense = await db.getOne(
       `SELECT e.id, e.leader_id as leaderId, 
-       e.for_leader_id as forLeaderId,
-       CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
+       CASE 
+         WHEN e.is_parent_expense = TRUE THEN 'Líderes'
+         WHEN e.leader_id IS NULL THEN 'Program'
+         ELSE CONCAT(p.first_name, ' ', p.last_name)
+       END as leaderName,
        CASE WHEN e.for_leader_id IS NOT NULL THEN CONCAT(fp.first_name, ' ', fp.last_name) ELSE NULL END as forLeaderName,
        e.amount, e.motivo, e.category, e.notes, e.expense_date as date,
        e.status, e.program_id as programId, e.is_parent_expense as isParentExpense,
@@ -556,7 +625,11 @@ export const getChildExpenses = async (req, res) => {
     // Get child expenses
     let query = `
       SELECT e.id, e.leader_id as leaderId, 
-      CASE WHEN e.leader_id IS NULL THEN 'Program' ELSE CONCAT(p.first_name, ' ', p.last_name) END as leaderName,
+      CASE 
+        WHEN e.is_parent_expense = TRUE THEN 'Líderes'
+        WHEN e.leader_id IS NULL THEN 'Program'
+        ELSE CONCAT(p.first_name, ' ', p.last_name)
+      END as leaderName,
       e.for_leader_id as forLeaderId,
       CASE WHEN e.for_leader_id IS NOT NULL THEN CONCAT(fp.first_name, ' ', fp.last_name) ELSE NULL END as forLeaderName,
       e.amount, e.motivo, e.category, e.notes, e.expense_date as date,

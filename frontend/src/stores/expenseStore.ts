@@ -1,8 +1,16 @@
+
 import { create } from 'zustand';
 import { api } from '../api';
 import { useProgramStore } from './programStore';
 import { Expense } from '../types';
 
+interface BudgetInfo {
+  category: string;
+  budgetAmount: number;
+  currentSpending: number;
+  remaining: number;
+  percentageUsed: number;
+}
 
 interface ExpenseState {
   expenses: Expense[];
@@ -13,6 +21,7 @@ interface ExpenseState {
 
 interface ExpenseStore extends ExpenseState {
   fetchExpenses: (params?: Record<string, string>) => Promise<void>;
+  fetchBudgetInfo: (category: string) => Promise<BudgetInfo | null>;
   createExpense: (expense: Omit<Expense, 'id' | 'createdBy' | 'createdByName' | 'createdAt' | 'updatedAt'>) => Promise<Expense>;
   updateExpense: (id: string, expense: Partial<Expense>) => Promise<Expense>;
   deleteExpense: (id: string) => Promise<void>;
@@ -26,14 +35,13 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
   isLoading: false,
   error: null,
   wereExpensesFetched: false,
+
   fetchExpenses: async (params) => {
     set({ isLoading: true, error: null });
     try {
-      // Get current program ID
       const { program } = useProgramStore.getState();
       const programId = program?.id;
       
-      // Add program ID to params
       const queryParams: Record<string, string | number> = { ...params };
       if (programId) {
         queryParams.programId = programId;
@@ -49,14 +57,64 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
     }
   },
 
-  createExpense: async (expenseData) => {
+  fetchBudgetInfo: async (category: string) => {
     set({ isLoading: true, error: null });
     try {
-      // Get current program ID
       const { program } = useProgramStore.getState();
       const programId = program?.id;
       
-      // Add program ID to expense data
+      if (!programId || !category) {
+        throw new Error('Program ID or category not provided');
+      }
+
+      // Fetch budget configuration
+      const budget = await api.get<{ budget_amount: number }>(
+        `/program_expense_budgets?programId=${programId}&category=${category}`
+      );
+
+      // Fetch current spending, excluding parent expenses
+      const spending = await api.get<{ total: number }>(
+        `/expenses`,
+        {
+          params: {
+            programId,
+            category,
+            status: 'APPROVED',
+            isParentExpense: 'FALSE' // Explicitly exclude parent expenses
+          }
+        }
+      );
+
+      const budgetAmount = budget?.budget_amount || 0;
+      const currentSpending = spending?.total || 0;
+      const remaining = budgetAmount > 0 ? budgetAmount - currentSpending : -1;
+      const percentageUsed = budgetAmount > 0 ? (currentSpending / budgetAmount) * 100 : 0;
+
+      const budgetInfo: BudgetInfo = {
+        category,
+        budgetAmount,
+        currentSpending,
+        remaining,
+        percentageUsed
+      };
+
+      set({ isLoading: false });
+      return budgetInfo;
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        isLoading: false 
+      });
+      return null;
+    }
+  },
+
+  createExpense: async (expenseData) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { program } = useProgramStore.getState();
+      const programId = program?.id;
+      
       const dataWithProgram = {
         ...expenseData,
         programId: expenseData.programId || programId
@@ -64,7 +122,6 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
       
       const response = await api.post<any>('/expenses', dataWithProgram);
       
-      // Always handle as single expense (parent expense for distributions)
       const newExpense = response;
       set(state => ({
         expenses: [...state.expenses, newExpense],
@@ -72,7 +129,6 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
       }));
       return newExpense;
     } catch (error) {
-      // Handle budget exceeded error specifically
       if (error && typeof error === 'object' && 'data' in error && error.data?.budgetExceeded) {
         const budgetError = new Error(`Presupuesto excedido para ${error.data.budgetInfo.category}. Presupuesto: $${error.data.budgetInfo.budgetAmount}, Gastado: $${error.data.budgetInfo.currentSpending}, Disponible: $${error.data.budgetInfo.remaining}, Solicitado: $${error.data.budgetInfo.requestedAmount}`);
         set({ 
@@ -93,11 +149,9 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
   updateExpense: async (id, expenseData) => {
     set({ isLoading: true, error: null });
     try {
-      // Get current program ID
       const { program } = useProgramStore.getState();
       const programId = program?.id;
       
-      // Add program ID to expense data if not already present
       const dataWithProgram = {
         ...expenseData,
         programId: expenseData.programId || programId
@@ -182,12 +236,13 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
       throw error;
     }
   },
+
   resetStore: () => {
-  set({
-    expenses: [],
-    isLoading: false,
-    error: null,
-    wereExpensesFetched: false
-  });
-}
+    set({
+      expenses: [],
+      isLoading: false,
+      error: null,
+      wereExpensesFetched: false
+    });
+  }
 }));
