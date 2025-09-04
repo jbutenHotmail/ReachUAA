@@ -495,9 +495,9 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
                   <option value="maintenance">{t('expenses.maintenance')}</option>
                   <option value="fuel">{t('expenses.fuel')}</option>
                   <option value="snacks">{t('expenses.snacks')}</option>
-                  <option value="incentives">{t('expenses.incentives')}</option>
-                  <option value="cleaning">{t('expenses.cleaning')}</option>
-                  <option value="activities">{t('expenses.activities')}</option>
+                 <option value="incentivos">{t('expenses.incentivos')}</option>
+                 <option value="cleaning">{t('expenses.cleaning')}</option>
+                 <option value="activities">{t('expenses.activities')}</option>
                   <option value="program">{t('expenses.programCosts')}</option>
                 </select>
               </div>

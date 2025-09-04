@@ -138,11 +138,9 @@ const ProgramSettings: React.FC = () => {
     { category: 'maintenance', budget_amount: 0 },
     { category: 'fuel', budget_amount: 0 },
     { category: 'snacks', budget_amount: 0 },
-    { category: 'incentivos', budget_amount: 0 }
-    { category: 'limpieza', budget_amount: 0 },
-    { category: 'actividades', budget_amount: 0 }
-    { category: 'limpieza', budget_amount: 0 },
-    { category: 'actividades', budget_amount: 0 }
+    { category: 'incentivos', budget_amount: 0 },
+    { category: 'cleaning', budget_amount: 0 },
+    { category: 'activities', budget_amount: 0 }
   ]);
 }
       }

@@ -183,13 +183,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
             icon: <Gift size={20} />,
           },
           {
-            path: '/expenses/limpieza',
-            label: t('expenses.limpieza'),
+            path: '/expenses/cleaning',
+            label: t('expenses.cleaning'),
             icon: <Wrench size={20} />,
           },
           {
-            path: '/expenses/actividades',
-            label: t('expenses.actividades'),
+            path: '/expenses/activities',
+            label: t('expenses.activities'),
             icon: <Calendar size={20} />,
           }
         ],
