@@ -210,7 +210,7 @@ export const createExpense = async (req, res) => {
 
           if (budget && budget.budget_amount > 0) {
             // Calculate current spending in this category (approved expenses only, exclude parent expenses)
-            const currentSpending = await db.getOne(
+            if (budget.category && budget.budget_amount >= 0) {
               "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE program_id = ? AND category = ? AND status = 'APPROVED' AND is_parent_expense = FALSE",
               [currentProgramId, category]
             );

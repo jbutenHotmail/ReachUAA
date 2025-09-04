@@ -41,6 +41,8 @@ const defaultCategories = [
   "fuel",
   "snacks",
   "incentivos",
+  "limpieza",
+  "actividades",
 ]
 
 interface AllExpensesProps {
@@ -336,6 +338,10 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
         return <Cookie size={16} className="text-purple-600" />
       case "incentivos":
         return <Gift size={16} className="text-yellow-600" />
+      case "limpieza":
+        return <Wrench size={16} className="text-blue-600" />
+      case "actividades":
+        return <Calendar size={16} className="text-green-600" />
       default:
         return null
     }
