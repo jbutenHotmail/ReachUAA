@@ -9,8 +9,8 @@ import LoadingScreen from './components/ui/LoadingScreen';
 import BonificationsPage from './pages/bonifications/BonificationPage';
 import SnacksExpenses from './pages/expenses/SnacksExpenses';
 import IncentivosExpenses from './pages/expenses/IncentivosExpenses';
-import CleaningExpenses from './pages/expenses/CleaningExpenses';
-import ActivitiesExpenses from './pages/expenses/ActivitiesExpenses';
+import LimpiezaExpenses from './pages/expenses/LimpiezaExpenses';
+import ActividadesExpenses from './pages/expenses/ActividadesExpenses';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/auth/Login'));
@@ -259,7 +259,7 @@ function App() {
             <Route path="maintenance" element={<Suspense fallback={<LoadingScreen />}><MaintenanceExpenses /></Suspense>} />
             <Route path="fuel" element={<Suspense fallback={<LoadingScreen />}><FuelExpenses /></Suspense>} />
             <Route path="snacks" element={<Suspense fallback={<LoadingScreen />}><SnacksExpenses /></Suspense>} />
-            <Route path="incentivos" element={<Suspense fallback={<LoadingScreen />}><IncentivosExpenses /></Suspense>} />
+            <Route path="incentives" element={<Suspense fallback={<LoadingScreen />}><IncentivesExpenses /></Suspense>} />
             <Route path="cleaning" element={<Suspense fallback={<LoadingScreen />}><CleaningExpenses /></Suspense>} />
             <Route path="activities" element={<Suspense fallback={<LoadingScreen />}><ActivitiesExpenses /></Suspense>} />
           </Route>

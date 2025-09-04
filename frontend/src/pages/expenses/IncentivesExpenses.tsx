@@ -7,3 +7,5 @@ const IncentivesExpenses: React.FC = () => {
   
   return <AllExpenses defaultCategory="incentives" />;
 };
+
+export default IncentivesExpenses;

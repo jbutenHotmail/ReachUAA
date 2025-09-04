@@ -178,8 +178,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
             icon: <Cookie size={20} />,
           },
           {
-            path: '/expenses/incentivos',
-            label: t('expenses.incentivos'),
+            path: '/expenses/incentives',
+            label: t('expenses.incentives'),
             icon: <Gift size={20} />,
           },
           {
