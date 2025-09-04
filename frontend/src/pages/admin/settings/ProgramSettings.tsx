@@ -117,8 +117,9 @@ const ProgramSettings: React.FC = () => {
     'maintenance',
     'fuel',
     'snacks',
-    'incentivos'
-  ];
+    'incentivos',
+    'cleaning',
+    'activities'
 
   // Ensure all default categories are present
   let updatedBudgets = [...program.financialConfig.expense_budgets];
