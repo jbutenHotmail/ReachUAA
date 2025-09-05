@@ -1403,6 +1403,8 @@ export default {
     editExpense: "Edit Expense",
     food: "Food",
     health: "Health",
+    cleaning: "Cleaning",
+    activities: "Activities",
     supplies: "Supplies",
     snacks: "Snacks",
     maintenance: "Vehicle Maintenance",
