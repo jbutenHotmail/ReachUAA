@@ -1023,7 +1023,6 @@ export const getIndividualEarningsReport = async (req, res) => {
     }
 
     const transactions = await db.query(transactionsQuery, transactionParams)
-    console.log(transactions)
     // Format transaction_date in transactions
     const formattedTransactions = transactions.map((transaction) => ({
       ...transaction,

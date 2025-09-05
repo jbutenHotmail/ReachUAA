@@ -194,7 +194,6 @@ const CashAdvanceOverview: React.FC = () => {
           <div className="text-center">
             <p className="text-sm font-medium text-gray-500">{t('cashAdvance.totalAdvances')}</p>
             <p className="mt-2 text-2xl font-bold text-gray-900">{totals.total.count}</p>
-            {console.log(totals)}
             <p className="text-lg font-semibold text-gray-700">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totals.total.amount)}</p>
           </div>
         </Card>
@@ -301,7 +300,12 @@ const CashAdvanceOverview: React.FC = () => {
                 <option value="">{t('cashAdvance.allWeeks')}</option>
                 {uniqueWeeks.map(week => (
                   <option key={week} value={week}>
-                    {t('cashAdvance.weekOf')} {new Date(week).toLocaleDateString()}
+                    {t('cashAdvance.weekOf')} {new Date(week).toLocaleDateString('es-ES', {
+                      year: 'numeric',
+                      month: 'numeric',
+                      day: 'numeric',
+                      timeZone: 'UTC',
+                    })}
                   </option>
                 ))}
               </select>
@@ -368,7 +372,17 @@ const CashAdvanceOverview: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <Calendar size={16} className="text-gray-400" />
                           <span>
-                            {new Date(advance.weekStartDate).toLocaleDateString()} - {new Date(advance.weekEndDate).toLocaleDateString()}
+                            {new Date(advance.weekStartDate).toLocaleDateString('es-ES', {
+                              year: 'numeric',
+                              month: 'numeric',
+                              day: 'numeric',
+                              timeZone: 'UTC',
+                            })} - {new Date(advance.weekEndDate).toLocaleDateString('es-ES', {
+                              year: 'numeric',
+                              month: 'numeric',
+                              day: 'numeric',
+                              timeZone: 'UTC',
+                            })}
                           </span>
                         </div>
                       </td>
