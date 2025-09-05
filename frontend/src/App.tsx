@@ -11,7 +11,7 @@ import SnacksExpenses from './pages/expenses/SnacksExpenses';
 import IncentivosExpenses from './pages/expenses/IncentivosExpenses';
 import CleaningExpenses from './pages/expenses/CleaningExpenses';
 import ActivitiesExpenses from './pages/expenses/ActivitiesExpenses';
-// import AchievementsPage from './pages/achievements/AchievementsPage';
+import AchievementsPage from './pages/achievements/AchievementsPage';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/auth/Login'));
@@ -264,7 +264,7 @@ function App() {
             <Route path="cleaning" element={<Suspense fallback={<LoadingScreen />}><CleaningExpenses /></Suspense>} />
             <Route path="activities" element={<Suspense fallback={<LoadingScreen />}><ActivitiesExpenses /></Suspense>} />
           </Route>
-
+          <Route path="charges" element={<Suspense fallback={<LoadingScreen />}><ChargesPage /></Suspense>} />
           {/* Cash Advance - Restricted for Viewer role */}
           <Route 
             path="cash-advance" 
@@ -281,7 +281,7 @@ function App() {
             <Route path="new" element={<Suspense fallback={<LoadingScreen />}><AdminCashAdvance /></Suspense>} />
           </Route>
             {/* Achievements - Restricted for Viewer role */}
-            {/* <Route 
+            <Route 
               path="achievements" 
               element={
                 <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPERVISOR]}>
@@ -290,7 +290,7 @@ function App() {
                   </Suspense>
                 </ProtectedRoute>
               }
-              /> */}
+              />
               
           {/* Charges - Restricted for Viewer role */}
           <Route 

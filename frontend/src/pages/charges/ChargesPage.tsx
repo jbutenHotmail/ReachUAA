@@ -292,7 +292,12 @@ const ChargesPage: React.FC = () => {
                     charge.status === 'CANCELLED' ? 'bg-red-50/50' : ''
                   }`}>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(charge.date).toLocaleDateString()}
+                      {new Date(charge.date).toLocaleDateString('es-ES', {
+                        year: 'numeric',
+                        month: 'numeric',
+                        day: 'numeric',
+                        timeZone: 'UTC',
+                      })}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                       <div>

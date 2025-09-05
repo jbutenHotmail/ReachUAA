@@ -2,13 +2,13 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
-import { Trophy } from 'lucide-react';
+import { AlertTriangleIcon, Trophy } from 'lucide-react';
 import { 
   LayoutDashboard, BookText, PiggyBank, BarChart3, Heart, Settings, 
   X, DollarSign, ChevronDown, ClipboardList, 
   Receipt, Wallet, Utensils, ChevronFirst as FirstAid, ShoppingBag, Wrench, 
   Fuel, Users, UserPlus, BookOpen, UserCog, UsersRound, Percent,
-  Package, TrendingUp, Calendar, AlertTriangle, FileText, Plus, Lock, Award,
+  Package, TrendingUp, Calendar, FileText, Plus, Lock, Award,
   Cookie,
   Gift
 } from 'lucide-react';
@@ -178,6 +178,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
             label: t('expenses.snacks'),
             icon: <Cookie size={20} />,
           },
+          
           {
             path: '/expenses/incentives',
             label: t('expenses.incentivos'),
@@ -195,7 +196,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
           }
         ],
       },
-   
+      // Charges 
+          {
+            path: '/charges',
+            label: t('charges.title'),
+            icon: <AlertTriangleIcon size={20} />,
+          },
+      { 
+        path: '/achievements', 
+      label: t('achievements.title'),
+      icon: <Trophy size={20} />
+      },
       { 
         path: '/bonifications', 
         label: t('bonifications.title'),

@@ -83,11 +83,10 @@ const ProgramReport: React.FC = () => {
   const { advances, fetchAdvances, wereAdvancesFetched } = useCashAdvanceStore()
   const { program, fetchProgram, wasProgramFetched } = useProgramStore()
   const { leaderPercentages, fetchLeaderPercentages, werePercentagesFetched } = useLeaderPercentageStore()
-  const approvedExpenses = expenses.filter((e)=> e.status === 'APPROVED')
+  const approvedExpenses = expenses.filter((e)=> e.status === 'APPROVED' && e.leaderName === 'Program')
   const approvedTransactions = transactions.filter((t) => t.status === 'APPROVED')
   const filteredCharges = charges.filter((c) => c.status === 'APPLIED')
   const filteredAdvances = advances.filter((a) => a.status === 'APPROVED')
-
   useEffect(() => {
     const loadReportData = async () => {
       setIsLoading(true)
@@ -122,7 +121,6 @@ const ProgramReport: React.FC = () => {
       const defaultLeaderPercentage = program.financialConfig.leader_percentage
         ? Number.parseFloat(program.financialConfig.leader_percentage)
         : 15
-
       const totalDonations = approvedTransactions.reduce((sum, t) => sum + Number(t.total), 0)
       const totalFines = filteredCharges.reduce((sum, c) => sum + Number(c.amount), 0)
       const totalAdvances = filteredAdvances.reduce((sum, a) => sum + Number(a.advanceAmount), 0)
@@ -762,7 +760,12 @@ const ProgramReport: React.FC = () => {
                     {approvedExpenses.map((expense) => (
                       <tr key={expense.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                          {new Date(expense.date).toLocaleDateString()}
+                          {new Date(expense.date).toLocaleDateString('es-ES', {
+                            year: 'numeric',
+                            month: 'numeric',
+                            day: 'numeric',
+                            timeZone: 'UTC',
+                          })}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                           <Badge variant="primary">{t(`expenses.${expense.category}`)}</Badge>

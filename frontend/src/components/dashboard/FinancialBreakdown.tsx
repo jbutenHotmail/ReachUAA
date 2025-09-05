@@ -155,7 +155,7 @@ const FinancialBreakdown: React.FC = () => {
           .reduce((sum, a) => sum + a.advanceAmount, 0);
         
         const programCostsAmount = expenses
-          .filter(e => e.status === 'APPROVED')
+          .filter(e => e.status === 'APPROVED' && e.leaderName=== 'Program')
           .reduce((sum: number, expense: any) => Number(sum) + Number(expense.amount), 0);
         
         const totalExpenses = advancesAmount + programCostsAmount;

@@ -739,6 +739,7 @@ export default {
     "behindTarget": "Atrás del objetivo",
     "needsAttention": "Necesita atención",
     "totalHours": "Total de Horas",
+    "teamEarnings": "Ganancias del Equipo",
     "hoursWorked": "Horas Trabajadas",
     "errorNoProfile": "Tu cuenta no está vinculada a un perfil de colportor o líder",
     "errorLoadingStats": "No se pudieron cargar tus estadísticas personales",
@@ -1294,6 +1295,7 @@ export default {
   },
   "achievements": {
     "title": "Logros",
+    description: "Gestionar todos los logros del programa",
     "subtitle": "Reconociendo el desempeño excepcional de nuestros colportores",
     "categories": {
       "donations": "Mayores Donaciones",

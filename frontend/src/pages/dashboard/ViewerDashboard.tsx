@@ -67,7 +67,6 @@ const ViewerDashboard: React.FC = () => {
 
   // Fetch personal stats for the user
   useEffect(() => {
-    console.log(user)
     if (user?.id && !werePersonalStatsFetched) {
       fetchPersonalStats(user.id, false, "user")
     }
@@ -178,12 +177,9 @@ const ViewerDashboard: React.FC = () => {
 
   // Total hours calculation
   const totalHours = useMemo(() => {
-    console.log(personalStats)
     if (!personalStats || !personalStats.transactions) return 0
-    console.log(personalStats.transactions)
     return personalStats.transactions.reduce((sum, t) => Number(sum) + (Number(t.hours_worked) || 0), 0)
   }, [personalStats])
-  console.log(totalHours)
   // Loading state
   if (isLoadingPersonalStats || !personalStats) {
     return (
