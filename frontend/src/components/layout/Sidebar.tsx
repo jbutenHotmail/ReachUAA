@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
+import { Trophy } from 'lucide-react';
 import { 
   LayoutDashboard, BookText, PiggyBank, BarChart3, Heart, Settings, 
   X, DollarSign, ChevronDown, ClipboardList, 
@@ -178,17 +179,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
             icon: <Cookie size={20} />,
           },
           {
-            path: '/expenses/incentivos',
+            path: '/expenses/incentives',
             label: t('expenses.incentivos'),
             icon: <Gift size={20} />,
+          },
+          {
+            path: '/expenses/cleaning',
+            label: t('expenses.cleaning'),
+            icon: <Wrench size={20} />,
+          },
+          {
+            path: '/expenses/activities',
+            label: t('expenses.activities'),
+            icon: <Calendar size={20} />,
           }
         ],
       },
-      { 
-        path: '/charges', 
-        label: 'Charges & Fines', 
-        icon: <AlertTriangle size={20} />, 
-      },
+   
       { 
         path: '/bonifications', 
         label: t('bonifications.title'),

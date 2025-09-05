@@ -17,6 +17,7 @@ import {
   Gift,
   ChevronDown,
   ChevronRight,
+  Calendar,
 } from "lucide-react"
 import Card from "../../components/ui/Card"
 import Button from "../../components/ui/Button"
@@ -41,6 +42,8 @@ const defaultCategories = [
   "fuel",
   "snacks",
   "incentivos",
+  'cleaning',
+  'activities'
 ]
 
 interface AllExpensesProps {
@@ -202,7 +205,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
     for (const budget of updatedBudgets) {
       let currentSpending = 0
       try {
-        const response: Expense[] = await api.get("/expenses", {
+        const response: { total: number } = await api.get("/expenses", {
           params: {
             category: budget.category,
             status: "APPROVED",
@@ -210,9 +213,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
             leaderId: "program",
           },
         })
-        console.log(response)
         currentSpending = response.total;
-        // console.log(currentSpending, budget)
       } catch (error) {
         console.error(`Error loading budget info for ${budget.category}:`, error)
       }
@@ -237,7 +238,6 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
         })
       }
     }
-    console.log(budgetsInfo)
     setAllBudgetsInfo(budgetsInfo)
     setIsLoadingAllBudgets(false)
   }
@@ -251,7 +251,7 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
 
     let currentSpending = 0
     try {
-      const response: Expense[] = await api.get("/expenses", {
+      const response: { total: number } = await api.get("/expenses", {
         params: {
           category: categoryFilter,
           status: "APPROVED",
@@ -336,6 +336,10 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
         return <Cookie size={16} className="text-purple-600" />
       case "incentivos":
         return <Gift size={16} className="text-yellow-600" />
+      case "cleaning":
+        return <Wrench size={16} className="text-warning-600" />
+      case "activities":
+        return <Calendar size={16} className="text-primary-600" />
       default:
         return null
     }

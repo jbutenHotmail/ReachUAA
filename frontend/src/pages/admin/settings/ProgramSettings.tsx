@@ -117,9 +117,10 @@ const ProgramSettings: React.FC = () => {
     'maintenance',
     'fuel',
     'snacks',
-    'incentivos'
-  ];
-
+    'incentivos',
+    'cleaning',
+    'activities'
+  ]
   // Ensure all default categories are present
   let updatedBudgets = [...program.financialConfig.expense_budgets];
   defaultCategories.forEach(category => {
@@ -138,7 +139,9 @@ const ProgramSettings: React.FC = () => {
     { category: 'maintenance', budget_amount: 0 },
     { category: 'fuel', budget_amount: 0 },
     { category: 'snacks', budget_amount: 0 },
-    { category: 'incentivos', budget_amount: 0 }
+    { category: 'incentivos', budget_amount: 0 },
+    { category: 'cleaning', budget_amount: 0 },
+    { category: 'activities', budget_amount: 0 }
   ]);
 }
       }
@@ -309,7 +312,9 @@ const ProgramSettings: React.FC = () => {
       maintenance: '🔧',
       fuel: '⛽',
       snacks: '🍪',
-      incentivos: '🎁'
+      incentivos: '🎁',
+      cleaning: '🧽',
+      activities: '🎯'
     };
     return icons[category as keyof typeof icons] || '📋';
   };

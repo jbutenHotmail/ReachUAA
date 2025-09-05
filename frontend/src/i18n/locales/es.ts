@@ -1292,6 +1292,18 @@ export default {
     percentageLabel: "{{personType}}: {{percentage}}%",
     deductions: "Deducciones",
   },
+  "achievements": {
+    "title": "Logros",
+    "subtitle": "Reconociendo el desempeño excepcional de nuestros colportores",
+    "categories": {
+      "donations": "Mayores Donaciones",
+      "books_large": "Libros Grandes",
+      "books_small": "Libros Pequeños",
+      "bible_studies": "Estudios Bíblicos",
+      "category_books": "Libros por Categoría",
+      description: "Gestionar todos los logros del programa"
+    }
+  },
   expenses: {
     title: "Gastos",
     amount: "Monto",
@@ -1300,6 +1312,8 @@ export default {
     description: "Gestionar y rastrear todos los gastos del programa",
     motivo: "Motivo",
     snacks: "Snacks",
+    cleaning: "Limpieza",
+    activities: "Actividades",
     incentivos: "Incentivos",
     category: "Categoría",
     addExpense: "Agregar Gasto",
