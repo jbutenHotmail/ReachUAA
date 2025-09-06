@@ -27,7 +27,7 @@ const ACHIEVEMENT_CATEGORIES = [
     key: "books_category",
     label: "Libros por Categoría",
     icon: <Star size={24} className="text-purple-600" />,
-    description: "Top colportores por categoría específica de libros",
+    description: "Top colportores por categoría específica de libros (Solo libros grandes)",
   },
   {
     key: "bible_studies",
