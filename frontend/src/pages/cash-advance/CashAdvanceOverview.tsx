@@ -389,13 +389,13 @@ const CashAdvanceOverview: React.FC = () => {
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                         <div className="flex items-center justify-end gap-1">
                           <DollarSign size={16} className="text-gray-400" />
-                          <span>{formatNumber(advance.advanceAmount)}</span>
+                          <span>{formatNumber(advance.totalSales)}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                         <div className="flex items-center justify-end gap-1">
                           <DollarSign size={16} className="text-gray-400" />
-                          <span>{formatNumber(advance.totalSales)}</span>
+                          <span>{formatNumber(advance.advanceAmount)}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
