@@ -247,6 +247,7 @@ const AddBookForm: React.FC<AddBookFormProps> = ({
                   <option value="">Select category</option>
                   <option value="Health">Health</option>
                   <option value="Devotional">Devotional</option>
+                  <option value="Children">Children</option>
                   {/* <option value="family">Family</option>
                   <option value="children">Children</option>
                   <option value="religious">Religious</option>
