@@ -152,7 +152,7 @@ const FinancialBreakdown: React.FC = () => {
         
         const advancesAmount = advances
           .filter(a => a.status === 'APPROVED')
-          .reduce((sum, a) => sum + a.advanceAmount, 0);
+          .reduce((sum, a) => Number(sum) + Number(a.advanceAmount), 0);
         
         const programCostsAmount = expenses
           .filter(e => e.status === 'APPROVED' && e.leaderName=== 'Program')
@@ -285,7 +285,7 @@ const FinancialBreakdown: React.FC = () => {
               <div>
                 <p className="text-sm font-medium text-primary-800">{t('dashboard.totalRevenue')}</p>
                 <p className="text-2xl font-bold text-primary-900">
-                  {formatCurrency(financialData.totalRevenue)}
+                  {formatNumber(financialData.totalRevenue)}
                 </p>
               </div>
             </div>
@@ -311,7 +311,7 @@ const FinancialBreakdown: React.FC = () => {
                   </div>
                 </div>
                 <span className="text-sm font-bold text-blue-900">
-                  {formatCurrency(financialData.distribution.students)}
+                  {formatNumber(financialData.distribution.students)}
                 </span>
               </div>
 
@@ -368,7 +368,7 @@ const FinancialBreakdown: React.FC = () => {
                   </div>
                 </div>
                 <span className="text-sm font-bold text-gray-900">
-                  {formatCurrency(financialData.programGrossAmount)}
+                  {formatNumber(financialData.programGrossAmount)}
                 </span>
               </div>
             </div>
@@ -379,26 +379,25 @@ const FinancialBreakdown: React.FC = () => {
               <TrendingUp size={16} />
               {t('expenses.title')}
             </h4>
-            
             <div className="space-y-2">
               <div className="flex justify-between items-center p-2 bg-red-50 rounded">
                 <span className="text-sm text-red-700">{t('cashAdvance.title')}</span>
                 <span className="text-sm font-medium text-red-900">
-                  {formatCurrency(financialData.expenses.advances)}
+                  {formatNumber(financialData.expenses.advances)}
                 </span>
               </div>
 
               <div className="flex justify-between items-center p-2 bg-orange-50 rounded">
                 <span className="text-sm text-orange-700">{t('expenses.programCosts')}</span>
                 <span className="text-sm font-medium text-orange-900">
-                  {formatCurrency(financialData.expenses.programCosts)}
+                  {formatNumber(financialData.expenses.programCosts)}
                 </span>
               </div>
 
               <div className="flex justify-between items-center p-2 bg-red-100 rounded border-t border-red-200">
                 <span className="text-sm font-medium text-red-800">{t('common.totals')}</span>
                 <span className="text-sm font-bold text-red-900">
-                  {formatCurrency(financialData.expenses.total)}
+                  {formatNumber(financialData.expenses.total)}
                 </span>
               </div>
             </div>
@@ -409,7 +408,7 @@ const FinancialBreakdown: React.FC = () => {
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-success-800">{t('dashboard.programSurplus')}</span>
                 <span className="text-lg font-bold text-success-900">
-                  {formatCurrency(financialData.netProfit)}
+                  {formatNumber(financialData.netProfit)}
                 </span>
               </div>
               <p className="text-xs text-success-600 mt-1">
