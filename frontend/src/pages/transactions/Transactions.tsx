@@ -16,7 +16,6 @@ import { formatDateToString } from "../../utils/dateUtils"
 import { BookSize } from "../../types"
 import { formatNumber } from "../../utils/numberUtils"
 
-
 const Transactions: React.FC = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -44,7 +43,7 @@ const Transactions: React.FC = () => {
       setActiveTab(newTab)
     }
   }, [location.pathname, activeTab])
-  console.log('location.pathname', location.pathname)
+  console.log("location.pathname", location.pathname)
   useEffect(() => {
     const formattedDate = formatDateToString(selectedDate)
     fetchTransactions(formattedDate)
@@ -85,9 +84,8 @@ const Transactions: React.FC = () => {
     return `${year}-${month}-${day}`
   }
 
-  // Filter out rejected transactions for leader totals and book counts
   const validTransactions = transactions.filter(
-    (t) => t.status === "APPROVED" && t.date === formatDateToString(selectedDate),
+    (t) => t.status !== "REJECTED" && t.date === formatDateToString(selectedDate),
   )
 
   const leaderTotals = React.useMemo(() => {
@@ -123,21 +121,17 @@ const Transactions: React.FC = () => {
   }, [validTransactions])
 
   const filteredTransactions = React.useMemo(() => {
-    if (!selectedLeader)
-      return transactions.filter((t) => t.date === formatDateToString(selectedDate))
+    if (!selectedLeader) return transactions.filter((t) => t.date === formatDateToString(selectedDate))
     return transactions.filter(
-      (t) =>
-        Number(t.leaderId) === Number(selectedLeader) &&
-        t.date === formatDateToString(selectedDate),
+      (t) => Number(t.leaderId) === Number(selectedLeader) && t.date === formatDateToString(selectedDate),
     )
   }, [transactions, selectedLeader, selectedDate])
 
-  // Calculate book totals from valid transactions
   const bookTotals = React.useMemo(() => {
-    const dayTransactions = transactions.filter((t) => 
-      t.date === formatDateToString(selectedDate) && t.status === 'APPROVED'
-    );
-    
+    const dayTransactions = transactions.filter(
+      (t) => t.date === formatDateToString(selectedDate) && t.status !== "REJECTED",
+    )
+
     return dayTransactions.reduce(
       (acc, transaction) => {
         transaction.books?.forEach((book) => {
