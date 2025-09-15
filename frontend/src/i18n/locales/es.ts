@@ -1326,7 +1326,7 @@ export default {
     maintenance: "Mantenimiento de Vehículos",
     fuel: "Combustible / Peaje",
     vehicle: "Vehículo",
-    programCosts: "Costos del Programa",
+    programCosts: "Gastos del Programa",
     loading: "Cargando gastos...",
     errorTitle: "Error al cargar gastos",
     errorCreate: "No se pudo crear el gasto",
