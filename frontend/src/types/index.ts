@@ -197,6 +197,8 @@ export interface Transaction {
   createdAt: string;
   updatedAt: string;
   hoursWorked: number;
+  townWorked?: string;
+  fieldDirection?: 'North' | 'South' | 'East' | 'West';
   books?: Array<{
     id: string;
     title: string;

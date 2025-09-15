@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PieChart, DollarSign, TrendingUp, Users, Info } from 'lucide-react';
+import { PieChart, DollarSign, TrendingUp, Users } from 'lucide-react';
 import Card from '../ui/Card';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useProgramStore } from '../../stores/programStore';
@@ -16,7 +16,13 @@ interface FinancialData {
     programCosts: number;
     total: number;
   };
-  advances: number; // Separamos advances del objeto expenses
+  paymentBreakdown: {
+    cash: number;
+    checks: number;
+    atmMobile: number;
+    paypal: number;
+  };
+  advances: number;
   distribution: {
     students: number;
     globalLeaders: number;
@@ -44,11 +50,17 @@ const FinancialBreakdown: React.FC = () => {
 
   const [financialData, setFinancialData] = useState<FinancialData>({
     totalRevenue: 0,
+    paymentBreakdown: {
+      cash: 0,
+      checks: 0,
+      atmMobile: 0,
+      paypal: 0,
+    },
     expenses: {
       programCosts: 0,
       total: 0,
     },
-    advances: 0, // Nuevo campo para adelantos
+    advances: 0,
     distribution: {
       students: 0,
       globalLeaders: 0,
@@ -79,6 +91,14 @@ const FinancialBreakdown: React.FC = () => {
       const timer = setTimeout(() => {
         const validTransactions = transactions.filter(t => t.status === 'APPROVED');
         const totalRevenue = validTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0);
+
+        // Calculate payment method breakdown
+        const paymentBreakdown = validTransactions.reduce((acc, t) => ({
+          cash: acc.cash + Number(t.cash),
+          checks: acc.checks + Number(t.checks),
+          atmMobile: acc.atmMobile + Number(t.atmMobile),
+          paypal: acc.paypal + Number(t.paypal),
+        }), { cash: 0, checks: 0, atmMobile: 0, paypal: 0 });
 
         const studentPercentage = program.financialConfig?.colporter_percentage
           ? parseFloat(program.financialConfig.colporter_percentage)
@@ -124,11 +144,13 @@ const FinancialBreakdown: React.FC = () => {
         const globalLeadersTotalPercentage = leadersWithGlobal.length > 0 ? globalLeaderPercentage : 0;
         const totalLeaderPercentage = customLeaderPercentage + globalLeadersTotalPercentage;
 
-        const studentsAmount = totalRevenue * (studentPercentage / 100);
-
         const advancesAmount = advances
           .filter(a => a.status === 'APPROVED')
           .reduce((sum, a) => Number(sum) + Number(a.advanceAmount), 0);
+
+        // Calculate students' amount and subtract advances
+        const grossStudentsAmount = totalRevenue * (studentPercentage / 100);
+        const studentsAmount = grossStudentsAmount - advancesAmount;
 
         const programCostsAmount = expenses
           .filter(e => e.status === 'APPROVED' && e.leaderName === 'Program')
@@ -141,11 +163,12 @@ const FinancialBreakdown: React.FC = () => {
 
         setFinancialData({
           totalRevenue,
+          paymentBreakdown,
           expenses: {
             programCosts: programCostsAmount,
             total: totalExpenses,
           },
-          advances: advancesAmount, // Guardamos los adelantos por separado
+          advances: advancesAmount,
           distribution: {
             students: studentsAmount,
             globalLeaders: globalLeadersAmount,
@@ -256,6 +279,34 @@ const FinancialBreakdown: React.FC = () => {
                 </p>
               </div>
             </div>
+            
+            {/* Payment Methods Breakdown */}
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="text-center p-2 bg-white/50 rounded">
+                <p className="text-xs text-primary-600">Efectivo</p>
+                <p className="text-sm font-semibold text-primary-800">
+                  ${formatNumber(financialData.paymentBreakdown.cash)}
+                </p>
+              </div>
+              <div className="text-center p-2 bg-white/50 rounded">
+                <p className="text-xs text-primary-600">Cheques</p>
+                <p className="text-sm font-semibold text-primary-800">
+                  ${formatNumber(financialData.paymentBreakdown.checks)}
+                </p>
+              </div>
+              <div className="text-center p-2 bg-white/50 rounded">
+                <p className="text-xs text-primary-600">ATH Móvil</p>
+                <p className="text-sm font-semibold text-primary-800">
+                  ${formatNumber(financialData.paymentBreakdown.atmMobile)}
+                </p>
+              </div>
+              <div className="text-center p-2 bg-white/50 rounded">
+                <p className="text-xs text-primary-600">PayPal</p>
+                <p className="text-sm font-semibold text-primary-800">
+                  ${formatNumber(financialData.paymentBreakdown.paypal)}
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Revenue Distribution */}
@@ -265,21 +316,38 @@ const FinancialBreakdown: React.FC = () => {
               {t('dashboard.revenueDistribution')}
             </h4>
             <div className="space-y-2">
-              <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                <div>
-                  <span className="text-sm font-medium text-blue-700">
-                    {t('common.student')} ({program?.financialConfig?.colporter_percentage || 50}%)
-                  </span>
-                  <div className="w-full bg-blue-200 rounded-full h-1.5 mt-1">
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <div className="flex-1">
+                  {/* Student Total Amount */}
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-medium text-blue-700">
+                      {t('common.student')} ({program?.financialConfig?.colporter_percentage || 50}%)
+                    </span>
+                    <span className="text-sm font-bold text-blue-900">
+                      {formatNumber(financialData.distribution.students + financialData.advances)}
+                    </span>
+                  </div>
+                  <div className="w-full bg-blue-200 rounded-full h-1.5 mb-2">
                     <div
                       className="bg-blue-600 h-1.5 rounded-full"
                       style={{ width: `${program?.financialConfig?.colporter_percentage || 50}%` }}
                     ></div>
                   </div>
+                  {/* Cash Advances */}
+                  {financialData.advances > 0 && (
+                    <div className="flex justify-between items-center text-xs text-blue-600 mb-1">
+                      <span>{t('cashAdvance.totalAdvances')}</span>
+                      <span>{formatNumber(financialData.advances)}</span>
+                    </div>
+                  )}
+                  {/* Net Student Amount */}
+                  {financialData.advances > 0 && (
+                    <div className="flex justify-between items-center text-xs text-blue-600">
+                      <span>{t('dashboard.netStudentAmount')}</span>
+                      <span>{formatNumber(financialData.distribution.students)}</span>
+                    </div>
+                  )}
                 </div>
-                <span className="text-sm font-bold text-blue-900">
-                  {formatNumber(financialData.distribution.students)}
-                </span>
               </div>
 
               <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
@@ -351,22 +419,6 @@ const FinancialBreakdown: React.FC = () => {
                 </div>
                 <span className="text-sm font-bold text-gray-900">
                   {formatNumber(financialData.programGrossAmount)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Cash Advances (Informational) */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
-              <Info size={16} />
-              {t('cashAdvance.title')}
-            </h4>
-            <div className="p-3 bg-teal-50 rounded-lg border border-teal-200">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-teal-700">{t('cashAdvance.totalAdvances')}</span>
-                <span className="text-sm font-bold text-teal-900">
-                  {formatNumber(financialData.advances)}
                 </span>
               </div>
             </div>

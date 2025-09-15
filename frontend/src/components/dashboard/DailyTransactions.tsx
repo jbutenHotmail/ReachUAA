@@ -1,6 +1,4 @@
-"use client"
-
-import type React from "react"
+import React from "react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import {
@@ -28,11 +26,17 @@ import { formatNumber } from "../../utils/numberUtils"
 interface DailyTransactionsProps {
   transactions: Transaction[]
   date?: string
+  sortBy?: 'name' | 'amount' | 'books'
+  sortOrder?: 'asc' | 'desc'
+  onSortChange?: (sortBy: 'name' | 'amount' | 'books') => void
 }
 
 const DailyTransactions: React.FC<DailyTransactionsProps> = ({
   transactions,
   date = new Date().toISOString().split("T")[0],
+  sortBy = 'name',
+  sortOrder = 'asc',
+  onSortChange
 }) => {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -45,8 +49,53 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
   // Check if user is admin (only admins can approve/reject)
   const isAdmin = user?.role === UserRole.ADMIN
 
+  const getSortIcon = (field: 'name' | 'amount' | 'books') => {
+    if (sortBy !== field) return '↕️'
+    return sortOrder === 'asc' ? '↑' : '↓'
+  }
+
   // Filter transactions based on status filter
-  const filteredTransactions = statusFilter ? transactions.filter((t) => t.status === statusFilter) : transactions
+  const filteredTransactions = React.useMemo(() => {
+    let filtered = statusFilter ? transactions.filter((t) => t.status === statusFilter) : transactions
+    
+    // Apply sorting if onSortChange is provided (meaning we're in the main transactions page)
+    if (onSortChange) {
+      filtered = filtered.sort((a, b) => {
+        let aValue: string | number
+        let bValue: string | number
+        
+        switch (sortBy) {
+          case 'name':
+            aValue = a.studentName.toLowerCase()
+            bValue = b.studentName.toLowerCase()
+            break
+          case 'amount':
+            aValue = Number(a.total)
+            bValue = Number(b.total)
+            break
+          case 'books':
+            const aTotalBooks = a.books?.reduce((sum, book) => sum + book.quantity, 0) || 0
+            const bTotalBooks = b.books?.reduce((sum, book) => sum + book.quantity, 0) || 0
+            aValue = aTotalBooks
+            bValue = bTotalBooks
+            break
+          default:
+            aValue = a.studentName.toLowerCase()
+            bValue = b.studentName.toLowerCase()
+        }
+        
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          const comparison = aValue.localeCompare(bValue)
+          return sortOrder === 'asc' ? comparison : -comparison
+        } else {
+          const comparison = (aValue as number) - (bValue as number)
+          return sortOrder === 'asc' ? comparison : -comparison
+        }
+      })
+    }
+    
+    return filtered
+  }, [transactions, statusFilter, sortBy, sortOrder, onSortChange])
 
   // Filter out rejected transactions for totals
   const validTransactions = transactions.filter(
@@ -242,6 +291,17 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                     )}
                   </div>
 
+                  <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Pueblo:</span>
+                      <span>{transaction.townWorked || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Campo:</span>
+                      <span>{transaction.fieldDirection || '-'}</span>
+                    </div>
+                  </div>
+
                   <div className="flex space-x-2">
                     {transaction.status === "PENDING" && isAdmin && (
                       <>
@@ -278,46 +338,83 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
         {/* Desktop table */}
         <div className="hidden lg:block overflow-x-auto">
           {filteredTransactions.length > 0 ? (
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="w-full divide-y divide-gray-200">
               <thead>
                 <tr>
-                  <th className="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t("common.student")}
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[12%]">
+                    {onSortChange ? (
+                      <button
+                        onClick={() => onSortChange('name')}
+                        className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                      >
+                        {t("common.student")}
+                        <span className="text-xs">{getSortIcon('name')}</span>
+                      </button>
+                    ) : (
+                      t("common.student")
+                    )}
                   </th>
-                  <th className="px-3 lg:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[12%]">
                     {t("common.leader")}
                   </th>
-                  <th className="px-3 lg:px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-[8%]">
                     {t("transactions.cash")}
                   </th>
-                  <th className="px-3 lg:px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-[8%]">
                     {t("transactions.checks")}
                   </th>
-                  <th className="px-3 lg:px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-[8%]">
                     {t("transactions.atmMobile")}
                   </th>
-                  <th className="px-3 lg:px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-[8%]">
                     {t("transactions.paypal")}
                   </th>
-                  <th className="px-3 lg:px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {t("common.total")}
+                  <th className="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-[10%]">
+                    {onSortChange ? (
+                      <button
+                        onClick={() => onSortChange('amount')}
+                        className="flex items-center gap-1 hover:text-gray-700 transition-colors ml-auto"
+                      >
+                        {t("common.total")}
+                        <span className="text-xs">{getSortIcon('amount')}</span>
+                      </button>
+                    ) : (
+                      t("common.total")
+                    )}
                   </th>
-                  <th className="px-3 lg:px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div className="flex items-center justify-center gap-1">
-                      <BookText size={14} className="text-primary-600" />
-                      <span>{t("inventory.large")}</span>
-                    </div>
+                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-[8%]">
+                    {onSortChange ? (
+                      <button
+                        onClick={() => onSortChange('books')}
+                        className="flex items-center justify-center gap-1 hover:text-gray-700 transition-colors"
+                      >
+                        <BookText size={14} className="text-primary-600" />
+                        <span>{t("inventory.large")}</span>
+                        <span className="text-xs">{getSortIcon('books')}</span>
+                      </button>
+                    ) : (
+                      <div className="flex items-center justify-center gap-1">
+                        <BookText size={14} className="text-primary-600" />
+                        <span>{t("inventory.large")}</span>
+                      </div>
+                    )}
                   </th>
-                  <th className="px-3 lg:px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-[8%]">
                     <div className="flex items-center justify-center gap-1">
                       <BookText size={14} className="text-success-600" />
                       <span>{t("inventory.small")}</span>
                     </div>
                   </th>
-                  <th className="px-3 lg:px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[10%]">
+                    Pueblo
+                  </th>
+                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-[8%]">
+                    Campo
+                  </th>
+                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-[10%]">
                     {t("transactions.status")}
                   </th>
-                  <th className="px-3 lg:px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-[10%]">
                     {t("common.actions")}
                   </th>
                 </tr>
@@ -347,38 +444,58 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                             : ""
                       }
                     >
-                      <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        {transaction.studentName}
+                      <td className="px-2 py-3 text-sm font-medium text-gray-900">
+                        <div className="truncate max-w-[120px]" title={transaction.studentName}>
+                          {transaction.studentName}
+                        </div>
                       </td>
-                      <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                        {transaction.leaderName}
+                      <td className="px-2 py-3 text-sm text-gray-500">
+                        <div className="truncate max-w-[120px]" title={transaction.leaderName}>
+                          {transaction.leaderName}
+                        </div>
                       </td>
-                      <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
+                      <td className="px-2 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                         ${formatNumber(transaction.cash)}
                       </td>
-                      <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                        ${Number(transaction.checks).toFixed(2)}
+                      <td className="px-2 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                        ${formatNumber(Number(transaction.checks))}
                       </td>
-                      <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                        ${Number(transaction.atmMobile).toFixed(2)}
+                      <td className="px-2 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                        ${formatNumber(Number(transaction.atmMobile))}
                       </td>
-                      <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
+                      <td className="px-2 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                         ${formatNumber(transaction.paypal)}
                       </td>
-                      <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                      <td className="px-2 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                         ${formatNumber(transaction.total)}
                       </td>
-                      <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center">
+                      <td className="px-2 py-3 whitespace-nowrap text-sm text-center">
                         <Badge variant="primary">{largeBooks}</Badge>
                       </td>
-                      <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center">
+                      <td className="px-2 py-3 whitespace-nowrap text-sm text-center">
                         <Badge variant="success">{smallBooks}</Badge>
                       </td>
-                      <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center">
+                      <td className="px-2 py-3 text-sm text-gray-900">
+                        <div className="truncate max-w-[100px]" title={transaction.townWorked || '-'}>
+                          {transaction.townWorked || '-'}
+                        </div>
+                      </td>
+                      <td className="px-2 py-3 text-center">
+                        {transaction.fieldDirection ? (
+                          <Badge variant="secondary" size="sm">
+                            {transaction.fieldDirection === 'North' ? 'N' : 
+                             transaction.fieldDirection === 'South' ? 'S' :
+                             transaction.fieldDirection === 'East' ? 'E' : 'O'}
+                          </Badge>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td className="px-2 py-3 text-center">
                         {getStatusBadge(transaction.status)}
                       </td>
-                      <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center">
-                        <div className="flex items-center justify-center space-x-2">
+                      <td className="px-2 py-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
                           {transaction.status === "PENDING" && isAdmin && (
                             <>
                               <Button
@@ -387,7 +504,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                                 onClick={() => handleStatusChange(transaction.id, "APPROVED")}
                                 isLoading={isLoading}
                               >
-                                <CheckCircle size={16} />
+                                <CheckCircle size={14} />
                               </Button>
                               <Button
                                 variant="danger"
@@ -395,7 +512,7 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
                                 onClick={() => handleStatusChange(transaction.id, "REJECTED")}
                                 isLoading={isLoading}
                               >
-                                <XCircle size={16} />
+                                <XCircle size={14} />
                               </Button>
                             </>
                           )}
@@ -410,31 +527,30 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
               </tbody>
               <tfoot>
                 <tr className="bg-gray-50">
-                  <td colSpan={2} className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {t("common.totals")}
-                  </td>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                  <td className="px-2 py-3 text-sm font-bold text-gray-900">{t("common.totals")}</td>
+                  <td></td>
+                  <td className="px-2 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                     ${formatNumber(totals.cash)}
                   </td>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                  <td className="px-2 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                     ${formatNumber(Number(totals.checks))}
                   </td>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                  <td className="px-2 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                     ${formatNumber(Number(totals.atmMobile))}
                   </td>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                  <td className="px-2 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                     ${formatNumber(Number(totals.paypal))}
                   </td>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                  <td className="px-2 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                     ${formatNumber(Number(totals.total))}
                   </td>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center font-medium">
+                  <td className="px-2 py-3 whitespace-nowrap text-sm text-center font-bold">
                     <Badge variant="primary">{bookTotals.large}</Badge>
                   </td>
-                  <td className="px-3 lg:px-4 py-3 whitespace-nowrap text-sm text-center font-medium">
+                  <td className="px-2 py-3 text-center font-medium">
                     <Badge variant="success">{bookTotals.small}</Badge>
                   </td>
-                  <td colSpan={2}></td>
+                  <td colSpan={4}></td>
                 </tr>
               </tfoot>
             </table>

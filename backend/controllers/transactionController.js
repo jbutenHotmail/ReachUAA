@@ -9,8 +9,9 @@ export const getTransactions = async (req, res) => {
       SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
       t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
       t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-      DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId, 
-      t.hours_worked as hoursWorked, t.created_at as createdAt, t.updated_at as updatedAt
+      DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId,
+      t.hours_worked as hoursWorked, t.town_worked as townWorked, t.field_direction as fieldDirection,
+      t.created_at as createdAt, t.updated_at as updatedAt
       FROM transactions t
       JOIN people sp ON t.student_id = sp.id
       JOIN people lp ON t.leader_id = lp.id
@@ -84,8 +85,9 @@ export const getTransactionById = async (req, res) => {
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
        t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
        t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-       DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId, 
-       t.hours_worked as hoursWorked, t.created_at as createdAt, t.updated_at as updatedAt
+       DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId,
+       t.hours_worked as hoursWorked, t.town_worked as townWorked, t.field_direction as fieldDirection,
+       t.created_at as createdAt, t.updated_at as updatedAt
        FROM transactions t
        JOIN people sp ON t.student_id = sp.id
        JOIN people lp ON t.leader_id = lp.id
@@ -118,7 +120,7 @@ export const getTransactionById = async (req, res) => {
 // Create new transaction
 export const createTransaction = async (req, res) => {
   try {
-    const { studentId, leaderId, cash, checks, atmMobile, paypal, date, books, programId, hoursWorked } = req.body
+    const { studentId, leaderId, cash, checks, atmMobile, paypal, date, books, programId, hoursWorked, townWorked, fieldDirection } = req.body
 
     const userId = req.user.id
     const currentProgramId = programId || req.user.currentProgramId
@@ -145,7 +147,7 @@ export const createTransaction = async (req, res) => {
     const result = await db.transaction(async (connection) => {
       // Insert transaction
       const [transactionResult] = await connection.execute(
-        "INSERT INTO transactions (student_id, leader_id, cash, checks, atm_mobile, paypal, total, transaction_date, status, created_by, program_id, hours_worked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO transactions (student_id, leader_id, cash, checks, atm_mobile, paypal, total, transaction_date, status, created_by, program_id, hours_worked, town_worked, field_direction) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
           studentId,
           leaderId,
@@ -159,6 +161,8 @@ export const createTransaction = async (req, res) => {
           userId,
           currentProgramId,
           hoursWorked || 0,
+          townWorked || null,
+          fieldDirection || null,
         ],
       )
 
@@ -182,8 +186,9 @@ export const createTransaction = async (req, res) => {
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
        t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
        t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-       DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId, 
-       t.hours_worked as hoursWorked, t.created_at as createdAt, t.updated_at as updatedAt
+       DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId,
+       t.hours_worked as hoursWorked, t.town_worked as townWorked, t.field_direction as fieldDirection,
+       t.created_at as createdAt, t.updated_at as updatedAt
        FROM transactions t
        JOIN people sp ON t.student_id = sp.id
        JOIN people lp ON t.leader_id = lp.id
@@ -213,7 +218,7 @@ export const createTransaction = async (req, res) => {
 export const updateTransaction = async (req, res) => {
   try {
     const { id } = req.params
-    const { studentId, leaderId, cash, checks, atmMobile, paypal, date, status, books, programId, hoursWorked } =
+    const { studentId, leaderId, cash, checks, atmMobile, paypal, date, status, books, programId, hoursWorked, townWorked, fieldDirection } =
       req.body
 
     // Check if transaction exists
@@ -254,7 +259,7 @@ export const updateTransaction = async (req, res) => {
     await db.transaction(async (connection) => {
       // Update transaction
       await connection.execute(
-        "UPDATE transactions SET student_id = ?, leader_id = ?, cash = ?, checks = ?, atm_mobile = ?, paypal = ?, total = ?, transaction_date = ?, status = ?, program_id = ?, hours_worked = ?, updated_at = NOW() WHERE id = ?",
+        "UPDATE transactions SET student_id = ?, leader_id = ?, cash = ?, checks = ?, atm_mobile = ?, paypal = ?, total = ?, transaction_date = ?, status = ?, program_id = ?, hours_worked = ?, town_worked = ?, field_direction = ?, updated_at = NOW() WHERE id = ?",
         [
           studentId || existingTransaction.student_id,
           leaderId || existingTransaction.leader_id,
@@ -267,6 +272,8 @@ export const updateTransaction = async (req, res) => {
           status || existingTransaction.status,
           programId || existingTransaction.program_id,
           hoursWorked !== undefined ? hoursWorked : existingTransaction.hours_worked,
+          townWorked !== undefined ? townWorked : existingTransaction.town_worked,
+          fieldDirection !== undefined ? fieldDirection : existingTransaction.field_direction,
           id,
         ],
       )
@@ -291,8 +298,9 @@ export const updateTransaction = async (req, res) => {
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
        t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
        t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-       DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId, 
-       t.hours_worked as hoursWorked, t.created_at as createdAt, t.updated_at as updatedAt
+       DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId,
+       t.hours_worked as hoursWorked, t.town_worked as townWorked, t.field_direction as fieldDirection,
+       t.created_at as createdAt, t.updated_at as updatedAt
        FROM transactions t
        JOIN people sp ON t.student_id = sp.id
        JOIN people lp ON t.leader_id = lp.id
@@ -409,8 +417,9 @@ export const approveTransaction = async (req, res) => {
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
        t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
        t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-       DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId, 
-       t.hours_worked as hoursWorked, t.created_at as createdAt, t.updated_at as updatedAt
+       DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId,
+       t.hours_worked as hoursWorked, t.town_worked as townWorked, t.field_direction as fieldDirection,
+       t.created_at as createdAt, t.updated_at as updatedAt
        FROM transactions t
        JOIN people sp ON t.student_id = sp.id
        JOIN people lp ON t.leader_id = lp.id
@@ -491,8 +500,9 @@ export const rejectTransaction = async (req, res) => {
       `SELECT t.id, t.student_id as studentId, CONCAT(sp.first_name, ' ', sp.last_name) as studentName,
        t.leader_id as leaderId, CONCAT(lp.first_name, ' ', lp.last_name) as leaderName,
        t.cash, t.checks, t.atm_mobile as atmMobile, t.paypal, t.total,
-       DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId, 
-       t.hours_worked as hoursWorked, t.created_at as createdAt, t.updated_at as updatedAt
+       DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date, t.status, t.program_id as programId,
+       t.hours_worked as hoursWorked, t.town_worked as townWorked, t.field_direction as fieldDirection,
+       t.created_at as createdAt, t.updated_at as updatedAt
        FROM transactions t
        JOIN people sp ON t.student_id = sp.id
        JOIN people lp ON t.leader_id = lp.id
