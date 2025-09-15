@@ -188,6 +188,13 @@ const NewTransaction: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if the selected date is a colportable day
+    if (!isSelectedDateColportable) {
+      setError(t("transactions.cannotCreateNonColportableDay"));
+      return;
+    }
+    
     if (!selectedLeader || !selectedColporter) return;
 
     setError(null);
@@ -274,79 +281,6 @@ const NewTransaction: React.FC = () => {
   if (isLoading) {
     return (
       <LoadingScreen message={t("transactions.preparingTransactionForm")} />
-    );
-  }
-
-  // If selected date is not a colportable day, show restriction screen
-  if (!isSelectedDateColportable) {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-              {t("transactions.newTransaction")}
-            </h1>
-            <div className="flex items-center gap-2 mt-2 text-gray-600">
-              <Calendar size={16} />
-              <span className="text-sm">{formattedDate}</span>
-            </div>
-          </div>
-          <Button variant="outline" onClick={() => navigate("/transactions")}>
-            {t("common.back")}
-          </Button>
-        </div>
-
-        <Card>
-          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-            <div className="bg-warning-100 p-4 rounded-full mb-6">
-              <AlertTriangle size={48} className="text-warning-600" />
-            </div>
-
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              {t("transactions.nonColportableDay")}
-            </h2>
-
-            <p className="text-gray-600 max-w-lg mb-6">
-              {t("transactions.nonColportableDayMessage")}
-            </p>
-
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-8 w-full max-w-md">
-              <p className="text-sm text-gray-700 mb-2">
-                <strong>{t("transactions.nextColportableDay")}</strong>
-              </p>
-              <p className="text-lg font-medium text-primary-700">
-                {nextColportableDay.toLocaleDateString(undefined, {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                  timeZone: "UTC",
-                })}
-              </p>
-            </div>
-
-            <div className="space-y-4 w-full max-w-md">
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Button
-                  variant="outline"
-                  onClick={() => navigate("/transactions")}
-                  leftIcon={<ChevronRight size={16} className="rotate-180" />}
-                >
-                  {t("transactions.returnToTransactions")}
-                </Button>
-
-                <Button
-                  variant="primary"
-                  onClick={() => navigate("/admin/settings")}
-                  leftIcon={<Settings size={16} />}
-                >
-                  {t("programSettings.title")}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
     );
   }
 
@@ -453,7 +387,16 @@ const NewTransaction: React.FC = () => {
                       <p className="font-medium">
                         {t("transactions.nonColportableDay")}
                       </p>
-                      <p>{t("transactions.nonColportableDayMessage")}</p>
+                      <p>{t("transactions.nonColportableDayFormMessage")}</p>
+                      <p className="mt-1">
+                        <strong>{t("transactions.nextColportableDay")}:</strong>{" "}
+                        {nextColportableDay.toLocaleDateString(undefined, {
+                          weekday: "long",
+                          month: "long",
+                          day: "numeric",
+                          timeZone: "UTC",
+                        })}
+                      </p>
                     </div>
                   </div>
                 )}
