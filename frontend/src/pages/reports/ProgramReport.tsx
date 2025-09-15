@@ -1,178 +1,422 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import {
-  BarChart3,
-  DollarSign,
   TrendingUp,
+  TrendingDown,
+  Heart,
+  AlertTriangle,
+  Receipt,
+  Wallet,
   Users,
-  Calendar,
+  PieChart,
+  BarChart3,
   Download,
-  ChevronLeft,
-  ChevronRight,
-  Target,
+  X,
 } from "lucide-react"
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from "chart.js"
-import { Pie, Bar } from "react-chartjs-2"
 import Card from "../../components/ui/Card"
 import Button from "../../components/ui/Button"
 import Badge from "../../components/ui/Badge"
 import { useTransactionStore } from "../../stores/transactionStore"
-import { useExpenseStore } from "../../stores/expenseStore"
+import { useChargeStore } from "../../stores/chargeStore"
 import { useCashAdvanceStore } from "../../stores/cashAdvanceStore"
 import { useProgramStore } from "../../stores/programStore"
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from "chart.js"
+import { Pie, Bar } from "react-chartjs-2"
+import { useExpenseStore } from "../../stores/expenseStore"
 import LoadingScreen from "../../components/ui/LoadingScreen"
-import { formatNumber } from "../../utils/numberUtils"
+import { useLeaderPercentageStore } from "../../stores/leaderPercentageStore"
 
 // Register ChartJS components
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title)
 
+interface ProgramFinancials {
+  income: {
+    donations: number
+    totalDonations: number
+  }
+  miscellaneous: {
+    fines: number
+    totalFines: number
+  }
+  expenses: {
+    advances: number
+    programExpenses: number
+    totalExpenses: number
+  }
+  distribution: {
+    colporterPercentage: number
+    leaderPercentage: number
+    colporterAmount: number
+    leaderAmount: number // Ahora será la suma de todas las ganancias individuales de líderes
+    defaultLeaderAmount: number
+    customLeaderAmount: number
+  }
+  netProfit: number
+}
+
+interface ColporterFinancials {
+  id: string
+  name: string
+  leaderName: string
+  donations: number
+  fines: number
+  charges: number
+  advances: number
+  percentage: number
+  earnings: number
+}
+
 const ProgramReport: React.FC = () => {
   const { t } = useTranslation()
-  const { transactions, fetchAllTransactions, wereTransactionsFetched } = useTransactionStore()
-  const { expenses, fetchExpenses, wereExpensesFetched } = useExpenseStore()
-  const { advances, fetchAdvances, wereAdvancesFetched } = useCashAdvanceStore()
-  const { program } = useProgramStore()
-
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [viewType, setViewType] = useState<"summary" | "detailed">("summary")
+  const [programFinancials, setProgramFinancials] = useState<ProgramFinancials | null>(null)
+  const [colporterFinancials, setColporterFinancials] = useState<ColporterFinancials[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [leaderFilter, setLeaderFilter] = useState<string>("")
 
+  const { expenses, fetchExpenses, wereExpensesFetched } = useExpenseStore()
+  const { transactions, fetchAllTransactions, wereTransactionsFetched } = useTransactionStore()
+  const { charges, fetchCharges, wereChargesFetched } = useChargeStore()
+  const { advances, fetchAdvances, wereAdvancesFetched } = useCashAdvanceStore()
+  const { program, fetchProgram, wasProgramFetched } = useProgramStore()
+  const { leaderPercentages, fetchLeaderPercentages, werePercentagesFetched } = useLeaderPercentageStore()
+  const approvedExpenses = expenses.filter((e)=> e.status === 'APPROVED' && e.leaderName === 'Program')
+  const approvedTransactions = transactions.filter((t) => t.status === 'APPROVED')
+  const filteredCharges = charges.filter((c) => c.status === 'APPLIED')
+  const filteredAdvances = advances.filter((a) => a.status === 'APPROVED')
   useEffect(() => {
-    const loadData = async () => {
+    const loadReportData = async () => {
+      setIsLoading(true)
+      setError(null)
+      const dataToFetch: any[] = []
+
+      !wereExpensesFetched && dataToFetch.push(fetchExpenses())
+      !wereTransactionsFetched && dataToFetch.push(fetchAllTransactions("APPROVED"))
+      !wereChargesFetched && dataToFetch.push(fetchCharges())
+      !wereAdvancesFetched && dataToFetch.push(fetchAdvances())
+      !wasProgramFetched && dataToFetch.push(fetchProgram())
+      !werePercentagesFetched && dataToFetch.push(fetchLeaderPercentages())
+
       try {
-        !wereTransactionsFetched && (await fetchAllTransactions("APPROVED"))
-        !wereExpensesFetched && (await fetchExpenses())
-        !wereAdvancesFetched && (await fetchAdvances())
-      } catch (error) {
-        console.error("Error loading data:", error)
+        await Promise.all(dataToFetch)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t("common.error"))
       } finally {
         setIsLoading(false)
       }
     }
 
-    loadData()
-  }, [fetchAllTransactions, fetchExpenses, fetchAdvances, wereTransactionsFetched, wereExpensesFetched, wereAdvancesFetched])
+    loadReportData()
+  }, [fetchAllTransactions, fetchCharges, fetchAdvances, fetchProgram, t])
 
-  const navigateMonth = (direction: "prev" | "next") => {
-    if (direction === "next") {
-      if (selectedMonth === 11) {
-        setSelectedMonth(0)
-        setSelectedYear(selectedYear + 1)
-      } else {
-        setSelectedMonth(selectedMonth + 1)
-      }
-    } else {
-      if (selectedMonth === 0) {
-        setSelectedMonth(11)
-        setSelectedYear(selectedYear - 1)
-      } else {
-        setSelectedMonth(selectedMonth - 1)
-      }
-    }
-  }
+  useEffect(() => {
+    if ((transactions.length > 0 || charges.length > 0 || advances.length > 0 || expenses.length > 0) && program) {
+      if (!program) return
+      const colporterPercentage = program.financialConfig.colporter_percentage
+        ? Number.parseFloat(program.financialConfig.colporter_percentage)
+        : 50
+      const defaultLeaderPercentage = program.financialConfig.leader_percentage
+        ? Number.parseFloat(program.financialConfig.leader_percentage)
+        : 15
+      const totalDonations = approvedTransactions.reduce((sum, t) => sum + Number(t.total), 0)
+      const totalFines = filteredCharges.reduce((sum, c) => sum + Number(c.amount), 0)
+      const totalAdvances = filteredAdvances.reduce((sum, a) => sum + Number(a.advanceAmount), 0)
+      const programExpenses = approvedExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
 
-  // Filter data for selected month
-  const filteredTransactions = transactions.filter((t) => {
-    const date = new Date(t.date)
-    return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear && t.status === "APPROVED"
-  })
+      const colporterAmount = totalDonations * (colporterPercentage / 100)
 
-  const filteredExpenses = expenses.filter((e) => {
-    const date = new Date(e.date)
-    return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear && e.status === "APPROVED"
-  })
+      // Crear mapa de colportadores
+      const colporterMap = new Map<string, ColporterFinancials>()
 
-  const filteredAdvances = advances.filter((a) => {
-    const date = new Date(a.weekStartDate)
-    return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear && a.status === "APPROVED"
-  })
+      approvedTransactions.forEach((t) => {
+        if (!colporterMap.has(t.studentId)) {
+          colporterMap.set(t.studentId, {
+            id: t.studentId,
+            name: t.studentName,
+            leaderName: t.leaderName,
+            donations: 0,
+            fines: 0,
+            charges: 0,
+            advances: 0,
+            percentage: colporterPercentage,
+            earnings: 0,
+          })
+        }
 
-  // Calculate totals
-  const totalRevenue = filteredTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0)
-  const totalExpenses = filteredExpenses
-    .filter((e) => e.leaderName === "Program") // Only program expenses
-    .reduce((sum, e) => Number(sum) + Number(e.amount), 0)
-  const totalAdvances = filteredAdvances.reduce((sum, a) => Number(sum) + Number(a.advanceAmount), 0)
+        const colporter = colporterMap.get(t.studentId)!
+        colporter.donations += Number(t.total)
+      })
 
-  // Calculate distribution
-  const colporterPercentage = program?.financialConfig?.colporter_percentage
-    ? Number.parseFloat(program.financialConfig.colporter_percentage)
-    : 50
-  const leaderPercentage = program?.financialConfig?.leader_percentage
-    ? Number.parseFloat(program.financialConfig.leader_percentage)
-    : 15
-  const programPercentage = 100 - colporterPercentage - leaderPercentage
-
-  const distribution = {
-    colporters: totalRevenue * (colporterPercentage / 100),
-    leaders: totalRevenue * (leaderPercentage / 100),
-    program: totalRevenue * (programPercentage / 100),
-  }
-
-  // Calculate net profit (program share minus only program expenses, not advances)
-  const netProfit = distribution.program - totalExpenses
-
-  // Calculate book totals
-  const bookTotals = filteredTransactions.reduce(
-    (acc, transaction) => {
-      transaction.books?.forEach((book) => {
-        if (book.size === "LARGE") {
-          acc.large += book.quantity
-        } else {
-          acc.small += book.quantity
+      filteredCharges.forEach((c) => {
+        if (colporterMap.has(c.personId)) {
+          const colporter = colporterMap.get(c.personId)!
+          colporter.charges += Number(c.amount)
         }
       })
-      return acc
-    },
-    { large: 0, small: 0, total: 0 }
-  )
-  bookTotals.total = bookTotals.large + bookTotals.small
 
-  // Prepare chart data
-  const pieChartData = {
-    labels: [t("common.student"), t("common.leaders"), t("expenses.programCosts"), t("dashboard.programSurplus")],
+      filteredAdvances.forEach((a) => {
+        if (colporterMap.has(a.personId)) {
+          const colporter = colporterMap.get(a.personId)!
+          colporter.advances += Number(a.advanceAmount)
+        }
+      })
+
+      colporterMap.forEach((colporter) => {
+        colporter.earnings = colporter.donations * (colporter.percentage / 100)
+      })
+      
+      // Calcular ganancias de líderes basado en transacciones individuales
+      // Cada transacción contribuye a las ganancias del líder que estuvo a cargo ese día
+      let totalLeaderAmount = 0
+      approvedTransactions.forEach((transaction) => {
+        // Buscar porcentaje individual del líder
+        const customPercentage = leaderPercentages.find(lp => 
+          lp.leaderId === transaction.leaderId && lp.isActive
+        )
+        
+        // Usar porcentaje personalizado o global
+        const leaderPercentage = customPercentage ? customPercentage.percentage : defaultLeaderPercentage
+        
+        const leaderEarnings = Number(transaction.total) * (leaderPercentage / 100)
+        totalLeaderAmount += leaderEarnings
+      })
+
+      // Separar ganancias de líderes por tipo de porcentaje
+      let defaultLeaderAmount = 0
+      let customLeaderAmount = 0
+      
+      approvedTransactions.forEach((transaction) => {
+        const customPercentage = leaderPercentages.find(lp => 
+          lp.leaderId === transaction.leaderId && lp.isActive
+        )
+        
+        const leaderPercentage = customPercentage ? customPercentage.percentage : defaultLeaderPercentage
+        const leaderEarnings = Number(transaction.total) * (leaderPercentage / 100)
+        
+        if (customPercentage) {
+          customLeaderAmount += leaderEarnings
+        } else {
+          defaultLeaderAmount += leaderEarnings
+        }
+      })
+
+      const totalIncome = totalDonations + totalFines
+      const totalExpenses = totalAdvances + programExpenses
+      const totalDistribution = colporterAmount + totalLeaderAmount
+      const netProfit = totalIncome - totalExpenses - totalDistribution
+
+      setProgramFinancials({
+        income: {
+          donations: totalDonations,
+          totalDonations,
+        },
+        miscellaneous: {
+          fines: totalFines,
+          totalFines,
+        },
+        expenses: {
+          advances: totalAdvances,
+          programExpenses,
+          totalExpenses,
+        },
+        distribution: {
+          colporterPercentage,
+          leaderPercentage: defaultLeaderPercentage,
+          colporterAmount,
+          leaderAmount: totalLeaderAmount, // Ahora es la suma de ganancias individuales
+          defaultLeaderAmount,
+          customLeaderAmount,
+        },
+        netProfit,
+      })
+
+      setColporterFinancials(Array.from(colporterMap.values()))
+    }
+  }, [transactions, charges, advances, program, expenses, leaderPercentages])
+
+  // Calcular resúmenes de líderes basado en transacciones individuales
+  const leaderSummaries = React.useMemo(() => {
+    const summaries: Record<string, any> = {}
+    
+    // Procesar cada transacción individualmente
+    approvedTransactions.forEach((transaction) => {
+      const leaderName = transaction.leaderName
+      
+      // Buscar porcentaje individual del líder
+      const customPercentage = leaderPercentages.find(lp => 
+        lp.leaderId === transaction.leaderId && lp.isActive
+      )
+      
+      // Usar porcentaje personalizado o global
+      const leaderPercentage = customPercentage ? customPercentage.percentage : (program?.financialConfig?.leader_percentage 
+        ? parseFloat(program.financialConfig.leader_percentage) 
+        : 15)
+      
+      if (!summaries[leaderName]) {
+        summaries[leaderName] = {
+          name: leaderName,
+          totalDonations: 0,
+          leaderEarnings: 0,
+          uniqueColporters: new Set<string>(),
+          transactionCount: 0,
+          percentage: leaderPercentage,
+          isCustomPercentage: !!customPercentage
+        }
+      }
+      
+      // Sumar ventas del equipo (cada transacción que supervisó)
+      summaries[leaderName].totalDonations += Number(transaction.total)
+      
+      // Calcular ganancias del líder para esta transacción específica con su porcentaje
+      summaries[leaderName].leaderEarnings += Number(transaction.total) * (leaderPercentage / 100)
+      
+      // Agregar colportor único
+      summaries[leaderName].uniqueColporters.add(transaction.studentId)
+      summaries[leaderName].transactionCount++
+    })
+    
+    // Convertir Set a número para el conteo
+    Object.values(summaries).forEach((leader: any) => {
+      leader.colporterCount = leader.uniqueColporters.size
+    })
+    
+    return summaries
+  }, [approvedTransactions, program, leaderPercentages])
+
+  const filteredColporterFinancials = React.useMemo(() => {
+    let filtered = [...colporterFinancials]
+
+    if (leaderFilter) {
+      filtered = filtered.filter((c) => c.leaderName === leaderFilter)
+    }
+
+    return filtered
+  }, [colporterFinancials, leaderFilter])
+
+  const uniqueLeaders = React.useMemo(() => {
+    return Object.keys(leaderSummaries)
+  }, [leaderSummaries])
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+    }).format(amount)
+  }
+
+  // Verificar si hay líderes con porcentajes personalizados
+  const hasCustomPercentages = Object.values(leaderSummaries).some(l => l.isCustomPercentage)
+
+  const distributionChartData = {
+    labels: hasCustomPercentages ? [
+      t("dashboard.distributionExpenses"),
+      `${t("common.leaders")} (Global ${programFinancials?.distribution.leaderPercentage || 15}%)`,
+      `${t("common.leaders")} (Personalizado)`,
+      t("expenses.title"),
+      t("cashAdvance.title"),
+      t("dashboard.programSurplus"),
+    ] : [
+      t("dashboard.distributionExpenses"),
+      `${t("common.leaders")} (${programFinancials?.distribution.leaderPercentage || 15}%)`,
+      t("expenses.title"),
+      t("cashAdvance.title"),
+      t("dashboard.programSurplus"),
+    ],
     datasets: [
       {
-        data: [distribution.colporters, distribution.leaders, totalExpenses, netProfit],
-        backgroundColor: ["#3b82f6", "#10b981", "#f59e0b", "#6b7280"],
-        borderColor: ["#2563eb", "#059669", "#d97706", "#4b5563"],
-        borderWidth: 2,
+        data: programFinancials ? (hasCustomPercentages ? [
+              programFinancials.distribution.colporterAmount,
+              programFinancials.distribution.defaultLeaderAmount,
+              programFinancials.distribution.customLeaderAmount,
+              programFinancials.expenses.programExpenses,
+              programFinancials.expenses.advances,
+              programFinancials.netProfit,
+            ] : [
+              programFinancials.distribution.colporterAmount,
+              programFinancials.distribution.leaderAmount,
+              programFinancials.expenses.programExpenses,
+              programFinancials.expenses.advances,
+              programFinancials.netProfit,
+            ]) : [],
+        backgroundColor: hasCustomPercentages ? [
+          "rgba(59, 130, 246, 0.8)",
+          "rgba(139, 92, 246, 0.8)", // Purple for default leaders
+          "rgba(251, 191, 36, 0.8)",  // Yellow for custom leaders
+          "rgba(249, 115, 22, 0.8)",
+          "rgba(239, 68, 68, 0.8)",
+          "rgba(16, 185, 129, 0.8)",
+        ] : [
+          "rgba(59, 130, 246, 0.8)",
+          "rgba(139, 92, 246, 0.8)",
+          "rgba(249, 115, 22, 0.8)",
+          "rgba(239, 68, 68, 0.8)",
+          "rgba(16, 185, 129, 0.8)",
+        ],
+        borderColor: hasCustomPercentages ? [
+          "rgba(59, 130, 246, 1)",
+          "rgba(139, 92, 246, 1)",
+          "rgba(251, 191, 36, 1)",
+          "rgba(249, 115, 22, 1)",
+          "rgba(239, 68, 68, 1)",
+          "rgba(16, 185, 129, 1)",
+        ] : [
+          "rgba(59, 130, 246, 1)",
+          "rgba(139, 92, 246, 1)",
+          "rgba(249, 115, 22, 1)",
+          "rgba(239, 68, 68, 1)",
+          "rgba(16, 185, 129, 1)",
+        ],
+        borderWidth: 1,
       },
     ],
   }
 
-  const barChartData = {
-    labels: [t("dashboard.revenue"), t("expenses.title"), t("dashboard.netProfit")],
+  const leaderPerformanceData = {
+    labels: uniqueLeaders,
     datasets: [
       {
-        label: t("dashboard.amount"),
-        data: [totalRevenue, totalExpenses, netProfit],
-        backgroundColor: ["#3b82f6", "#f59e0b", "#10b981"],
-        borderColor: ["#2563eb", "#d97706", "#059669"],
-        borderWidth: 2,
+        label: t("reports.programSales"),
+        data: uniqueLeaders.map((leader) => {
+          return leaderSummaries[leader]?.totalDonations || 0
+        }),
+        backgroundColor: "rgba(59, 130, 246, 0.8)",
+      },
+      {
+        label: `${t("dashboard.revenueDistribution")} (${t("common.leaders")})${Object.values(leaderSummaries).some(l => l.isCustomPercentage) ? ' *' : ''}`,
+        data: uniqueLeaders.map((leader) => {
+          return leaderSummaries[leader]?.leaderEarnings || 0
+        }),
+        backgroundColor: uniqueLeaders.map((leader) => {
+          const leaderData = leaderSummaries[leader];
+          return leaderData?.isCustomPercentage 
+            ? "rgba(251, 191, 36, 0.8)"  // Yellow for custom percentage
+            : "rgba(139, 92, 246, 0.8)"; // Purple for default
+        }),
       },
     ],
   }
 
   const chartOptions = {
     responsive: true,
-    maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: "bottom" as const,
-        labels: {
-          padding: 20,
-          usePointStyle: true,
-        },
+        position: "top" as const,
       },
       tooltip: {
         callbacks: {
           label: (context: any) => {
-            const value = context.parsed || context.raw
-            return `${context.label}: $${Number(value).toLocaleString()}`
+            let label = context.label || ""
+            if (label) {
+              label += ": "
+            }
+            if (context.parsed !== undefined) {
+              label += formatCurrency(context.parsed)
+            }
+            return label
           },
         },
       },
@@ -181,16 +425,21 @@ const ProgramReport: React.FC = () => {
 
   const barChartOptions = {
     responsive: true,
-    maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: false,
+        position: "top" as const,
       },
       tooltip: {
         callbacks: {
           label: (context: any) => {
-            const value = context.parsed.y || context.raw
-            return `$${Number(value).toLocaleString()}`
+            let label = context.dataset.label || ""
+            if (label) {
+              label += ": "
+            }
+            if (context.parsed.y !== undefined) {
+              label += formatCurrency(context.parsed.y)
+            }
+            return label
           },
         },
       },
@@ -199,30 +448,39 @@ const ProgramReport: React.FC = () => {
       y: {
         beginAtZero: true,
         ticks: {
-          callback: (value: number) => `$${value.toLocaleString()}`,
+          callback: (value: any) => formatCurrency(value),
         },
       },
     },
   }
 
-  const monthNames = [
-    "Enero",
-    "Febrero",
-    "Marzo",
-    "Abril",
-    "Mayo",
-    "Junio",
-    "Julio",
-    "Agosto",
-    "Septiembre",
-    "Octubre",
-    "Noviembre",
-    "Diciembre",
-  ]
-
   if (isLoading) {
-    return <LoadingScreen message={t("reports.loadingProgramReport")} />
+    return <LoadingScreen message={t("dashboard.loading")} />
   }
+
+  if (error) {
+    return (
+      <Card>
+        <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg text-danger-700">
+          <p className="font-medium">{t("reports.errorTitle")}</p>
+          <p>{error}</p>
+        </div>
+      </Card>
+    )
+  }
+
+  if (!programFinancials) {
+    return (
+      <Card>
+        <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg text-warning-700">
+          <p className="font-medium">{t("colporterReport.noData")}</p>
+          <p>{t("colporterReport.noDataDescription")}</p>
+        </div>
+      </Card>
+    )
+  }
+
+  const totalProgramExpenses = approvedExpenses.reduce((sum, e) => Number(sum) + Number(e.amount), 0)
 
   return (
     <div className="space-y-6">
@@ -230,60 +488,35 @@ const ProgramReport: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <BarChart3 className="text-primary-600" size={28} />
-            {t("reports.programReport")}
+            {t("reports.title")}
           </h1>
-          <div className="flex items-center gap-2 mt-2">
-            <Calendar size={16} className="text-gray-500" />
-            <span className="text-sm font-medium text-gray-600">{monthNames[selectedMonth]} {selectedYear}</span>
-          </div>
+          <p className="text-sm text-gray-500 mt-1">{t("reports.completeProgram")}</p>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center bg-white rounded-lg shadow-sm border border-gray-200">
-            <Button variant="ghost" size="sm" onClick={() => navigateMonth("prev")} className="px-2">
-              <ChevronLeft size={20} />
-            </Button>
-
-            <div className="px-4 py-2 flex items-center gap-2 border-l border-r border-gray-200">
-              <Calendar size={16} className="text-gray-500" />
-              <span className="text-sm font-medium">
-                {monthNames[selectedMonth]} {selectedYear}
-              </span>
-            </div>
-
-            <Button variant="ghost" size="sm" onClick={() => navigateMonth("next")} className="px-2">
-              <ChevronRight size={20} />
-            </Button>
-          </div>
-
-          <Button variant="primary" leftIcon={<Download size={18} />}>
-            {t("common.export")}
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setViewType(viewType === "summary" ? "detailed" : "summary")}
+            leftIcon={viewType === "summary" ? <PieChart size={16} /> : <BarChart3 size={16} />}
+          >
+            {viewType === "summary" ? t("reports.showDetails") : t("reports.showTotalsOnly")}
           </Button>
         </div>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <div className="text-center">
             <div className="flex items-center justify-center mb-2">
-              <DollarSign className="text-primary-600" size={24} />
+              <Heart className="text-red-500" size={24} />
             </div>
             <p className="text-sm font-medium text-gray-500">{t("dashboard.totalRevenue")}</p>
-            <p className="mt-1 text-2xl font-bold text-primary-600">${formatNumber(totalRevenue)}</p>
-            <p className="text-xs text-gray-500">{filteredTransactions.length} {t("transactions.title")}</p>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="text-center">
-            <div className="flex items-center justify-center mb-2">
-              <TrendingUp className="text-warning-600" size={24} />
-            </div>
-            <p className="text-sm font-medium text-gray-500">{t("expenses.programCosts")}</p>
-            <p className="mt-1 text-2xl font-bold text-warning-600">${formatNumber(totalExpenses)}</p>
+            <p className="mt-1 text-2xl font-bold text-green-600">
+              {formatCurrency(programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)}
+            </p>
             <p className="text-xs text-gray-500">
-              {filteredExpenses.filter((e) => e.leaderName === "Program").length} {t("expenses.title")}
+              {t("donations.title")} + {t("charges.fine")}
             </p>
           </div>
         </Card>
@@ -291,220 +524,647 @@ const ProgramReport: React.FC = () => {
         <Card>
           <div className="text-center">
             <div className="flex items-center justify-center mb-2">
-              <Users className="text-info-600" size={24} />
+              <Receipt className="text-orange-500" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">{t("cashAdvance.totalAdvances")}</p>
-            <p className="mt-1 text-2xl font-bold text-info-600">${formatNumber(totalAdvances)}</p>
-            <p className="text-xs text-gray-500">{filteredAdvances.length} {t("cashAdvance.title")}</p>
+            <p className="text-sm font-medium text-gray-500">{t("expenses.totalExpenses")}</p>
+            <p className="mt-1 text-2xl font-bold text-red-600">
+              {formatCurrency(programFinancials.expenses.totalExpenses)}
+            </p>
+            <p className="text-xs text-gray-500">
+              {t("cashAdvance.title")} + {t("expenses.title")}
+            </p>
           </div>
         </Card>
 
         <Card>
           <div className="text-center">
             <div className="flex items-center justify-center mb-2">
-              <Target className="text-success-600" size={24} />
+              <Users className="text-blue-500" size={24} />
+            </div>
+            <p className="text-sm font-medium text-gray-500">{t("dashboard.revenueDistribution")}</p>
+            <p className="mt-1 text-2xl font-bold text-blue-600">
+              {formatCurrency(
+                programFinancials.distribution.colporterAmount + programFinancials.distribution.leaderAmount,
+              )}
+            </p>
+            <p className="text-xs text-gray-500">
+              {t("common.colporters")} + {t("common.leaders")}
+            </p>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="text-center">
+            <div className="flex items-center justify-center mb-2">
+              <TrendingUp className="text-primary-600" size={24} />
             </div>
             <p className="text-sm font-medium text-gray-500">{t("dashboard.programSurplus")}</p>
-            <p className="mt-1 text-2xl font-bold text-success-600">${formatNumber(netProfit)}</p>
-            <p className="text-xs text-gray-500">{t("dashboard.afterExpenses")}</p>
+            <p className="mt-1 text-2xl font-bold text-primary-600">{formatCurrency(programFinancials.netProfit)}</p>
+            <p className="text-xs text-gray-500">{t("dashboard.afterDistributions")}</p>
           </div>
         </Card>
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title={t("dashboard.revenueDistribution")} className="h-96">
-          <div className="h-full">
-            <Pie data={pieChartData} options={chartOptions} />
-          </div>
-        </Card>
-
-        <Card title={t("dashboard.financialOverview")} className="h-96">
-          <div className="h-full">
-            <Bar data={barChartData} options={barChartOptions} />
-          </div>
-        </Card>
-      </div>
-
-      {/* Financial Breakdown */}
-      <Card title={t("dashboard.financialBreakdown")} icon={<DollarSign size={20} />}>
-        <div className="space-y-6">
-          {/* Revenue Distribution */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">{t("dashboard.revenueDistribution")}</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                <div className="flex-1">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-medium text-blue-700">
-                      {t("common.student")} ({colporterPercentage}%)
-                    </span>
-                    <span className="text-sm font-bold text-blue-900">${formatNumber(distribution.colporters)}</span>
-                  </div>
-                  <div className="w-full bg-blue-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${colporterPercentage}%` }}
-                    ></div>
-                  </div>
-                </div>
+      {viewType === "summary" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card title={t("dashboard.financialSummary")} icon={<PieChart size={20} />}>
+            {/* Alert for distribution issues */}
+            {programFinancials && (
+              (() => {
+                const totalDistribution = programFinancials.distribution.colporterPercentage + 
+                  (Object.values(leaderSummaries).reduce((sum, leader) => sum + leader.percentage, 0) / Object.values(leaderSummaries).length);
+                const isExcessive = totalDistribution > 100;
+                const isHigh = totalDistribution > 90;
+                
+                // if (isExcessive || isHigh) {
+                //   return (
+                //     <div className={`p-3 mb-4 border rounded-lg ${
+                //       isExcessive ? 'bg-danger-50 border-danger-200' : 'bg-warning-50 border-warning-200'
+                //     }`}>
+                //       <div className="flex items-start gap-2">
+                //         <AlertTriangle className={`flex-shrink-0 mt-0.5 ${
+                //           isExcessive ? 'text-danger-600' : 'text-warning-600'
+                //         }`} size={16} />
+                       
+                //           {/* <p className="font-medium">
+                //             {isExcessive ? '⚠️ Distribución Excesiva' : '⚠️ Distribución Alta'}
+                //           </p> */}
+                //           {/* <p>
+                //             {isExcessive 
+                //               ? 'Los porcentajes personalizados están causando una distribución mayor al 100%'
+                //               : 'Los porcentajes personalizados están dejando poco superávit para el programa'
+                //             }
+                //           </p> */}
+                //       </div>
+                //     </div>
+                //   );
+                // }
+                return null;
+              })()
+            )}
+            
+            <div className="h-80 flex justify-center items-center">
+              <Pie data={distributionChartData} options={chartOptions} />
+            </div>
+            <div className="grid grid-cols-2 gap-4 mt-6">
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm font-medium text-blue-700">{`${t("dashboard.revenueDistribution")} (${t("common.colporters")})`
+}</p>
+                <p className="text-lg font-bold text-blue-800 mt-1">
+                  {formatCurrency(programFinancials.distribution.colporterAmount)}
+                </p>
+                <p className="text-xs text-blue-600">
+                  {programFinancials.distribution.colporterPercentage}% {t("common.of")} {t("donations.title")}
+                </p>
               </div>
-
-              <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                <div className="flex-1">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-medium text-green-700">
-                      {t("common.leaders")} ({leaderPercentage}%)
-                    </span>
-                    <span className="text-sm font-bold text-green-900">${formatNumber(distribution.leaders)}</span>
-                  </div>
-                  <div className="w-full bg-green-200 rounded-full h-2">
-                    <div
-                      className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${leaderPercentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <div className="flex-1">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-medium text-gray-700">
-                      {t("common.program")} ({programPercentage.toFixed(1)}%)
-                    </span>
-                    <span className="text-sm font-bold text-gray-900">${formatNumber(distribution.program)}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-gray-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${programPercentage}%` }}
-                    ></div>
-                  </div>
+              <div className="p-3 bg-purple-50 rounded-lg">
+                <p className="text-sm font-medium text-purple-700">
+                  {`${t("dashboard.revenueDistribution")} (${t("common.leaders")})`}
+                  {Object.values(leaderSummaries).some(l => l.isCustomPercentage) && (
+                    <span className="ml-1 text-yellow-600">*</span>
+                  )}
+                </p>
+                <p className="text-lg font-bold text-purple-800 mt-1">
+                  {formatCurrency(programFinancials.distribution.leaderAmount)}
+                </p>
+                <div className="text-xs text-purple-600">
+                  {Object.values(leaderSummaries).some(l => l.isCustomPercentage) ? (
+                    <span>Porcentajes individuales aplicados</span>
+                  ) : (
+                    <span>{programFinancials.distribution.leaderPercentage}% {t("common.of")} {t("reports.teamSales")}</span>
+                  )}
                 </div>
               </div>
             </div>
+          </Card>
+
+          <Card title={t("reports.byLeaders")} icon={<Users size={20} />}>
+            <div className="h-80 flex justify-center items-center">
+              <Bar data={leaderPerformanceData} options={barChartOptions} />
+            </div>
+            <div className="grid grid-cols-2 gap-4 mt-6">
+              <div className="p-3 bg-primary-50 rounded-lg">
+                <p className="text-sm font-medium text-primary-700">{t("reports.programSales")}</p>
+                <p className="text-lg font-bold text-primary-800 mt-1">
+                  {formatCurrency(programFinancials.income.donations)}
+                </p>
+                <p className="text-xs text-primary-600">
+                  {Object.keys(leaderSummaries).length} {t("common.leaders")}
+                </p>
+              </div>
+              <div className="p-3 bg-success-50 rounded-lg">
+                <p className="text-sm font-medium text-success-700">{t("reports.avgTeamSales")}</p>
+                <p className="text-lg font-bold text-success-800 mt-1">
+                  {formatCurrency(
+                    programFinancials.income.donations / Math.max(1, Object.keys(leaderSummaries).length),
+                  )}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {viewType === "detailed" && (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card title={t("reports.title")} icon={<TrendingUp size={20} />}>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Heart size={16} className="text-green-600" />
+                    <span className="text-sm font-medium text-green-700">{t("donations.title")}</span>
+                  </div>
+                  <span className="text-lg font-bold text-green-700">
+                    {formatCurrency(programFinancials.income.donations)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle size={16} className="text-yellow-600" />
+                    <span className="text-sm font-medium text-yellow-700">{t("charges.fine")}</span>
+                  </div>
+                  <span className="text-lg font-bold text-yellow-700">
+                    {formatCurrency(programFinancials.miscellaneous.fines)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center p-3 bg-primary-50 rounded-lg border-t-2 border-primary-100">
+                  <span className="text-sm font-bold text-primary-700">{t("dashboard.totalRevenue")}</span>
+                  <span className="text-xl font-bold text-primary-700">
+                    {formatCurrency(
+                      programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines,
+                    )}
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            <Card title={t("expenses.title")} icon={<TrendingDown size={20} />}>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Wallet size={16} className="text-red-600" />
+                    <span className="text-sm font-medium text-red-700">{t("cashAdvance.title")}</span>
+                  </div>
+                  <span className="text-lg font-bold text-red-700">
+                    {formatCurrency(programFinancials.expenses.advances)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Receipt size={16} className="text-orange-600" />
+                    <span className="text-sm font-medium text-orange-700">{t("expenses.title")}</span>
+                  </div>
+                  <span className="text-lg font-bold text-orange-700">
+                    {formatCurrency(programFinancials.expenses.programExpenses)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg border-t-2 border-red-100">
+                  <span className="text-sm font-bold text-red-700">{t("expenses.totalExpenses")}</span>
+                  <span className="text-xl font-bold text-red-700">
+                    {formatCurrency(programFinancials.expenses.totalExpenses)}
+                  </span>
+                </div>
+              </div>
+            </Card>
           </div>
 
-          {/* Program Finances */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">{t("dashboard.programFinances")}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm font-medium text-blue-600">{t("dashboard.programShare")}</p>
-                <p className="text-2xl font-bold text-blue-700">${formatNumber(distribution.program)}</p>
-                <p className="text-xs text-blue-600">{programPercentage.toFixed(1)}% {t("dashboard.ofRevenue")}</p>
+          <Card title={t("expenses.title")} icon={<Receipt size={20} />}>
+            {approvedExpenses.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t("common.date")}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t("common.category")}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t("inventory.description")}
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t("charges.amount")}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t("programSetup.created")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {approvedExpenses.map((expense) => (
+                      <tr key={expense.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {new Date(expense.date).toLocaleDateString('es-ES', {
+                            year: 'numeric',
+                            month: 'numeric',
+                            day: 'numeric',
+                            timeZone: 'UTC',
+                          })}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          <Badge variant="primary">{t(`expenses.${expense.category}`)}</Badge>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {expense.motivo}
+                          {expense.notes && <p className="text-xs text-gray-500 mt-1">{expense.notes}</p>}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-red-600">
+                          {formatCurrency(expense.amount)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{expense.createdByName}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-gray-100">
+                      <td colSpan={3} className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
+                        {t("expenses.totalExpenses")}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-red-600">
+                        {formatCurrency(totalProgramExpenses)}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">{t("colporterReport.noData")}</p>
+              </div>
+            )}
+          </Card>
 
-              <div className="p-4 bg-warning-50 rounded-lg">
-                <p className="text-sm font-medium text-warning-600">{t("expenses.programCosts")}</p>
-                <p className="text-2xl font-bold text-warning-700">${formatNumber(totalExpenses)}</p>
-                <p className="text-xs text-warning-600">
-                  {filteredExpenses.filter((e) => e.leaderName === "Program").length} {t("expenses.title")}
+          <Card title={t("dashboard.revenueDistribution")} icon={<PieChart size={20} />}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm font-medium text-blue-600">{t("dashboard.revenueDistribution")}</p>
+                <p className="text-2xl font-bold text-blue-700 mt-2">
+                  {formatCurrency(programFinancials.distribution.colporterAmount)}
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  {programFinancials.distribution.colporterPercentage}% {t("common.of")} {t("donations.title")}
                 </p>
               </div>
 
-              <div className="p-4 bg-success-50 rounded-lg">
-                <p className="text-sm font-medium text-success-600">{t("dashboard.netProfit")}</p>
-                <p className="text-2xl font-bold text-success-700">${formatNumber(netProfit)}</p>
-                <p className="text-xs text-success-600">{t("dashboard.afterExpenses")}</p>
+              <div className="text-center p-4 bg-purple-50 rounded-lg">
+                <p className="text-sm font-medium text-purple-600">{t("dashboard.revenueDistribution")}</p>
+                <p className="text-2xl font-bold text-purple-700 mt-2">
+                  {formatCurrency(programFinancials.distribution.leaderAmount)}
+                </p>
+                <div className="text-xs text-purple-600">
+                  {Object.values(leaderSummaries).some(l => l.isCustomPercentage) ? (
+                    <span>Porcentajes individuales aplicados</span>
+                  ) : (
+                    <span>{programFinancials.distribution.leaderPercentage}% {t("common.of")} {t("reports.teamSales")}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="text-center p-4 bg-primary-50 rounded-lg">
+                <p className="text-sm font-medium text-primary-600">{t("dashboard.programSurplus")}</p>
+                <p className="text-2xl font-bold text-primary-700 mt-2">
+                  {formatCurrency(programFinancials.netProfit)}
+                </p>
+                <p className="text-xs text-primary-600 mt-1">
+                  {(
+                    (programFinancials.netProfit /
+                      (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) *
+                    100
+                  ).toFixed(1)}
+                  % {t("common.of")} {t("dashboard.totalRevenue")}
+                </p>
               </div>
             </div>
-          </div>
 
-          {/* Cash Advances Information (Separate section) */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">{t("cashAdvance.title")} ({t("dashboard.informational")})</h3>
-            <div className="p-4 bg-teal-50 rounded-lg border border-teal-200">
-              <div className="flex justify-between items-center">
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">{t("confirmationStep.distributionSummary")}</span>
+                <span className="text-sm font-medium text-gray-700">100%</span>
+              </div>
+
+              <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                <div className="flex h-2.5 rounded-full">
+                  <div
+                    className="bg-blue-600 h-2.5 rounded-l-full"
+                    style={{
+                      width: `${(programFinancials.distribution.colporterAmount / (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) * 100}%`,
+                    }}
+                  ></div>
+                  <div
+                    className="bg-purple-600 h-2.5"
+                    style={{
+                      width: `${(programFinancials.distribution.leaderAmount / (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) * 100}%`,
+                    }}
+                  ></div>
+                  <div
+                    className="bg-orange-500 h-2.5"
+                    style={{
+                      width: `${(programFinancials.expenses.programExpenses / (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) * 100}%`,
+                    }}
+                  ></div>
+                  <div
+                    className="bg-red-500 h-2.5"
+                    style={{
+                      width: `${(programFinancials.expenses.advances / (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) * 100}%`,
+                    }}
+                  ></div>
+                  <div
+                    className="bg-green-500 h-2.5 rounded-r-full"
+                    style={{
+                      width: `${(programFinancials.netProfit / (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) * 100}%`,
+                    }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
                 <div>
-                  <p className="text-sm font-medium text-teal-700">{t("cashAdvance.totalAdvances")}</p>
-                  <p className="text-xs text-teal-600 mt-1">
-                    {t("cashAdvance.advancesNote")} - {t("cashAdvance.deductedFromEarnings")}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-teal-800">${formatNumber(totalAdvances)}</p>
-                  <p className="text-xs text-teal-600">{filteredAdvances.length} {t("cashAdvance.title")}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Expense Categories */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">{t("expenses.byCategory")}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.entries(
-                filteredExpenses
-                  .filter((e) => e.leaderName === "Program")
-                  .reduce((acc, expense) => {
-                    acc[expense.category] = (acc[expense.category] || 0) + Number(expense.amount)
-                    return acc
-                  }, {} as Record<string, number>)
-              ).map(([category, amount]) => (
-                <div key={category} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <span className="text-sm font-medium text-gray-700 capitalize">
-                    {t(`expenses.${category}`)}
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-blue-600 rounded-full mr-1"></div>
+                    <span className="text-gray-600">{t("common.colporters")}</span>
+                  </div>
+                  <span className="font-medium">
+                    {(
+                      (programFinancials.distribution.colporterAmount /
+                        (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) *
+                      100
+                    ).toFixed(1)}
+                    %
                   </span>
-                  <Badge variant="warning">${formatNumber(amount)}</Badge>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </Card>
 
-      {/* Books Summary */}
-      <Card title={t("reports.booksDelivered")} icon={<Target size={20} />}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <p className="text-sm font-medium text-gray-500">{t("inventory.large")}</p>
-            <p className="mt-2 text-3xl font-bold text-primary-600">{bookTotals.large}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-medium text-gray-500">{t("inventory.small")}</p>
-            <p className="mt-2 text-3xl font-bold text-success-600">{bookTotals.small}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-medium text-gray-500">{t("common.total")}</p>
-            <p className="mt-2 text-3xl font-bold text-gray-900">{bookTotals.total}</p>
-          </div>
-        </div>
-      </Card>
+                <div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-purple-600 rounded-full mr-1"></div>
+                    <span className="text-gray-600">{t("common.leaders")}</span>
+                  </div>
+                  <span className="font-medium">
+                    {(
+                      (programFinancials.distribution.leaderAmount /
+                        (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) *
+                      100
+                    ).toFixed(1)}
+                    %
+                  </span>
+                </div>
 
-      {/* Goal Progress */}
-      {program && (
-        <Card title={t("dashboard.goalProgress")} icon={<Target size={20} />}>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm text-gray-500">{t("dashboard.monthlyProgress")}</p>
-                <p className="text-2xl font-bold text-gray-900">${formatNumber(totalRevenue)}</p>
+                <div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-orange-500 rounded-full mr-1"></div>
+                    <span className="text-gray-600">{t("expenses.title")}</span>
+                  </div>
+                  <span className="font-medium">
+                    {(
+                      (programFinancials.expenses.programExpenses /
+                        (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) *
+                      100
+                    ).toFixed(1)}
+                    %
+                  </span>
+                </div>
+
+                <div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
+                    <span className="text-gray-600">{t("cashAdvance.title")}</span>
+                  </div>
+                  <span className="font-medium">
+                    {(
+                      (programFinancials.expenses.advances /
+                        (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) *
+                      100
+                    ).toFixed(1)}
+                    %
+                  </span>
+                </div>
+
+                <div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
+                    <span className="text-gray-600">{t("dashboard.programSurplus")}</span>
+                  </div>
+                  <span className="font-medium">
+                    {(
+                      (programFinancials.netProfit /
+                        (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) *
+                      100
+                    ).toFixed(1)}
+                    %
+                  </span>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-500">{t("dashboard.programGoal")}</p>
-                <p className="text-lg font-semibold text-gray-700">${formatNumber(Number(program.financial_goal))}</p>
+            </div>
+          </Card>
+
+          <Card title={t("reports.byLeaders")} icon={<Users size={20} />}>
+            <div className="p-4 mb-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-purple-100 rounded-full">
+                  <Users size={20} className="text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-purple-800">{t("dashboard.revenueDistribution")}</h3>
+                  <p className="text-sm text-purple-700 mt-1">
+                    {t("reports.leaderEarningsBasedOnTeam")} ({programFinancials.distribution.leaderPercentage}%{" "}
+                    {t("common.of")} {t("reports.teamSales")}).
+                  </p>
+                  <div className="mt-2 grid grid-cols-2 gap-4">
+                    <div className="p-2 bg-white rounded border border-purple-100">
+                      <p className="text-xs text-purple-600">{t("dashboard.revenueDistribution")}</p>
+                      <p className="text-lg font-bold text-purple-800">
+                        {formatCurrency(programFinancials.distribution.leaderAmount)}
+                      </p>
+                    </div>
+                    <div className="p-2 bg-white rounded border border-purple-100">
+                      <p className="text-xs text-purple-600">
+                        {t("reports.avgPerLeader")} ({Object.keys(leaderSummaries).length})
+                      </p>
+                      <p className="text-lg font-bold text-purple-800">
+                        {formatCurrency(
+                          programFinancials.distribution.leaderAmount /
+                            Math.max(1, Object.keys(leaderSummaries).length),
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div
-                className="bg-primary-600 h-3 rounded-full transition-all duration-500"
-                style={{
-                  width: `${Math.min((totalRevenue / Number(program.financial_goal)) * 100, 100)}%`,
-                }}
-              ></div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t("common.leader")}
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t("common.colporters")}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t("reports.teamSales")}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t("dashboard.revenueDistribution")}
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      % Individual
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {Object.values(leaderSummaries).map((leader, index) => (
+                    <tr key={leader.name} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{leader.name}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                        <Badge variant="primary">{leader.colporterCount}</Badge>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                        {formatCurrency(leader.totalDonations)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-purple-600">
+                        {formatCurrency(leader.leaderEarnings)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                        <Badge 
+                          variant={leader.isCustomPercentage ? "warning" : "secondary"}
+                          className="flex items-center gap-1"
+                        >
+                          {leader.percentage}%
+                          {leader.isCustomPercentage && <span>⚙️</span>}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-gray-100">
+                    <td className="px-4 py-3 text-sm font-bold text-gray-900">{t("common.totals")}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-center font-bold">
+                      <Badge variant="primary">{colporterFinancials.length}</Badge>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
+                      {formatCurrency(programFinancials.income.donations)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-purple-600">
+                      {formatCurrency(programFinancials.distribution.leaderAmount)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-center font-bold">
+                      <Badge variant="secondary">
+                        Promedio: {Object.values(leaderSummaries).length > 0 
+                          ? (Object.values(leaderSummaries).reduce((sum, l) => sum + l.percentage, 0) / Object.values(leaderSummaries).length).toFixed(1)
+                          : programFinancials.distribution.leaderPercentage}%
+                      </Badge>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </Card>
+
+          <Card title={t("reports.byColporters")} icon={<Users size={20} />}>
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">
+                  {t("dashboard.showingTransactions")} {filteredColporterFinancials.length} {t("common.of")}{" "}
+                  {colporterFinancials.length} {t("common.colporters")}
+                </span>
+                {leaderFilter && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    {leaderFilter}
+                    <button onClick={() => setLeaderFilter("")} className="ml-1 text-gray-500 hover:text-gray-700">
+                      <X size={12} />
+                    </button>
+                  </Badge>
+                )}
+              </div>
+
+              <Button variant="outline" size="sm" leftIcon={<Download size={16} />}>
+                {t("common.export")}
+              </Button>
             </div>
 
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>{((totalRevenue / Number(program.financial_goal)) * 100).toFixed(1)}% {t("dashboard.achieved")}</span>
-              <span>
-                ${formatNumber(Number(program.financial_goal) - totalRevenue)} {t("dashboard.remaining")}
-              </span>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t("common.colporter")}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t("donations.title")}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t("charges.fine")}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t("charges.title")}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t("cashAdvance.title")}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      {t("dashboard.revenueDistribution")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredColporterFinancials.map((colporter, index) => (
+                    <tr key={colporter.id} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {colporter.name}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-green-600">
+                        {formatCurrency(colporter.donations)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-yellow-600">
+                        {formatCurrency(colporter.fines)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-red-600">
+                        {formatCurrency(colporter.charges)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-orange-600">
+                        {formatCurrency(colporter.advances)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-blue-600">
+                        {formatCurrency(colporter.earnings)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-gray-100">
+                    <td className="px-4 py-3 text-sm font-bold text-gray-900">
+                      {t("common.totals")}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-green-600">
+                      {formatCurrency(filteredColporterFinancials.reduce((sum, c) => sum + c.donations, 0))}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-yellow-600">
+                      {formatCurrency(filteredColporterFinancials.reduce((sum, c) => sum + c.fines, 0))}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-red-600">
+                      {formatCurrency(filteredColporterFinancials.reduce((sum, c) => sum + c.charges, 0))}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-orange-600">
+                      {formatCurrency(filteredColporterFinancials.reduce((sum, c) => sum + c.advances, 0))}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-blue-600">
+                      {formatCurrency(filteredColporterFinancials.reduce((sum, c) => sum + c.earnings, 0))}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </>
       )}
     </div>
   )
