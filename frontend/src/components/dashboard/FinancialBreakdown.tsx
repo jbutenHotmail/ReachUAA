@@ -158,7 +158,7 @@ const FinancialBreakdown: React.FC = () => {
           .filter(e => e.status === 'APPROVED' && e.leaderName=== 'Program')
           .reduce((sum: number, expense: any) => Number(sum) + Number(expense.amount), 0);
         
-        const totalExpenses = advancesAmount + programCostsAmount;
+        const totalExpenses = programCostsAmount; // Solo gastos del programa, no adelantos
         const programPercentage = 100 - studentPercentage - totalLeaderPercentage;
         const programGrossAmount = totalRevenue * (programPercentage / 100)
         const netProfit = programGrossAmount - totalExpenses;
@@ -166,7 +166,7 @@ const FinancialBreakdown: React.FC = () => {
         setFinancialData({
           totalRevenue,
           expenses: {
-            advances: advancesAmount,
+            advances: advancesAmount, // Mostrar para información, pero no afecta el cálculo
             programCosts: programCostsAmount,
             total: totalExpenses
           },
