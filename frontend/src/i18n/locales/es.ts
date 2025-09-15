@@ -907,6 +907,8 @@ export default {
     noActiveBooks: "No hay libros activos disponibles",
     preparingTransactionForm: "Preparando formulario de transacción...",
     nonColportableDay: "Día No Colportable",
+    nonColportableDayFormMessage: "El día seleccionado no está configurado como día laborable. No podrás crear una transacción para este día.",
+    cannotCreateNonColportableDay: "No se puede crear una transacción para un día no laborable. Por favor selecciona un día laborable.",
     stayOnPage: "Permanecer en esta página",
     returnToTransactions: "Volver a Transacciones",
     nonColportableDayMessage:
