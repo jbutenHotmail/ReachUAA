@@ -9,8 +9,9 @@ import LoadingScreen from './components/ui/LoadingScreen';
 import BonificationsPage from './pages/bonifications/BonificationPage';
 import SnacksExpenses from './pages/expenses/SnacksExpenses';
 import IncentivosExpenses from './pages/expenses/IncentivosExpenses';
-import LimpiezaExpenses from './pages/expenses/LimpiezaExpenses';
-import ActividadesExpenses from './pages/expenses/ActividadesExpenses';
+import CleaningExpenses from './pages/expenses/CleaningExpenses';
+import ActivitiesExpenses from './pages/expenses/ActivitiesExpenses';
+import AchievementsPage from './pages/achievements/AchievementsPage';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/auth/Login'));
@@ -259,11 +260,11 @@ function App() {
             <Route path="maintenance" element={<Suspense fallback={<LoadingScreen />}><MaintenanceExpenses /></Suspense>} />
             <Route path="fuel" element={<Suspense fallback={<LoadingScreen />}><FuelExpenses /></Suspense>} />
             <Route path="snacks" element={<Suspense fallback={<LoadingScreen />}><SnacksExpenses /></Suspense>} />
-            <Route path="incentives" element={<Suspense fallback={<LoadingScreen />}><IncentivesExpenses /></Suspense>} />
+            <Route path="incentives" element={<Suspense fallback={<LoadingScreen />}><IncentivosExpenses /></Suspense>} />
             <Route path="cleaning" element={<Suspense fallback={<LoadingScreen />}><CleaningExpenses /></Suspense>} />
             <Route path="activities" element={<Suspense fallback={<LoadingScreen />}><ActivitiesExpenses /></Suspense>} />
           </Route>
-
+          <Route path="charges" element={<Suspense fallback={<LoadingScreen />}><ChargesPage /></Suspense>} />
           {/* Cash Advance - Restricted for Viewer role */}
           <Route 
             path="cash-advance" 
@@ -279,7 +280,18 @@ function App() {
             <Route path="overview" element={<Suspense fallback={<LoadingScreen />}><CashAdvanceOverview /></Suspense>} />
             <Route path="new" element={<Suspense fallback={<LoadingScreen />}><AdminCashAdvance /></Suspense>} />
           </Route>
-
+            {/* Achievements - Restricted for Viewer role */}
+            <Route 
+              path="achievements" 
+              element={
+                <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPERVISOR]}>
+                  <Suspense fallback={<LoadingScreen message="Loading achievements..." />}>
+                    <AchievementsPage />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+              />
+              
           {/* Charges - Restricted for Viewer role */}
           <Route 
             path="charges" 
