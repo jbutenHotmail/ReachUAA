@@ -739,6 +739,7 @@ export default {
     "behindTarget": "Atrás del objetivo",
     "needsAttention": "Necesita atención",
     "totalHours": "Total de Horas",
+    "teamEarnings": "Ganancias del Equipo",
     "hoursWorked": "Horas Trabajadas",
     "errorNoProfile": "Tu cuenta no está vinculada a un perfil de colportor o líder",
     "errorLoadingStats": "No se pudieron cargar tus estadísticas personales",
@@ -1292,6 +1293,19 @@ export default {
     percentageLabel: "{{personType}}: {{percentage}}%",
     deductions: "Deducciones",
   },
+  "achievements": {
+    "title": "Logros",
+    description: "Gestionar todos los logros del programa",
+    "subtitle": "Reconociendo el desempeño excepcional de nuestros colportores",
+    "categories": {
+      "donations": "Mayores Donaciones",
+      "books_large": "Libros Grandes",
+      "books_small": "Libros Pequeños",
+      "bible_studies": "Estudios Bíblicos",
+      "category_books": "Libros por Categoría",
+      description: "Gestionar todos los logros del programa"
+    }
+  },
   expenses: {
     title: "Gastos",
     amount: "Monto",
@@ -1300,6 +1314,8 @@ export default {
     description: "Gestionar y rastrear todos los gastos del programa",
     motivo: "Motivo",
     snacks: "Snacks",
+    cleaning: "Limpieza",
+    activities: "Actividades",
     incentivos: "Incentivos",
     category: "Categoría",
     addExpense: "Agregar Gasto",

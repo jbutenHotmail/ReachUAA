@@ -234,7 +234,6 @@ export const useUserStore = create<UserStore>((set, get) => ({
   createPerson: async (personData) => {
     // Verificar si ya está en proceso de creación
     if (get().isCreatingPerson) {
-      console.log("Creation already in progress, preventing duplicate call");
       throw new Error("Creation already in progress");
     }
     console.log("Creando persona");

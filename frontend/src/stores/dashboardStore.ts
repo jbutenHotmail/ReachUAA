@@ -28,6 +28,7 @@ interface DashboardStats {
       small: number;
       total: number;
     };
+    percentageAchieved: number;
   };
   program: {
     goal: number;
@@ -133,7 +134,8 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
               large: stats.month?.books?.large || 0,
               small: stats.month?.books?.small || 0,
               total: stats.month?.books?.total || 0
-            }
+            },
+            percentageAchieved: stats.month?.percentageAchieved || 0
           },
           program: {
             goal: stats.program?.goal || 0,
@@ -295,6 +297,8 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         });
         updatedStats.month.books.total = updatedStats.month.books.large + updatedStats.month.books.small;
       }
+      // Update monthly percentage achieved
+      updatedStats.month.percentageAchieved = (updatedStats.month.sales / updatedStats.program.goal) * 100;
     }
 
     // Update program achieved amount

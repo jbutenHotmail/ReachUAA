@@ -21,6 +21,7 @@ import { clsx } from 'clsx';
 import { useAuthStore } from '../../stores/authStore';
 import { UserRole } from '../../types';
 import LoadingScreen from '../../components/ui/LoadingScreen';
+import { formatNumber } from '../../utils/numberUtils';
 
 const CashAdvanceOverview: React.FC = () => {
   const { t } = useTranslation();
@@ -132,16 +133,16 @@ const CashAdvanceOverview: React.FC = () => {
     return filteredAdvances.reduce((acc, advance) => {
       if (advance.status === 'PENDING') {
         acc.pending.count++;
-        acc.pending.amount += advance.advanceAmount;
+        acc.pending.amount += Number(advance.advanceAmount);
       } else if (advance.status === 'APPROVED') {
         acc.approved.count++;
-        acc.approved.amount += advance.advanceAmount;
+        acc.approved.amount += Number(advance.advanceAmount);
       } else if (advance.status === 'REJECTED') {
         acc.rejected.count++;
-        acc.rejected.amount += advance.advanceAmount;
+        acc.rejected.amount += Number(advance.advanceAmount);
       }
       advance.status !== 'REJECTED' && acc.total.count++;
-      advance.status !== 'REJECTED' && (acc.total.amount += advance.advanceAmount);
+      advance.status !== 'REJECTED' && (acc.total.amount += Number(advance.advanceAmount));
       return acc;
     }, {
       pending: { count: 0, amount: 0 },
@@ -299,7 +300,12 @@ const CashAdvanceOverview: React.FC = () => {
                 <option value="">{t('cashAdvance.allWeeks')}</option>
                 {uniqueWeeks.map(week => (
                   <option key={week} value={week}>
-                    {t('cashAdvance.weekOf')} {new Date(week).toLocaleDateString()}
+                    {t('cashAdvance.weekOf')} {new Date(week).toLocaleDateString('es-ES', {
+                      year: 'numeric',
+                      month: 'numeric',
+                      day: 'numeric',
+                      timeZone: 'UTC',
+                    })}
                   </option>
                 ))}
               </select>
@@ -366,20 +372,30 @@ const CashAdvanceOverview: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <Calendar size={16} className="text-gray-400" />
                           <span>
-                            {new Date(advance.weekStartDate).toLocaleDateString()} - {new Date(advance.weekEndDate).toLocaleDateString()}
+                            {new Date(advance.weekStartDate).toLocaleDateString('es-ES', {
+                              year: 'numeric',
+                              month: 'numeric',
+                              day: 'numeric',
+                              timeZone: 'UTC',
+                            })} - {new Date(advance.weekEndDate).toLocaleDateString('es-ES', {
+                              year: 'numeric',
+                              month: 'numeric',
+                              day: 'numeric',
+                              timeZone: 'UTC',
+                            })}
                           </span>
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                         <div className="flex items-center justify-end gap-1">
                           <DollarSign size={16} className="text-gray-400" />
-                          <span>{advance.totalSales.toFixed(2)}</span>
+                          <span>{formatNumber(advance.totalSales)}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                         <div className="flex items-center justify-end gap-1">
                           <DollarSign size={16} className="text-gray-400" />
-                          <span>{advance.advanceAmount.toFixed(2)}</span>
+                          <span>{formatNumber(advance.advanceAmount)}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
@@ -464,11 +480,11 @@ const CashAdvanceOverview: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">{t('cashAdvance.weeklySales')}</p>
-                    <p className="font-medium">${selectedAdvance.totalSales.toFixed(2)}</p>
+                    <p className="font-medium">${formatNumber(selectedAdvance.totalSales)}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">{t('cashAdvance.advanceAmount')}</p>
-                    <p className="font-medium">${selectedAdvance.advanceAmount.toFixed(2)}</p>
+                    <p className="font-medium">${formatNumber(selectedAdvance.advanceAmount)}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">{t('cashAdvance.requestDate')}</p>

@@ -177,9 +177,6 @@ const IndividualReports: React.FC = () => {
 
       // Filter advances for this person from local data
       const personAdvances = data.advances
-      console.log(selectedPerson)
-      console.log(data)
-      console.log(personAdvances)
       // Construct dailyEarnings from API response (assuming data.dailyEarnings exists)
       const dailyEarnings: Record<string, number> = data.dailyEarnings || {}
 

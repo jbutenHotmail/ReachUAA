@@ -52,7 +52,17 @@ const ProgramSelector: React.FC = () => {
     const start = new Date(startDate);
     const end = new Date(endDate);
     
-    return `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
+    return `${start.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      timeZone: 'UTC',
+    })} - ${end.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      timeZone: 'UTC',
+    })}
   };
 
   return (

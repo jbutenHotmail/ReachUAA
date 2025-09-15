@@ -45,14 +45,14 @@ export const getDashboardStats = async (req, res) => {
     weekEnd.setDate(weekStart.getDate() + 6); // Sunday + 6 days = Saturday
     const weekEndStr = weekEnd.toISOString().split('T')[0];
     
-    // Calculate month dates (unchanged)
-    const monthStart = new Date(today);
-    monthStart.setMonth(monthStart.getMonth() - 1);
+    // Calculate month dates
+    const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1); // First day of current month
     const monthStartStr = monthStart.toISOString().split('T')[0];
     
     // Get active program
     const program = await db.getOne(
-      'SELECT * FROM programs WHERE is_active = TRUE'
+      'SELECT * FROM programs WHERE is_active = TRUE AND id = ?',
+      [programId]
     );
     
     if (!program) {
@@ -183,6 +183,9 @@ export const getDashboardStats = async (req, res) => {
     const programRemaining = programGoal - programAchieved;
     const programPercentage = (programAchieved / programGoal) * 100;
     
+    // Calculate monthly percentage achieved
+    const monthlyPercentage = (monthlySales.total / programGoal) * 100;
+    
     // Construct response
     const stats = {
       today: {
@@ -207,7 +210,8 @@ export const getDashboardStats = async (req, res) => {
           large: monthlyLargeBooks,
           small: monthlySmallBooks,
           total: Number(monthlyLargeBooks) + Number(monthlySmallBooks)
-        }
+        },
+        percentageAchieved: monthlyPercentage
       },
       program: {
         goal: programGoal,
@@ -217,6 +221,7 @@ export const getDashboardStats = async (req, res) => {
       },
       salesChart
     };
+    console.log(stats.month);
     res.json(stats);
   } catch (error) {
     console.error('Error getting dashboard stats:', error);

@@ -226,9 +226,9 @@ const SummerBooksReport: React.FC<SummerBooksReportProps> = ({
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return {
-      day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      day: date.toLocaleDateString('es-ES', { day: 'numeric' }),  
       date: date.getDate(),
-      month: date.toLocaleDateString('en-US', { month: 'short' })
+      month: date.toLocaleDateString('es-ES', { month: 'short' })
     };
   };
 

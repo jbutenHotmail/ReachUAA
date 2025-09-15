@@ -267,7 +267,7 @@ const Dashboard: React.FC = () => {
           dailySales={stats.today.sales}
           weeklySales={stats.week.sales}
           monthlySales={stats.month.sales}
-          goalPercentage={Math.round(stats.program.percentageAchieved)}
+          goalPercentage={Math.round(stats.month.percentageAchieved)}
           dailyChange={dailyChange}
           weeklyChange={weeklyChange}
           monthlyChange={monthlyChange}

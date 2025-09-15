@@ -844,6 +844,18 @@ export default {
     passwordResetSuccess: "Password reset successfully",
     passwordResetError: "Error resetting password",
   },
+  achievements: {
+    title: "Achievements",
+    description: "Manage all program achievements",
+    "subtitle": "Recognizing exceptional performance of our colporters",
+    "categories": {
+      "donations": "Greater Donations",
+      "books_large": "Large Books",
+      "books_small": "Small Books",
+      "bible_studies": "Bible Studies",
+      "category_books": "Book Categories"
+    }
+  },
   "bonifications": {
     goldBonidification: "Gold Bonifification",
     silverBonidification: "Silver Bonifification",
@@ -900,6 +912,7 @@ export default {
     goalAchieved: "Goal Achieved!",
     onTrack: "On Track",
     totalHours: "Total Hours",
+    teamEarnings: "Team Earnings",
     hoursWorked: "Hours Worked",
     behindTarget: "Behind Target",
     totalBooks: "Total Books",
@@ -1146,6 +1159,7 @@ export default {
     inventoryTracking: "Inventory Tracking",
     unknownBook: "Unknown Book",
     bookTitle: "Book Title",
+    unknownAuthor: "Unknown Author",
     books: "Books",
     categories: {
       devotional: "Devotional",
@@ -1403,10 +1417,13 @@ export default {
     editExpense: "Edit Expense",
     food: "Food",
     health: "Health",
+    cleaning: "Cleaning",
+    activities: "Activities",
     supplies: "Supplies",
     snacks: "Snacks",
     maintenance: "Vehicle Maintenance",
     fuel: "Fuel",
+    incentivos: "Incentives",
     vehicle: "Vehicle",
     programCosts: "Program Costs",
     loading: "Loading expenses...",

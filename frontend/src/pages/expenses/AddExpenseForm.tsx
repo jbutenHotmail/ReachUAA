@@ -780,7 +780,7 @@ const AddExpenseForm: React.FC<AddExpenseFormProps> = ({
             {initialData && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('common.status')}
+                  {t('charges.status')}
                 </label>
                 <select
                   name="status"
