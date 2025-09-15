@@ -24,7 +24,7 @@ const ExpenseLayout: React.FC = () => {
     { path: 'maintenance', label: t('expenses.maintenance'), icon: <Wrench size={18} /> },
     { path: 'fuel', label: t('expenses.fuel'), icon: <Fuel size={18} /> },
     { path: 'snacks', label: t('expenses.snacks'), icon: <Cookie size={18} /> },
-    { path: 'incentives', label: t('expenses.incentives'), icon: <Gift size={18} /> },
+    { path: 'incentives', label: t('expenses.incentivos'), icon: <Gift size={18} /> },
     { path: 'cleaning', label: t('expenses.cleaning'), icon: <Wrench size={18} /> },
     { path: 'activities', label: t('expenses.activities'), icon: <Calendar size={18} /> },
   ];
@@ -62,5 +62,4 @@ const ExpenseLayout: React.FC = () => {
     </div>
   );
 };
-
 export default ExpenseLayout;
