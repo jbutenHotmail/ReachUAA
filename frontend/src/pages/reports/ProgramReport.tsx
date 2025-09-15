@@ -14,6 +14,7 @@ import {
   BarChart3,
   Download,
   X,
+  Info,
 } from "lucide-react"
 import Card from "../../components/ui/Card"
 import Button from "../../components/ui/Button"
@@ -41,15 +42,15 @@ interface ProgramFinancials {
     totalFines: number
   }
   expenses: {
-    advances: number
     programExpenses: number
     totalExpenses: number
   }
+  advances: number // Separamos advances del objeto expenses
   distribution: {
     colporterPercentage: number
     leaderPercentage: number
     colporterAmount: number
-    leaderAmount: number // Ahora será la suma de todas las ganancias individuales de líderes
+    leaderAmount: number
     defaultLeaderAmount: number
     customLeaderAmount: number
   }
@@ -83,10 +84,11 @@ const ProgramReport: React.FC = () => {
   const { advances, fetchAdvances, wereAdvancesFetched } = useCashAdvanceStore()
   const { program, fetchProgram, wasProgramFetched } = useProgramStore()
   const { leaderPercentages, fetchLeaderPercentages, werePercentagesFetched } = useLeaderPercentageStore()
-  const approvedExpenses = expenses.filter((e)=> e.status === 'APPROVED' && e.leaderName === 'Program')
+  const approvedExpenses = expenses.filter((e) => e.status === 'APPROVED' && e.leaderName === 'Program')
   const approvedTransactions = transactions.filter((t) => t.status === 'APPROVED')
   const filteredCharges = charges.filter((c) => c.status === 'APPLIED')
   const filteredAdvances = advances.filter((a) => a.status === 'APPROVED')
+
   useEffect(() => {
     const loadReportData = async () => {
       setIsLoading(true)
@@ -167,19 +169,14 @@ const ProgramReport: React.FC = () => {
       colporterMap.forEach((colporter) => {
         colporter.earnings = colporter.donations * (colporter.percentage / 100)
       })
-      
+
       // Calcular ganancias de líderes basado en transacciones individuales
-      // Cada transacción contribuye a las ganancias del líder que estuvo a cargo ese día
       let totalLeaderAmount = 0
       approvedTransactions.forEach((transaction) => {
-        // Buscar porcentaje individual del líder
         const customPercentage = leaderPercentages.find(lp => 
           lp.leaderId === transaction.leaderId && lp.isActive
         )
-        
-        // Usar porcentaje personalizado o global
         const leaderPercentage = customPercentage ? customPercentage.percentage : defaultLeaderPercentage
-        
         const leaderEarnings = Number(transaction.total) * (leaderPercentage / 100)
         totalLeaderAmount += leaderEarnings
       })
@@ -187,15 +184,13 @@ const ProgramReport: React.FC = () => {
       // Separar ganancias de líderes por tipo de porcentaje
       let defaultLeaderAmount = 0
       let customLeaderAmount = 0
-      
+
       approvedTransactions.forEach((transaction) => {
         const customPercentage = leaderPercentages.find(lp => 
           lp.leaderId === transaction.leaderId && lp.isActive
         )
-        
         const leaderPercentage = customPercentage ? customPercentage.percentage : defaultLeaderPercentage
         const leaderEarnings = Number(transaction.total) * (leaderPercentage / 100)
-        
         if (customPercentage) {
           customLeaderAmount += leaderEarnings
         } else {
@@ -204,7 +199,7 @@ const ProgramReport: React.FC = () => {
       })
 
       const totalIncome = totalDonations + totalFines
-      const totalExpenses = totalAdvances + programExpenses
+      const totalExpenses = programExpenses // Solo gastos del programa, no adelantos
       const totalDistribution = colporterAmount + totalLeaderAmount
       const netProfit = totalIncome - totalExpenses - totalDistribution
 
@@ -218,15 +213,15 @@ const ProgramReport: React.FC = () => {
           totalFines,
         },
         expenses: {
-          advances: totalAdvances,
           programExpenses,
           totalExpenses,
         },
+        advances: totalAdvances, // Guardamos los adelantos por separado
         distribution: {
           colporterPercentage,
           leaderPercentage: defaultLeaderPercentage,
           colporterAmount,
-          leaderAmount: totalLeaderAmount, // Ahora es la suma de ganancias individuales
+          leaderAmount: totalLeaderAmount,
           defaultLeaderAmount,
           customLeaderAmount,
         },
@@ -235,26 +230,21 @@ const ProgramReport: React.FC = () => {
 
       setColporterFinancials(Array.from(colporterMap.values()))
     }
-  }, [transactions, charges, advances, program, expenses, leaderPercentages])
+  }, [transactions, charges, advances, expenses, program, leaderPercentages])
 
   // Calcular resúmenes de líderes basado en transacciones individuales
   const leaderSummaries = React.useMemo(() => {
     const summaries: Record<string, any> = {}
-    
-    // Procesar cada transacción individualmente
+
     approvedTransactions.forEach((transaction) => {
       const leaderName = transaction.leaderName
-      
-      // Buscar porcentaje individual del líder
       const customPercentage = leaderPercentages.find(lp => 
         lp.leaderId === transaction.leaderId && lp.isActive
       )
-      
-      // Usar porcentaje personalizado o global
       const leaderPercentage = customPercentage ? customPercentage.percentage : (program?.financialConfig?.leader_percentage 
         ? parseFloat(program.financialConfig.leader_percentage) 
         : 15)
-      
+
       if (!summaries[leaderName]) {
         summaries[leaderName] = {
           name: leaderName,
@@ -266,33 +256,25 @@ const ProgramReport: React.FC = () => {
           isCustomPercentage: !!customPercentage
         }
       }
-      
-      // Sumar ventas del equipo (cada transacción que supervisó)
+
       summaries[leaderName].totalDonations += Number(transaction.total)
-      
-      // Calcular ganancias del líder para esta transacción específica con su porcentaje
       summaries[leaderName].leaderEarnings += Number(transaction.total) * (leaderPercentage / 100)
-      
-      // Agregar colportor único
       summaries[leaderName].uniqueColporters.add(transaction.studentId)
       summaries[leaderName].transactionCount++
     })
-    
-    // Convertir Set a número para el conteo
+
     Object.values(summaries).forEach((leader: any) => {
       leader.colporterCount = leader.uniqueColporters.size
     })
-    
+
     return summaries
   }, [approvedTransactions, program, leaderPercentages])
 
   const filteredColporterFinancials = React.useMemo(() => {
     let filtered = [...colporterFinancials]
-
     if (leaderFilter) {
       filtered = filtered.filter((c) => c.leaderName === leaderFilter)
     }
-
     return filtered
   }, [colporterFinancials, leaderFilter])
 
@@ -308,7 +290,6 @@ const ProgramReport: React.FC = () => {
     }).format(amount)
   }
 
-  // Verificar si hay líderes con porcentajes personalizados
   const hasCustomPercentages = Object.values(leaderSummaries).some(l => l.isCustomPercentage)
 
   const distributionChartData = {
@@ -329,31 +310,31 @@ const ProgramReport: React.FC = () => {
     datasets: [
       {
         data: programFinancials ? (hasCustomPercentages ? [
-              programFinancials.distribution.colporterAmount,
-              programFinancials.distribution.defaultLeaderAmount,
-              programFinancials.distribution.customLeaderAmount,
-              programFinancials.expenses.programExpenses,
-              programFinancials.expenses.advances,
-              programFinancials.netProfit,
-            ] : [
-              programFinancials.distribution.colporterAmount,
-              programFinancials.distribution.leaderAmount,
-              programFinancials.expenses.programExpenses,
-              programFinancials.expenses.advances,
-              programFinancials.netProfit,
-            ]) : [],
+          programFinancials.distribution.colporterAmount,
+          programFinancials.distribution.defaultLeaderAmount,
+          programFinancials.distribution.customLeaderAmount,
+          programFinancials.expenses.programExpenses,
+          programFinancials.advances,
+          programFinancials.netProfit,
+        ] : [
+          programFinancials.distribution.colporterAmount,
+          programFinancials.distribution.leaderAmount,
+          programFinancials.expenses.programExpenses,
+          programFinancials.advances,
+          programFinancials.netProfit,
+        ]) : [],
         backgroundColor: hasCustomPercentages ? [
           "rgba(59, 130, 246, 0.8)",
-          "rgba(139, 92, 246, 0.8)", // Purple for default leaders
-          "rgba(251, 191, 36, 0.8)",  // Yellow for custom leaders
+          "rgba(139, 92, 246, 0.8)",
+          "rgba(251, 191, 36, 0.8)",
           "rgba(249, 115, 22, 0.8)",
-          "rgba(239, 68, 68, 0.8)",
+          "rgba(45, 212, 191, 0.8)", // Teal para adelantos
           "rgba(16, 185, 129, 0.8)",
         ] : [
           "rgba(59, 130, 246, 0.8)",
           "rgba(139, 92, 246, 0.8)",
           "rgba(249, 115, 22, 0.8)",
-          "rgba(239, 68, 68, 0.8)",
+          "rgba(45, 212, 191, 0.8)", // Teal para adelantos
           "rgba(16, 185, 129, 0.8)",
         ],
         borderColor: hasCustomPercentages ? [
@@ -361,13 +342,13 @@ const ProgramReport: React.FC = () => {
           "rgba(139, 92, 246, 1)",
           "rgba(251, 191, 36, 1)",
           "rgba(249, 115, 22, 1)",
-          "rgba(239, 68, 68, 1)",
+          "rgba(45, 212, 191, 1)",
           "rgba(16, 185, 129, 1)",
         ] : [
           "rgba(59, 130, 246, 1)",
           "rgba(139, 92, 246, 1)",
           "rgba(249, 115, 22, 1)",
-          "rgba(239, 68, 68, 1)",
+          "rgba(45, 212, 191, 1)",
           "rgba(16, 185, 129, 1)",
         ],
         borderWidth: 1,
@@ -380,21 +361,15 @@ const ProgramReport: React.FC = () => {
     datasets: [
       {
         label: t("reports.programSales"),
-        data: uniqueLeaders.map((leader) => {
-          return leaderSummaries[leader]?.totalDonations || 0
-        }),
+        data: uniqueLeaders.map((leader) => leaderSummaries[leader]?.totalDonations || 0),
         backgroundColor: "rgba(59, 130, 246, 0.8)",
       },
       {
-        label: `${t("dashboard.revenueDistribution")} (${t("common.leaders")})${Object.values(leaderSummaries).some(l => l.isCustomPercentage) ? ' *' : ''}`,
-        data: uniqueLeaders.map((leader) => {
-          return leaderSummaries[leader]?.leaderEarnings || 0
-        }),
+        label: `${t("dashboard.revenueDistribution")} (${t("common.leaders")})${hasCustomPercentages ? ' *' : ''}`,
+        data: uniqueLeaders.map((leader) => leaderSummaries[leader]?.leaderEarnings || 0),
         backgroundColor: uniqueLeaders.map((leader) => {
-          const leaderData = leaderSummaries[leader];
-          return leaderData?.isCustomPercentage 
-            ? "rgba(251, 191, 36, 0.8)"  // Yellow for custom percentage
-            : "rgba(139, 92, 246, 0.8)"; // Purple for default
+          const leaderData = leaderSummaries[leader]
+          return leaderData?.isCustomPercentage ? "rgba(251, 191, 36, 0.8)" : "rgba(139, 92, 246, 0.8)"
         }),
       },
     ],
@@ -526,13 +501,11 @@ const ProgramReport: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <Receipt className="text-orange-500" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">{t("expenses.totalExpenses")}</p>
+            <p className="text-sm font-medium text-gray-500">{t("expenses.title")}</p>
             <p className="mt-1 text-2xl font-bold text-red-600">
               {formatCurrency(programFinancials.expenses.totalExpenses)}
             </p>
-            <p className="text-xs text-gray-500">
-              {t("cashAdvance.title")} + {t("expenses.title")}
-            </p>
+            <p className="text-xs text-gray-500">{t("expenses.programExpenses")}</p>
           </div>
         </Card>
 
@@ -544,7 +517,7 @@ const ProgramReport: React.FC = () => {
             <p className="text-sm font-medium text-gray-500">{t("dashboard.revenueDistribution")}</p>
             <p className="mt-1 text-2xl font-bold text-blue-600">
               {formatCurrency(
-                programFinancials.distribution.colporterAmount + programFinancials.distribution.leaderAmount,
+                programFinancials.distribution.colporterAmount + programFinancials.distribution.leaderAmount
               )}
             </p>
             <p className="text-xs text-gray-500">
@@ -568,48 +541,21 @@ const ProgramReport: React.FC = () => {
       {viewType === "summary" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card title={t("dashboard.financialSummary")} icon={<PieChart size={20} />}>
-            {/* Alert for distribution issues */}
             {programFinancials && (
               (() => {
                 const totalDistribution = programFinancials.distribution.colporterPercentage + 
-                  (Object.values(leaderSummaries).reduce((sum, leader) => sum + leader.percentage, 0) / Object.values(leaderSummaries).length);
-                const isExcessive = totalDistribution > 100;
-                const isHigh = totalDistribution > 90;
-                
-                // if (isExcessive || isHigh) {
-                //   return (
-                //     <div className={`p-3 mb-4 border rounded-lg ${
-                //       isExcessive ? 'bg-danger-50 border-danger-200' : 'bg-warning-50 border-warning-200'
-                //     }`}>
-                //       <div className="flex items-start gap-2">
-                //         <AlertTriangle className={`flex-shrink-0 mt-0.5 ${
-                //           isExcessive ? 'text-danger-600' : 'text-warning-600'
-                //         }`} size={16} />
-                       
-                //           {/* <p className="font-medium">
-                //             {isExcessive ? '⚠️ Distribución Excesiva' : '⚠️ Distribución Alta'}
-                //           </p> */}
-                //           {/* <p>
-                //             {isExcessive 
-                //               ? 'Los porcentajes personalizados están causando una distribución mayor al 100%'
-                //               : 'Los porcentajes personalizados están dejando poco superávit para el programa'
-                //             }
-                //           </p> */}
-                //       </div>
-                //     </div>
-                //   );
-                // }
-                return null;
+                  (Object.values(leaderSummaries).reduce((sum, leader) => sum + leader.percentage, 0) / Object.values(leaderSummaries).length)
+                const isExcessive = totalDistribution > 100
+                const isHigh = totalDistribution > 90
+                return null // Comentado el bloque de alerta según el código original
               })()
             )}
-            
             <div className="h-80 flex justify-center items-center">
               <Pie data={distributionChartData} options={chartOptions} />
             </div>
             <div className="grid grid-cols-2 gap-4 mt-6">
               <div className="p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm font-medium text-blue-700">{`${t("dashboard.revenueDistribution")} (${t("common.colporters")})`
-}</p>
+                <p className="text-sm font-medium text-blue-700">{`${t("dashboard.revenueDistribution")} (${t("common.colporters")})`}</p>
                 <p className="text-lg font-bold text-blue-800 mt-1">
                   {formatCurrency(programFinancials.distribution.colporterAmount)}
                 </p>
@@ -620,16 +566,14 @@ const ProgramReport: React.FC = () => {
               <div className="p-3 bg-purple-50 rounded-lg">
                 <p className="text-sm font-medium text-purple-700">
                   {`${t("dashboard.revenueDistribution")} (${t("common.leaders")})`}
-                  {Object.values(leaderSummaries).some(l => l.isCustomPercentage) && (
-                    <span className="ml-1 text-yellow-600">*</span>
-                  )}
+                  {hasCustomPercentages && <span className="ml-1 text-yellow-600">*</span>}
                 </p>
                 <p className="text-lg font-bold text-purple-800 mt-1">
                   {formatCurrency(programFinancials.distribution.leaderAmount)}
                 </p>
                 <div className="text-xs text-purple-600">
-                  {Object.values(leaderSummaries).some(l => l.isCustomPercentage) ? (
-                    <span>Porcentajes individuales aplicados</span>
+                  {hasCustomPercentages ? (
+                    <span>{t("reports.individualPercentages")}</span>
                   ) : (
                     <span>{programFinancials.distribution.leaderPercentage}% {t("common.of")} {t("reports.teamSales")}</span>
                   )}
@@ -656,7 +600,7 @@ const ProgramReport: React.FC = () => {
                 <p className="text-sm font-medium text-success-700">{t("reports.avgTeamSales")}</p>
                 <p className="text-lg font-bold text-success-800 mt-1">
                   {formatCurrency(
-                    programFinancials.income.donations / Math.max(1, Object.keys(leaderSummaries).length),
+                    programFinancials.income.donations / Math.max(1, Object.keys(leaderSummaries).length)
                   )}
                 </p>
               </div>
@@ -694,29 +638,34 @@ const ProgramReport: React.FC = () => {
                   <span className="text-sm font-bold text-primary-700">{t("dashboard.totalRevenue")}</span>
                   <span className="text-xl font-bold text-primary-700">
                     {formatCurrency(
-                      programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines,
+                      programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines
                     )}
                   </span>
                 </div>
               </div>
             </Card>
 
-            <Card title={t("expenses.title")} icon={<TrendingDown size={20} />}>
+            <Card title={t("cashAdvance.title")} icon={<Info size={20} />}>
               <div className="space-y-4">
-                <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                <div className="flex justify-between items-center p-3 bg-teal-50 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <Wallet size={16} className="text-red-600" />
-                    <span className="text-sm font-medium text-red-700">{t("cashAdvance.title")}</span>
+                    <Wallet size={16} className="text-teal-600" />
+                    <span className="text-sm font-medium text-teal-700">{t("cashAdvance.totalAdvances")}</span>
                   </div>
-                  <span className="text-lg font-bold text-red-700">
-                    {formatCurrency(programFinancials.expenses.advances)}
+                  <span className="text-lg font-bold text-teal-700">
+                    {formatCurrency(programFinancials.advances)}
                   </span>
                 </div>
+                <p className="text-xs text-teal-600">{t("cashAdvance.notDeducted")}</p>
+              </div>
+            </Card>
 
+            <Card title={t("expenses.title")} icon={<TrendingDown size={20} />}>
+              <div className="space-y-4">
                 <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
                   <div className="flex items-center gap-2">
                     <Receipt size={16} className="text-orange-600" />
-                    <span className="text-sm font-medium text-orange-700">{t("expenses.title")}</span>
+                    <span className="text-sm font-medium text-orange-700">{t("expenses.programExpenses")}</span>
                   </div>
                   <span className="text-lg font-bold text-orange-700">
                     {formatCurrency(programFinancials.expenses.programExpenses)}
@@ -819,8 +768,8 @@ const ProgramReport: React.FC = () => {
                   {formatCurrency(programFinancials.distribution.leaderAmount)}
                 </p>
                 <div className="text-xs text-purple-600">
-                  {Object.values(leaderSummaries).some(l => l.isCustomPercentage) ? (
-                    <span>Porcentajes individuales aplicados</span>
+                  {hasCustomPercentages ? (
+                    <span>{t("reports.individualPercentages")}</span>
                   ) : (
                     <span>{programFinancials.distribution.leaderPercentage}% {t("common.of")} {t("reports.teamSales")}</span>
                   )}
@@ -870,9 +819,9 @@ const ProgramReport: React.FC = () => {
                     }}
                   ></div>
                   <div
-                    className="bg-red-500 h-2.5"
+                    className="bg-teal-500 h-2.5"
                     style={{
-                      width: `${(programFinancials.expenses.advances / (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) * 100}%`,
+                      width: `${(programFinancials.advances / (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) * 100}%`,
                     }}
                   ></div>
                   <div
@@ -932,12 +881,12 @@ const ProgramReport: React.FC = () => {
 
                 <div>
                   <div className="flex items-center">
-                    <div className="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
+                    <div className="w-3 h-3 bg-teal-500 rounded-full mr-1"></div>
                     <span className="text-gray-600">{t("cashAdvance.title")}</span>
                   </div>
                   <span className="font-medium">
                     {(
-                      (programFinancials.expenses.advances /
+                      (programFinancials.advances /
                         (programFinancials.income.totalDonations + programFinancials.miscellaneous.totalFines)) *
                       100
                     ).toFixed(1)}
@@ -989,7 +938,7 @@ const ProgramReport: React.FC = () => {
                       <p className="text-lg font-bold text-purple-800">
                         {formatCurrency(
                           programFinancials.distribution.leaderAmount /
-                            Math.max(1, Object.keys(leaderSummaries).length),
+                            Math.max(1, Object.keys(leaderSummaries).length)
                         )}
                       </p>
                     </div>
@@ -1130,7 +1079,7 @@ const ProgramReport: React.FC = () => {
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-red-600">
                         {formatCurrency(colporter.charges)}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-orange-600">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-teal-600">
                         {formatCurrency(colporter.advances)}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-blue-600">
@@ -1153,7 +1102,7 @@ const ProgramReport: React.FC = () => {
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-red-600">
                       {formatCurrency(filteredColporterFinancials.reduce((sum, c) => sum + c.charges, 0))}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-orange-600">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-teal-600">
                       {formatCurrency(filteredColporterFinancials.reduce((sum, c) => sum + c.advances, 0))}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-blue-600">
