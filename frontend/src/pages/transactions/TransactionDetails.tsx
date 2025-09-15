@@ -164,6 +164,24 @@ const TransactionDetails: React.FC = () => {
                   </p>
                 </div>
                 <div>
+                  <p className="text-sm text-gray-500">Pueblo Colportado</p>
+                  <p className="font-medium">{transaction.townWorked || t("common.notSpecified")}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Campo</p>
+                  <p className="font-medium">
+                    {transaction.fieldDirection ? (
+                      <Badge variant="secondary" size="sm">
+                        {transaction.fieldDirection === 'North' ? 'Norte' : 
+                         transaction.fieldDirection === 'South' ? 'Sur' :
+                         transaction.fieldDirection === 'East' ? 'Este' : 'Oeste'}
+                      </Badge>
+                    ) : (
+                      t("common.notSpecified")
+                    )}
+                  </p>
+                </div>
+                <div>
                   <p className="text-sm text-gray-500">{t("transactionDetails.createdAt")}</p>
                   <p className="font-medium">
                     {new Date(transaction.createdAt).toLocaleDateString(i18n.language, {

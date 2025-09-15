@@ -11,6 +11,8 @@ import {
   BookText,
   Calendar,
   AlertTriangle,
+  Settings,
+  ChevronRight,
   CheckCircle,
   Clock,
 } from "lucide-react";
@@ -73,6 +75,8 @@ const NewTransaction: React.FC = () => {
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hoursWorked, setHoursWorked] = useState<number>(0);
+  const [townWorked, setTownWorked] = useState<string>('');
+  const [fieldDirection, setFieldDirection] = useState<'North' | 'South' | 'East' | 'West' | ''>('');
 
   const leaderDropdownRef = useRef<HTMLDivElement>(null);
   const colporterDropdownRef = useRef<HTMLDivElement>(null);
@@ -213,6 +217,8 @@ const NewTransaction: React.FC = () => {
         total,
         date: selectedDate,
         hoursWorked,
+        townWorked,
+        fieldDirection,
         books: Object.entries(bookQuantities)
           .filter(([_, quantity]) => quantity > 0)
           .map(([id, quantity]) => {
@@ -242,6 +248,8 @@ const NewTransaction: React.FC = () => {
         setAtmMobile(0);
         setPaypal(0);
         setHoursWorked(0);
+        setTownWorked('');
+        setFieldDirection('');
         setBookQuantities({});
 
         // Keep success message visible for 3 seconds
@@ -274,6 +282,14 @@ const NewTransaction: React.FC = () => {
 
   // Filter only active books
   const activeBooks = books.filter((book) => book.is_active);
+
+  // Campo options
+  const fieldDirectionOptions = [
+    { value: 'North', label: 'Norte' },
+    { value: 'South', label: 'Sur' },
+    { value: 'East', label: 'Este' },
+    { value: 'West', label: 'Oeste' },
+  ];
 
   // If loading, show loading screen
   if (isLoading) {
@@ -616,6 +632,45 @@ const NewTransaction: React.FC = () => {
               </div>
             </Card>
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          {/* Town Worked */}
+          <Card>
+            <div className="space-y-3 sm:space-y-4">
+              <label className="block text-sm font-medium text-gray-700">
+                Pueblo Colportado
+              </label>
+              <Input
+                type="text"
+                value={townWorked}
+                onChange={(e) => setTownWorked(e.target.value)}
+                placeholder="Ingrese el nombre del pueblo"
+                className="w-full"
+              />
+            </div>
+          </Card>
+
+          {/* Field Direction */}
+          <Card>
+            <div className="space-y-3 sm:space-y-4">
+              <label className="block text-sm font-medium text-gray-700">
+                Campo
+              </label>
+              <select
+                value={fieldDirection}
+                onChange={(e) => setFieldDirection(e.target.value as 'North' | 'South' | 'East' | 'West' | '')}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+              >
+                <option value="">Seleccione un campo</option>
+                {fieldDirectionOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
