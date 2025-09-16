@@ -27,7 +27,7 @@ interface BonificationStore extends BonificationState {
 // Bonification levels configuration
 const BONIFICATION_LEVELS = {
   SILVER: {
-    requiredHours: 280,
+    requiredHours: 160,
     requiredAmount: 3480,
     rewardAmount: 1496,
   },
