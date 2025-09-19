@@ -164,7 +164,7 @@ const SummerColporterReport: React.FC = () => {
         )
         console.log(leaderTransactions)
         // Calculate total sales
-        const totalSales = colporterTransactions.reduce((sum, t) => sum + t.total, 0)
+        const totalSales = colporterTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0)
         const totalHours = colporterTransactions.reduce((sum, t) => Number(sum) + (Number(t.hours_worked) || 0), 0)
 
         // Calculate book counts
@@ -233,7 +233,7 @@ const SummerColporterReport: React.FC = () => {
           : 15
 
     // Calculate total sales
-    const totalSales = validTransactions.reduce((sum, t) => sum + t.total, 0)
+    const totalSales = validTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0)
     const totalHours = validTransactions.reduce((sum, t) => Number(sum) + (Number(t.hours_worked) || 0), 0)
     const workingDays = validTransactions.length
     const averagePerDay = totalSales / workingDays
