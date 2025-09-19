@@ -16,7 +16,6 @@ import { formatDateToString } from "../../utils/dateUtils"
 import { BookSize } from "../../types"
 import { formatNumber } from "../../utils/numberUtils"
 
-
 const Transactions: React.FC = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -27,12 +26,29 @@ const Transactions: React.FC = () => {
 
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [selectedLeader, setSelectedLeader] = useState<string>("")
+  const [sortBy, setSortBy] = useState<'name' | 'amount' | 'books'>('name')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [activeTab, setActiveTab] = useState<"finances" | "delivered-books">(() => {
     if (location.pathname === "/transactions/delivered-books") {
       return "delivered-books"
     }
     return "finances"
   })
+  
+  const handleSortChange = (newSortBy: 'name' | 'amount' | 'books') => {
+    if (sortBy === newSortBy) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(newSortBy)
+      setSortOrder(newSortBy === 'name' ? 'asc' : 'desc')
+    }
+  }
+  
+  const getSortIcon = (field: 'name' | 'amount' | 'books') => {
+    if (sortBy !== field) return '↕️'
+    return sortOrder === 'asc' ? '↑' : '↓'
+  }
+
   useEffect(() => {
     if (location.pathname === "/transactions") {
       navigate("/transactions/finances", { replace: true })
@@ -44,7 +60,7 @@ const Transactions: React.FC = () => {
       setActiveTab(newTab)
     }
   }, [location.pathname, activeTab])
-  console.log('location.pathname', location.pathname)
+  console.log("location.pathname", location.pathname)
   useEffect(() => {
     const formattedDate = formatDateToString(selectedDate)
     fetchTransactions(formattedDate)
@@ -85,11 +101,54 @@ const Transactions: React.FC = () => {
     return `${year}-${month}-${day}`
   }
 
-  // Filter out rejected transactions for leader totals and book counts
   const validTransactions = transactions.filter(
-    (t) => t.status === "APPROVED" && t.date === formatDateToString(selectedDate),
+    (t) => t.status !== "REJECTED" && t.date === formatDateToString(selectedDate),
   )
 
+  // Apply sorting to filtered transactions
+  const sortedTransactions = React.useMemo(() => {
+    let filtered = transactions.filter((t) => t.date === formatDateToString(selectedDate))
+    
+    if (selectedLeader) {
+      filtered = filtered.filter(
+        (t) => Number(t.leaderId) === Number(selectedLeader)
+      )
+    }
+    
+    // Apply sorting
+    return filtered.sort((a, b) => {
+      let aValue: string | number
+      let bValue: string | number
+      
+      switch (sortBy) {
+        case 'name':
+          aValue = a.studentName.toLowerCase()
+          bValue = b.studentName.toLowerCase()
+          break
+        case 'amount':
+          aValue = Number(a.total)
+          bValue = Number(b.total)
+          break
+        case 'books':
+          const aTotalBooks = a.books?.reduce((sum, book) => sum + book.quantity, 0) || 0
+          const bTotalBooks = b.books?.reduce((sum, book) => sum + book.quantity, 0) || 0
+          aValue = aTotalBooks
+          bValue = bTotalBooks
+          break
+        default:
+          aValue = a.studentName.toLowerCase()
+          bValue = b.studentName.toLowerCase()
+      }
+      
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue)
+        return sortOrder === 'asc' ? comparison : -comparison
+      } else {
+        const comparison = (aValue as number) - (bValue as number)
+        return sortOrder === 'asc' ? comparison : -comparison
+      }
+    })
+  }, [transactions, selectedLeader, selectedDate, sortBy, sortOrder])
   const leaderTotals = React.useMemo(() => {
     const totals = new Map()
     const leaderPercentage = program?.financialConfig?.leader_percentage
@@ -122,22 +181,41 @@ const Transactions: React.FC = () => {
     return validTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0)
   }, [validTransactions])
 
-  const filteredTransactions = React.useMemo(() => {
-    if (!selectedLeader)
-      return transactions.filter((t) => t.date === formatDateToString(selectedDate))
-    return transactions.filter(
-      (t) =>
-        Number(t.leaderId) === Number(selectedLeader) &&
-        t.date === formatDateToString(selectedDate),
-    )
-  }, [transactions, selectedLeader, selectedDate])
-
-  // Calculate book totals from valid transactions
+  // Sort leader totals
+  const sortedLeaderTotals = React.useMemo(() => {
+    return [...leaderTotals].sort((a, b) => {
+      let aValue: string | number
+      let bValue: string | number
+      
+      switch (sortBy) {
+        case 'name':
+          aValue = a.name.toLowerCase()
+          bValue = b.name.toLowerCase()
+          break
+        case 'amount':
+          aValue = a.total
+          bValue = b.total
+          break
+        default:
+          aValue = a.name.toLowerCase()
+          bValue = b.name.toLowerCase()
+      }
+      
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue)
+        return sortOrder === 'asc' ? comparison : -comparison
+      } else {
+        const comparison = (aValue as number) - (bValue as number)
+        return sortOrder === 'asc' ? comparison : -comparison
+      }
+    })
+  }, [leaderTotals, sortBy, sortOrder])
+  
   const bookTotals = React.useMemo(() => {
-    const dayTransactions = transactions.filter((t) => 
-      t.date === formatDateToString(selectedDate) && t.status === 'APPROVED'
-    );
-    
+    const dayTransactions = transactions.filter(
+      (t) => t.date === formatDateToString(selectedDate) && t.status !== "REJECTED",
+    )
+
     return dayTransactions.reduce(
       (acc, transaction) => {
         transaction.books?.forEach((book) => {
@@ -215,6 +293,29 @@ const Transactions: React.FC = () => {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600 whitespace-nowrap">{t('common.sortBy')}:</span>
+            <select
+              value={`${sortBy}-${sortOrder}`}
+              onChange={(e) => {
+                const [field, order] = e.target.value.split('-') as ['name' | 'amount' | 'books', 'asc' | 'desc']
+                setSortBy(field)
+                setSortOrder(order)
+              }}
+              className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="name-asc">{t('transactions.sortNameAsc')}</option>
+              <option value="name-desc">{t('transactions.sortNameDesc')}</option>
+              <option value="amount-desc">{t('transactions.sortAmountDesc')}</option>
+              <option value="amount-asc">{t('transactions.sortAmountAsc')}</option>
+              {activeTab === "delivered-books" && (
+                <>
+                  <option value="books-desc">{t('transactions.sortBooksDesc')}</option>
+                  <option value="books-asc">{t('transactions.sortBooksAsc')}</option>
+                </>
+              )}
+            </select>
+          </div>
           {activeTab === "finances" && (
             <select
               value={selectedLeader}
@@ -222,7 +323,7 @@ const Transactions: React.FC = () => {
               className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
             >
               <option value="">
-                {t("common.all")} {t("common.leader")}s
+                All leaders
               </option>
               {leaderTotals.map((leader) => (
                 <option key={leader.id} value={leader.id}>
@@ -263,31 +364,49 @@ const Transactions: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-4 w-full">
           {activeTab === "finances" ? (
-            <DailyTransactions transactions={filteredTransactions} date={formatDateToString(selectedDate)} />
+            <DailyTransactions 
+              transactions={sortedTransactions} 
+              date={formatDateToString(selectedDate)}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={handleSortChange}
+            />
           ) : (
             <Card>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead>
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0">
-                        {t("transactions.colporter")}
+                      <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0 cursor-pointer hover:bg-[#003d85]"
+                          onClick={() => handleSortChange('name')}>
+                        <div className="flex items-center gap-1">
+                          {t("transactions.colporter")}
+                          <span className="text-xs">{getSortIcon('name')}</span>
+                        </div>
                       </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-primary-700">
-                        {t("transactions.largeBooks")}
+                      <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-primary-700 cursor-pointer hover:bg-primary-800"
+                          onClick={() => handleSortChange('books')}>
+                        <div className="flex items-center justify-center gap-1">
+                          {t("transactions.largeBooks")}
+                          <span className="text-xs">{getSortIcon('books')}</span>
+                        </div>
                       </th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-success-600">
                         {t("transactions.smallBooks")}
                       </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85]">
-                        {t("transactions.totalBooks")}
+                      <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] cursor-pointer hover:bg-[#002952]"
+                          onClick={() => handleSortChange('books')}>
+                        <div className="flex items-center justify-center gap-1">
+                          {t("transactions.totalBooks")}
+                          <span className="text-xs">{getSortIcon('books')}</span>
+                        </div>
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {validTransactions.map((transaction, index) => {
+                    {sortedTransactions.filter(t => t.status !== 'REJECTED').map((transaction, index) => {
                       const largeBooks =
                         transaction.books?.reduce((sum, book) => {
                           const bookSize = book.size
@@ -343,60 +462,57 @@ const Transactions: React.FC = () => {
             </Card>
           )}
         </div>
+      </div>
 
-        <div className="lg:col-span-1">
-          <Card title={t("common.totals")}>
-            <div className="space-y-3 sm:space-y-4">
-              {activeTab === "finances" ? (
-                <>
-                  {leaderTotals.map((leader) => (
-                    <div key={leader.id} className="flex justify-between items-center p-3 bg-primary-50 rounded-lg">
-                      <div className="min-w-0">
-                        <span className="text-sm font-medium text-primary-700 block truncate">{leader.name}</span>
-                        <span className="text-xs text-primary-600 block">
-                          {leader.transactions} {t("transactions.transactionsCount")}
-                        </span>
-                        <span className="text-xs text-purple-600 block font-medium">
-                          {program?.financialConfig?.leader_percentage + "%"}: ${formatNumber(leader.earnings)}
-                        </span>
-                      </div>
-                      <Badge variant="primary" size="lg" className="ml-2 flex-shrink-0">
-                        ${formatNumber(leader.total)}
-                      </Badge>
-                    </div>
-                  ))}
-                  <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg border-t-2 border-blue-100 mt-4">
-                    <span className="text-sm font-medium text-blue-700">{t("common.total")}</span>
-                    <Badge variant="primary" size="lg">
-                      ${formatNumber(dayTotal)}
-                    </Badge>
+      {/* Summary Section - Now below the main content */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        {activeTab === "finances" ? (
+          <>
+            {sortedLeaderTotals.map((leader) => (
+              <Card key={leader.id} className="p-4">
+                <div className="text-center">
+                  <p className="text-sm font-medium text-primary-700 truncate">{leader.name}</p>
+                  <p className="mt-1 text-xl font-bold text-primary-600">${formatNumber(leader.total)}</p>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-xs text-primary-600">
+                      {leader.transactions} {t("transactions.transactionsCount")}
+                    </p>
+                    <p className="text-xs text-purple-600 font-medium">
+                      {program?.financialConfig?.leader_percentage}%: ${formatNumber(leader.earnings)}
+                    </p>
                   </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex justify-between items-center p-3 bg-primary-50 rounded-lg">
-                    <span className="text-sm font-medium text-primary-700">{t("transactions.largeBooks")}</span>
-                    <Badge variant="primary" size="lg">
-                      {bookTotals.large}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-success-50 rounded-lg">
-                    <span className="text-sm font-medium text-success-700">{t("transactions.smallBooks")}</span>
-                    <Badge variant="success" size="lg">
-                      {bookTotals.small}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-[#0052B4] rounded-lg border-t-2 border-[#003D85]">
-                    <span className="text-sm font-medium text-white">{t("transactions.totalBooks")}</span>
-                    <Badge variant="primary" size="lg" className="bg-white text-[#0052B4]">
-                      {bookTotals.large + bookTotals.small}
-                    </Badge>
-                  </div>
-                </>
-              )}
-            </div>
-          </Card>
-        </div>
+                </div>
+              </Card>
+            ))}
+            <Card className="p-4 bg-blue-50 border-blue-200">
+              <div className="text-center">
+                <p className="text-sm font-medium text-blue-700">{t("common.total")}</p>
+                <p className="mt-1 text-4xl font-bold text-blue-800">${formatNumber(dayTotal)}</p>
+              </div>
+            </Card>
+          </>
+        ) : (
+          <>
+            <Card className="p-4">
+              <div className="text-center">
+                <p className="text-sm font-medium text-primary-700">{t("transactions.largeBooks")}</p>
+                <p className="mt-1 text-2xl font-bold text-primary-600">{bookTotals.large}</p>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="text-center">
+                <p className="text-sm font-medium text-success-700">{t("transactions.smallBooks")}</p>
+                <p className="mt-1 text-2xl font-bold text-success-600">{bookTotals.small}</p>
+              </div>
+            </Card>
+            <Card className="p-4 bg-[#0052B4]">
+              <div className="text-center">
+                <p className="text-sm font-medium">{t("transactions.totalBooks")}</p>
+                <p className="mt-1 text-4xl font-bold">{bookTotals.large + bookTotals.small}</p>
+              </div>
+            </Card>
+          </>
+        )}
       </div>
     </div>
   )

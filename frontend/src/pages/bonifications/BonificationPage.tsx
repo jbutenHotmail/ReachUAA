@@ -408,7 +408,7 @@ const BonificationsPage: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="p-3 bg-gray-50 rounded-lg">
                       <p className="text-gray-600">{t("bonifications.hoursRequired")}</p>
-                      <p className="font-bold text-gray-900">280</p>
+                      <p className="font-bold text-gray-900">160</p>
                     </div>
                     <div className="p-3 bg-gray-50 rounded-lg">
                       <p className="text-gray-600">{t("bonifications.depositRequired")}</p>
@@ -426,11 +426,11 @@ const BonificationsPage: React.FC = () => {
                       <div>
                         <div className="flex justify-between text-sm mb-1">
                           <span className="text-gray-600">{t("bonifications.hoursProgress")}</span>
-                          <span className="font-medium">{bonificationStatus.currentHours} / 280</span>
+                          <span className="font-medium">{bonificationStatus.currentHours} / 160</span>
                         </div>
                         <ProgressBar
                           value={bonificationStatus.currentHours}
-                          max={280}
+                          max={160}
                           variant={getProgressColor(bonificationStatus.silverStatus.hoursProgress, "SILVER")}
                           height={8}
                         />
@@ -837,7 +837,7 @@ const BonificationsPage: React.FC = () => {
                       {t("bonifications.gold")}
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t("bonifications.earnedAmount")}
+                      {t("bonifications.totalEarned")}
                     </th>
                   </tr>
                 </thead>

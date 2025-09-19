@@ -902,7 +902,12 @@ const AllExpenses: React.FC<AllExpensesProps> = ({ defaultCategory }) => {
                       onClick={() => expense.isParentExpense && toggleExpenseExpansion(expense.id)}
                     >
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        {new Date(expense.date).toLocaleDateString()}
+                        {new Date(expense.date).toLocaleDateString('es-ES', {
+                          year: 'numeric',
+                          month: 'numeric',
+                          day: 'numeric',
+                          timeZone: 'UTC',
+                        })}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center gap-2">

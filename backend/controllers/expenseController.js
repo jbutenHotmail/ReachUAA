@@ -91,7 +91,6 @@ export const getExpenses = async (req, res) => {
     
     // If fetching for budget calculation, return total spending
     if (category && status === 'APPROVED') {
-      console.log(expenses);
       const total = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
       res.json({ total });
     } else {

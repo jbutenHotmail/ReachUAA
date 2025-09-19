@@ -132,7 +132,7 @@ const calculateBonificationStatus = (
   colporterId
 ) => {
   // Bonification requirements
-  const SILVER_HOURS = 280;
+  const SILVER_HOURS = 160;
   const SILVER_AMOUNT = 3480;
   const GOLD_HOURS = 320;
   const GOLD_AMOUNT = 4800;

@@ -264,7 +264,7 @@ function App() {
             <Route path="cleaning" element={<Suspense fallback={<LoadingScreen />}><CleaningExpenses /></Suspense>} />
             <Route path="activities" element={<Suspense fallback={<LoadingScreen />}><ActivitiesExpenses /></Suspense>} />
           </Route>
-
+          <Route path="charges" element={<Suspense fallback={<LoadingScreen />}><ChargesPage /></Suspense>} />
           {/* Cash Advance - Restricted for Viewer role */}
           <Route 
             path="cash-advance" 

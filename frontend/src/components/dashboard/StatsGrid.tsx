@@ -123,7 +123,6 @@ const StatsGrid: React.FC<StatsGridProps> = ({
         value={`${goalPercentage}%`}
         prefix=""
         icon={<BookText className="h-6 w-6 text-warning-600 bg-warning-100" />}
-        secondaryValue={`${monthlyBooks.large}/${monthlyBooks.small}`}
         secondaryLabel={`${t('inventory.large')}/${t('inventory.small')}`}
       />
     </div>

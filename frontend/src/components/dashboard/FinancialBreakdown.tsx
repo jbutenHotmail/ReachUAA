@@ -13,13 +13,18 @@ import { formatNumber } from '../../utils/numberUtils';
 interface FinancialData {
   totalRevenue: number;
   expenses: {
-    advances: number;
     programCosts: number;
     total: number;
   };
+  paymentBreakdown: {
+    cash: number;
+    checks: number;
+    atmMobile: number;
+    paypal: number;
+  };
+  advances: number;
   distribution: {
     students: number;
-    leaders: number;
     globalLeaders: number;
     customLeaders: number;
   };
@@ -42,17 +47,24 @@ const FinancialBreakdown: React.FC = () => {
   const { expenses, wereExpensesFetched, fetchExpenses, isLoading: expensesLoading } = useExpenseStore();
   const { leaderPercentages, fetchLeaderPercentages, werePercentagesFetched } = useLeaderPercentageStore();
   const { people, fetchPeople, werePeopleFetched } = useUserStore();
-  
+
   const [financialData, setFinancialData] = useState<FinancialData>({
     totalRevenue: 0,
-    expenses: {
-      advances: 0,
-      programCosts: 0,
-      total: 0
+    paymentBreakdown: {
+      cash: 0,
+      checks: 0,
+      atmMobile: 0,
+      paypal: 0,
     },
+    expenses: {
+      programCosts: 0,
+      total: 0,
+    },
+    advances: 0,
     distribution: {
       students: 0,
-      leaders: 0
+      globalLeaders: 0,
+      customLeaders: 0,
     },
     leaderBreakdown: {
       globalLeadersCount: 0,
@@ -61,8 +73,8 @@ const FinancialBreakdown: React.FC = () => {
       customLeadersPercentage: 0,
       totalLeaderPercentage: 0,
     },
+    programGrossAmount: 0,
     netProfit: 0,
-    programGrossAmount: 0
   });
   const [isCalculating, setIsCalculating] = useState(advancesLoading || expensesLoading || transactionsLoading);
 
@@ -71,109 +83,96 @@ const FinancialBreakdown: React.FC = () => {
     !werePercentagesFetched && fetchLeaderPercentages();
     !werePeopleFetched && fetchPeople(program?.id);
   }, [fetchExpenses, fetchLeaderPercentages, fetchPeople, wereExpensesFetched, werePercentagesFetched, werePeopleFetched, program]);
-  
+
   useEffect(() => {
     if (transactions.length > 0 && program && people.length > 0) {
       setIsCalculating(true);
-      
-      // Pequeño retraso para asegurar que el estado de carga se muestre
+
       const timer = setTimeout(() => {
         const validTransactions = transactions.filter(t => t.status === 'APPROVED');
         const totalRevenue = validTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0);
-        
-        const studentPercentage = program.financialConfig?.colporter_percentage 
-          ? parseFloat(program.financialConfig.colporter_percentage) 
+
+        // Calculate payment method breakdown
+        const paymentBreakdown = validTransactions.reduce((acc, t) => ({
+          cash: acc.cash + Number(t.cash),
+          checks: acc.checks + Number(t.checks),
+          atmMobile: acc.atmMobile + Number(t.atmMobile),
+          paypal: acc.paypal + Number(t.paypal),
+        }), { cash: 0, checks: 0, atmMobile: 0, paypal: 0 });
+
+        const studentPercentage = program.financialConfig?.colporter_percentage
+          ? parseFloat(program.financialConfig.colporter_percentage)
           : 50;
-        
-        // Get global leader percentage
-        const globalLeaderPercentage = program.financialConfig?.leader_percentage 
-          ? parseFloat(program.financialConfig.leader_percentage) 
+
+        const globalLeaderPercentage = program.financialConfig?.leader_percentage
+          ? parseFloat(program.financialConfig.leader_percentage)
           : 15;
-        
-        // Get all leaders
+
         const leaders = people.filter(p => p.personType === 'LEADER');
-        
-        // Separate leaders with custom vs global percentages
-        const leadersWithCustom = leaders.filter(leader => 
+        const leadersWithCustom = leaders.filter(leader =>
           leaderPercentages.some(p => p.leaderId === leader.id && p.isActive)
         );
-        
-        const leadersWithGlobal = leaders.filter(leader => 
+        const leadersWithGlobal = leaders.filter(leader =>
           !leaderPercentages.some(p => p.leaderId === leader.id && p.isActive)
         );
-        
-        // Calculate custom leaders earnings based on their supervised transactions
+
         const customLeadersAmount = leadersWithCustom.reduce((sum, leader) => {
           const individualPercentage = leaderPercentages.find(
             p => p.leaderId === leader.id && p.isActive
           );
-          
           if (!individualPercentage) return sum;
-          
-          // Get transactions supervised by this specific leader
           const leaderTransactions = validTransactions.filter(t => t.leaderId === leader.id);
           const leaderTeamSales = leaderTransactions.reduce((teamSum, t) => teamSum + Number(t.total), 0);
-          
-          // Calculate this leader's earnings based on their team's sales
           const leaderEarnings = leaderTeamSales * (individualPercentage.percentage / 100);
-          
           return sum + leaderEarnings;
         }, 0);
-        
-        // Calculate global leaders earnings based on their supervised transactions
+
         const globalLeadersAmount = leadersWithGlobal.reduce((sum, leader) => {
-          // Get transactions supervised by this specific leader
           const leaderTransactions = validTransactions.filter(t => t.leaderId === leader.id);
           const leaderTeamSales = leaderTransactions.reduce((teamSum, t) => teamSum + Number(t.total), 0);
-          
-          // Calculate this leader's earnings based on their team's sales and global percentage
           const leaderEarnings = leaderTeamSales * (globalLeaderPercentage / 100);
-          
           return sum + leaderEarnings;
         }, 0);
-        
-        // Calculate total custom leader percentage for display purposes
+
         const customLeaderPercentage = leadersWithCustom.reduce((sum, leader) => {
           const individualPercentage = leaderPercentages.find(
             p => p.leaderId === leader.id && p.isActive
           );
           return sum + (individualPercentage ? individualPercentage.percentage : 0);
         }, 0);
-        
-        // Calculate global leaders total percentage
-        // If there are leaders using global percentage, they share the global percentage equally
+
         const globalLeadersTotalPercentage = leadersWithGlobal.length > 0 ? globalLeaderPercentage : 0;
-        
-        // Total leader percentage
         const totalLeaderPercentage = customLeaderPercentage + globalLeadersTotalPercentage;
-        
-        // Calculate amounts correctly
-        const studentsAmount = totalRevenue * (studentPercentage / 100);
-        
+
         const advancesAmount = advances
           .filter(a => a.status === 'APPROVED')
-          .reduce((sum, a) => sum + a.advanceAmount, 0);
-        
+          .reduce((sum, a) => Number(sum) + Number(a.advanceAmount), 0);
+
+        // Calculate students' amount and subtract advances
+        const grossStudentsAmount = totalRevenue * (studentPercentage / 100);
+        const studentsAmount = grossStudentsAmount - advancesAmount;
+
         const programCostsAmount = expenses
-          .filter(e => e.status === 'APPROVED')
+          .filter(e => e.status === 'APPROVED' && e.leaderName === 'Program')
           .reduce((sum: number, expense: any) => Number(sum) + Number(expense.amount), 0);
-        
-        const totalExpenses = advancesAmount + programCostsAmount;
+
+        const totalExpenses = programCostsAmount;
         const programPercentage = 100 - studentPercentage - totalLeaderPercentage;
-        const programGrossAmount = totalRevenue * (programPercentage / 100)
+        const programGrossAmount = totalRevenue * (programPercentage / 100);
         const netProfit = programGrossAmount - totalExpenses;
-        
+
         setFinancialData({
           totalRevenue,
+          paymentBreakdown,
           expenses: {
-            advances: advancesAmount,
             programCosts: programCostsAmount,
-            total: totalExpenses
+            total: totalExpenses,
           },
+          advances: advancesAmount,
           distribution: {
             students: studentsAmount,
             globalLeaders: globalLeadersAmount,
-            customLeaders: customLeadersAmount
+            customLeaders: customLeadersAmount,
           },
           leaderBreakdown: {
             globalLeadersCount: leadersWithGlobal.length,
@@ -183,12 +182,12 @@ const FinancialBreakdown: React.FC = () => {
             totalLeaderPercentage,
           },
           programGrossAmount,
-          netProfit
+          netProfit,
         });
-        
+
         setIsCalculating(false);
       }, 500);
-      
+
       return () => clearTimeout(timer);
     }
   }, [transactions, program, advances, expenses, people, leaderPercentages]);
@@ -219,7 +218,6 @@ const FinancialBreakdown: React.FC = () => {
 
       <div className="space-y-3">
         <div className="h-4 bg-gray-300 rounded w-48"></div>
-        
         <div className="space-y-2">
           <div className="flex justify-between items-center p-3 bg-gray-100 rounded-lg">
             <div className="h-4 bg-gray-300 rounded w-32"></div>
@@ -238,16 +236,7 @@ const FinancialBreakdown: React.FC = () => {
 
       <div className="space-y-3">
         <div className="h-4 bg-gray-300 rounded w-48"></div>
-        
         <div className="space-y-2">
-          <div className="flex justify-between items-center p-2 bg-gray-100 rounded">
-            <div className="h-4 bg-gray-300 rounded w-24"></div>
-            <div className="h-4 bg-gray-300 rounded w-16"></div>
-          </div>
-          <div className="flex justify-between items-center p-2 bg-gray-100 rounded">
-            <div className="h-4 bg-gray-300 rounded w-24"></div>
-            <div className="h-4 bg-gray-300 rounded w-16"></div>
-          </div>
           <div className="flex justify-between items-center p-2 bg-gray-100 rounded">
             <div className="h-4 bg-gray-300 rounded w-24"></div>
             <div className="h-4 bg-gray-300 rounded w-16"></div>
@@ -277,6 +266,7 @@ const FinancialBreakdown: React.FC = () => {
         renderLoadingState()
       ) : (
         <div className="space-y-6">
+          {/* Total Revenue */}
           <div className="p-4 bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg border border-primary-200">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary-600 rounded-full">
@@ -285,49 +275,92 @@ const FinancialBreakdown: React.FC = () => {
               <div>
                 <p className="text-sm font-medium text-primary-800">{t('dashboard.totalRevenue')}</p>
                 <p className="text-2xl font-bold text-primary-900">
-                  {formatCurrency(financialData.totalRevenue)}
+                  {formatNumber(financialData.totalRevenue)}
+                </p>
+              </div>
+            </div>
+            
+            {/* Payment Methods Breakdown */}
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="text-center p-2 bg-white/50 rounded">
+                <p className="text-xs text-primary-600">Efectivo</p>
+                <p className="text-sm font-semibold text-primary-800">
+                  ${formatNumber(financialData.paymentBreakdown.cash)}
+                </p>
+              </div>
+              <div className="text-center p-2 bg-white/50 rounded">
+                <p className="text-xs text-primary-600">Cheques</p>
+                <p className="text-sm font-semibold text-primary-800">
+                  ${formatNumber(financialData.paymentBreakdown.checks)}
+                </p>
+              </div>
+              <div className="text-center p-2 bg-white/50 rounded">
+                <p className="text-xs text-primary-600">ATH Móvil</p>
+                <p className="text-sm font-semibold text-primary-800">
+                  ${formatNumber(financialData.paymentBreakdown.atmMobile)}
+                </p>
+              </div>
+              <div className="text-center p-2 bg-white/50 rounded">
+                <p className="text-xs text-primary-600">PayPal</p>
+                <p className="text-sm font-semibold text-primary-800">
+                  ${formatNumber(financialData.paymentBreakdown.paypal)}
                 </p>
               </div>
             </div>
           </div>
 
+          {/* Revenue Distribution */}
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
               <Users size={16} />
               {t('dashboard.revenueDistribution')}
             </h4>
-            
             <div className="space-y-2">
-              <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                <div>
-                  <span className="text-sm font-medium text-blue-700">
-                    {t('common.student')} ({program?.financialConfig?.colporter_percentage || 50}%)
-                  </span>
-                  <div className="w-full bg-blue-200 rounded-full h-1.5 mt-1">
-                    <div 
-                      className="bg-blue-600 h-1.5 rounded-full" 
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <div className="flex-1">
+                  {/* Student Total Amount */}
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-medium text-blue-700">
+                      {t('common.student')} ({program?.financialConfig?.colporter_percentage || 50}%)
+                    </span>
+                    <span className="text-sm font-bold text-blue-900">
+                      {formatNumber(financialData.distribution.students + financialData.advances)}
+                    </span>
+                  </div>
+                  <div className="w-full bg-blue-200 rounded-full h-1.5 mb-2">
+                    <div
+                      className="bg-blue-600 h-1.5 rounded-full"
                       style={{ width: `${program?.financialConfig?.colporter_percentage || 50}%` }}
                     ></div>
                   </div>
+                  {/* Cash Advances */}
+                  {financialData.advances > 0 && (
+                    <div className="flex justify-between items-center text-xs text-blue-600 mb-1">
+                      <span>{t('cashAdvance.totalAdvances')}</span>
+                      <span>{formatNumber(financialData.advances)}</span>
+                    </div>
+                  )}
+                  {/* Net Student Amount */}
+                  {financialData.advances > 0 && (
+                    <div className="flex justify-between items-center text-xs text-blue-600">
+                      <span>{t('dashboard.netStudentAmount')}</span>
+                      <span>{formatNumber(financialData.distribution.students)}</span>
+                    </div>
+                  )}
                 </div>
-                <span className="text-sm font-bold text-blue-900">
-                  {formatCurrency(financialData.distribution.students)}
-                </span>
               </div>
 
               <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
                 <div className="flex-1">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-medium text-purple-700">
-                      Líderes 
-                    </span>
+                    <span className="text-sm font-medium text-purple-700">Líderes</span>
                     <span className="text-sm font-bold text-purple-900">
                       {formatCurrency(financialData.distribution.globalLeaders)}
                     </span>
                   </div>
                   <div className="w-full bg-purple-200 rounded-full h-1.5">
-                    <div 
-                      className="bg-purple-600 h-1.5 rounded-full" 
+                    <div
+                      className="bg-purple-600 h-1.5 rounded-full"
                       style={{ width: `${financialData.leaderBreakdown.globalLeadersPercentage}%` }}
                     ></div>
                   </div>
@@ -346,8 +379,8 @@ const FinancialBreakdown: React.FC = () => {
                       </span>
                     </div>
                     <div className="w-full bg-yellow-200 rounded-full h-1.5">
-                      <div 
-                        className="bg-yellow-600 h-1.5 rounded-full" 
+                      <div
+                        className="bg-yellow-600 h-1.5 rounded-full"
                         style={{ width: `${financialData.leaderBreakdown.customLeadersPercentage}%` }}
                       ></div>
                     </div>
@@ -358,63 +391,72 @@ const FinancialBreakdown: React.FC = () => {
               <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                 <div>
                   <span className="text-sm font-medium text-gray-700">
-                    {t('common.program')} ({formatNumber(100 - (program?.financialConfig?.colporter_percentage ? parseFloat(program.financialConfig.colporter_percentage) : 50) - financialData.leaderBreakdown.totalLeaderPercentage, 1)}%)
+                    {t('common.program')} (
+                    {formatNumber(
+                      100 -
+                        (program?.financialConfig?.colporter_percentage
+                          ? parseFloat(program.financialConfig.colporter_percentage)
+                          : 50) -
+                        financialData.leaderBreakdown.totalLeaderPercentage,
+                      1
+                    )}
+                    %)
                   </span>
                   <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-                    <div 
-                      className="bg-gray-600 h-1.5 rounded-full" 
-                      style={{ width: `${100 - (program?.financialConfig?.colporter_percentage ? parseFloat(program.financialConfig.colporter_percentage) : 50) - financialData.leaderBreakdown.totalLeaderPercentage}%` }}
+                    <div
+                      className="bg-gray-600 h-1.5 rounded-full"
+                      style={{
+                        width: `${
+                          100 -
+                          (program?.financialConfig?.colporter_percentage
+                            ? parseFloat(program.financialConfig.colporter_percentage)
+                            : 50) -
+                          financialData.leaderBreakdown.totalLeaderPercentage
+                        }%`,
+                      }}
                     ></div>
                   </div>
                 </div>
                 <span className="text-sm font-bold text-gray-900">
-                  {formatCurrency(financialData.programGrossAmount)}
+                  {formatNumber(financialData.programGrossAmount)}
                 </span>
               </div>
             </div>
           </div>
 
+          {/* Expenses */}
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
               <TrendingUp size={16} />
               {t('expenses.title')}
             </h4>
-            
             <div className="space-y-2">
-              <div className="flex justify-between items-center p-2 bg-red-50 rounded">
-                <span className="text-sm text-red-700">{t('cashAdvance.title')}</span>
-                <span className="text-sm font-medium text-red-900">
-                  {formatCurrency(financialData.expenses.advances)}
-                </span>
-              </div>
-
               <div className="flex justify-between items-center p-2 bg-orange-50 rounded">
                 <span className="text-sm text-orange-700">{t('expenses.programCosts')}</span>
                 <span className="text-sm font-medium text-orange-900">
-                  {formatCurrency(financialData.expenses.programCosts)}
+                  {formatNumber(financialData.expenses.programCosts)}
                 </span>
               </div>
 
               <div className="flex justify-between items-center p-2 bg-red-100 rounded border-t border-red-200">
                 <span className="text-sm font-medium text-red-800">{t('common.totals')}</span>
                 <span className="text-sm font-bold text-red-900">
-                  {formatCurrency(financialData.expenses.total)}
+                  {formatNumber(financialData.expenses.total)}
                 </span>
               </div>
             </div>
           </div>
 
+          {/* Program Surplus */}
           <div className="pt-4 border-t border-gray-200">
             <div className="p-3 bg-gradient-to-r from-success-50 to-success-100 rounded-lg border border-success-200">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-success-800">{t('dashboard.programSurplus')}</span>
                 <span className="text-lg font-bold text-success-900">
-                  {formatCurrency(financialData.netProfit)}
+                  {formatNumber(financialData.netProfit)}
                 </span>
               </div>
-              <p className="text-xs text-success-600 mt-1">
-                {t('dashboard.afterDistributions')}
-              </p>
+              <p className="text-xs text-success-600 mt-1">{t('dashboard.afterDistributions')}</p>
             </div>
           </div>
         </div>

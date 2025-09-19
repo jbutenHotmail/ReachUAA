@@ -23,6 +23,7 @@ import dashboardRoutes from './routes/dashboard.js';
 import setupRoutes from './routes/setup.js';
 import leadersRoutes from './routes/leaders.js';
 import bonificationsRoutes from './routes/bonifications.js';
+import achievementsRoutes from './routes/achievements.js';
 
 // Get current directory
 const __filename = fileURLToPath(import.meta.url);
@@ -75,6 +76,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/setup', setupRoutes);
 app.use('/api/leaders', leadersRoutes);
 app.use('/api/bonifications', bonificationsRoutes);
+app.use('/api/achievements', achievementsRoutes);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
