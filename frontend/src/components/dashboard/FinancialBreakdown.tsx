@@ -23,6 +23,7 @@ interface FinancialData {
     paypal: number;
   };
   advances: number;
+  leaderAdvances: number; // Added to store leader advances
   distribution: {
     students: number;
     globalLeaders: number;
@@ -61,6 +62,7 @@ const FinancialBreakdown: React.FC = () => {
       total: 0,
     },
     advances: 0,
+    leaderAdvances: 0, // Initialize leaderAdvances
     distribution: {
       students: 0,
       globalLeaders: 0,
@@ -148,9 +150,18 @@ const FinancialBreakdown: React.FC = () => {
           .filter(a => a.status === 'APPROVED')
           .reduce((sum, a) => Number(sum) + Number(a.advanceAmount), 0);
 
-        // Calculate students' amount and subtract advances
+        // Separate advances by person type
+        const colporterAdvances = advances
+          .filter(a => a.status === 'APPROVED' && a.personType === 'COLPORTER')
+          .reduce((sum, a) => Number(sum) + Number(a.advanceAmount), 0);
+        
+        const leaderAdvances = advances
+          .filter(a => a.status === 'APPROVED' && a.personType === 'LEADER')
+          .reduce((sum, a) => Number(sum) + Number(a.advanceAmount), 0);
+
+        // Calculate students' amount and subtract only colporter advances
         const grossStudentsAmount = totalRevenue * (studentPercentage / 100);
-        const studentsAmount = grossStudentsAmount - advancesAmount;
+        const studentsAmount = grossStudentsAmount - colporterAdvances;
 
         const programCostsAmount = expenses
           .filter(e => e.status === 'APPROVED' && e.leaderName === 'Program')
@@ -169,10 +180,11 @@ const FinancialBreakdown: React.FC = () => {
             total: totalExpenses,
           },
           advances: advancesAmount,
+          leaderAdvances, // Store leaderAdvances in state
           distribution: {
             students: studentsAmount,
-            globalLeaders: globalLeadersAmount,
-            customLeaders: customLeadersAmount,
+            globalLeaders: globalLeadersAmount - (leaderAdvances * (globalLeadersAmount / (globalLeadersAmount + customLeadersAmount || 1))),
+            customLeaders: customLeadersAmount - (leaderAdvances * (customLeadersAmount / (globalLeadersAmount + customLeadersAmount || 1))),
           },
           leaderBreakdown: {
             globalLeadersCount: leadersWithGlobal.length,
@@ -318,13 +330,13 @@ const FinancialBreakdown: React.FC = () => {
             <div className="space-y-2">
               <div className="p-3 bg-blue-50 rounded-lg">
                 <div className="flex-1">
-                  {/* Student Total Amount */}
+                  {/* Student Gross Amount */}
                   <div className="flex justify-between items-center mb-1">
                     <span className="text-sm font-medium text-blue-700">
                       {t('common.student')} ({program?.financialConfig?.colporter_percentage || 50}%)
                     </span>
                     <span className="text-sm font-bold text-blue-900">
-                      {formatNumber(financialData.distribution.students + financialData.advances)}
+                      {formatNumber((Number(program?.financialConfig?.colporter_percentage) || 50) * (financialData.totalRevenue / 100))}
                     </span>
                   </div>
                   <div className="w-full bg-blue-200 rounded-full h-1.5 mb-2">
@@ -333,17 +345,17 @@ const FinancialBreakdown: React.FC = () => {
                       style={{ width: `${program?.financialConfig?.colporter_percentage || 50}%` }}
                     ></div>
                   </div>
-                  {/* Cash Advances */}
-                  {financialData.advances > 0 && (
+                  {/* Colporter Cash Advances */}
+                  {advances.filter(a => a.status === 'APPROVED' && a.personType === 'COLPORTER').length > 0 && (
                     <div className="flex justify-between items-center text-xs text-blue-600 mb-1">
-                      <span>{t('cashAdvance.totalAdvances')}</span>
-                      <span>{formatNumber(financialData.advances)}</span>
+                      <span>Adelantos Colportores</span>
+                      <span>-{formatNumber(advances.filter(a => a.status === 'APPROVED' && a.personType === 'COLPORTER').reduce((sum, a) => sum + Number(a.advanceAmount), 0))}</span>
                     </div>
                   )}
-                  {/* Net Student Amount */}
-                  {financialData.advances > 0 && (
+                  {/* Student Net Amount */}
+                  {advances.filter(a => a.status === 'APPROVED' && a.personType === 'COLPORTER').length > 0 && (
                     <div className="flex justify-between items-center text-xs text-blue-600">
-                      <span>{t('dashboard.netStudentAmount')}</span>
+                      <span>Monto Neto</span>
                       <span>{formatNumber(financialData.distribution.students)}</span>
                     </div>
                   )}
@@ -353,9 +365,11 @@ const FinancialBreakdown: React.FC = () => {
               <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
                 <div className="flex-1">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-medium text-purple-700">Líderes</span>
+                    <span className="text-sm font-medium text-purple-700">
+                      Líderes Globales ({financialData.leaderBreakdown.globalLeadersCount} líderes)
+                    </span>
                     <span className="text-sm font-bold text-purple-900">
-                      {formatCurrency(financialData.distribution.globalLeaders)}
+                      {formatCurrency(financialData.distribution.globalLeaders + (financialData.leaderAdvances * (financialData.leaderBreakdown.globalLeadersPercentage / (financialData.leaderBreakdown.globalLeadersPercentage + financialData.leaderBreakdown.customLeadersPercentage || 1))))}
                     </span>
                   </div>
                   <div className="w-full bg-purple-200 rounded-full h-1.5">
@@ -364,6 +378,20 @@ const FinancialBreakdown: React.FC = () => {
                       style={{ width: `${financialData.leaderBreakdown.globalLeadersPercentage}%` }}
                     ></div>
                   </div>
+                  {/* Leader Cash Advances for Global Leaders */}
+                  {financialData.leaderAdvances > 0 && (
+                    <div className="flex justify-between items-center text-xs text-purple-600 mt-1">
+                      <span>Adelantos Líderes (Proporcional)</span>
+                      <span>-{formatNumber(financialData.leaderAdvances * (financialData.leaderBreakdown.globalLeadersPercentage / (financialData.leaderBreakdown.globalLeadersPercentage + financialData.leaderBreakdown.customLeadersPercentage || 1)))}</span>
+                    </div>
+                  )}
+                  {/* Global Leaders Net Amount */}
+                  {financialData.leaderAdvances > 0 && (
+                    <div className="flex justify-between items-center text-xs text-purple-600 mt-1">
+                      <span>Monto Neto</span>
+                      <span>{formatCurrency(financialData.distribution.globalLeaders)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -375,7 +403,7 @@ const FinancialBreakdown: React.FC = () => {
                         Líderes Personalizados ({financialData.leaderBreakdown.customLeadersCount} líderes)
                       </span>
                       <span className="text-sm font-bold text-yellow-900">
-                        {formatCurrency(financialData.distribution.customLeaders)}
+                        {formatCurrency(financialData.distribution.customLeaders + (financialData.leaderAdvances * (financialData.leaderBreakdown.customLeadersPercentage / (financialData.leaderBreakdown.globalLeadersPercentage + financialData.leaderBreakdown.customLeadersPercentage || 1))))}
                       </span>
                     </div>
                     <div className="w-full bg-yellow-200 rounded-full h-1.5">
@@ -384,6 +412,20 @@ const FinancialBreakdown: React.FC = () => {
                         style={{ width: `${financialData.leaderBreakdown.customLeadersPercentage}%` }}
                       ></div>
                     </div>
+                    {/* Leader Cash Advances for Custom Leaders */}
+                    {financialData.leaderAdvances > 0 && (
+                      <div className="flex justify-between items-center text-xs text-yellow-600 mt-1">
+                        <span>Adelantos Líderes (Proporcional)</span>
+                        <span>-{formatNumber(financialData.leaderAdvances * (financialData.leaderBreakdown.customLeadersPercentage / (financialData.leaderBreakdown.globalLeadersPercentage + financialData.leaderBreakdown.customLeadersPercentage || 1)))}</span>
+                      </div>
+                    )}
+                    {/* Custom Leaders Net Amount */}
+                    {financialData.leaderAdvances > 0 && (
+                      <div className="flex justify-between items-center text-xs text-yellow-600 mt-1">
+                        <span>Monto Neto</span>
+                        <span>{formatCurrency(financialData.distribution.customLeaders)}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
