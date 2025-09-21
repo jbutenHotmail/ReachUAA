@@ -381,7 +381,7 @@ const FinancialBreakdown: React.FC = () => {
                   {/* Leader Cash Advances for Global Leaders */}
                   {financialData.leaderAdvances > 0 && (
                     <div className="flex justify-between items-center text-xs text-purple-600 mt-1">
-                      <span>Adelantos Líderes (Proporcional)</span>
+                      <span>Adelantos Líderes</span>
                       <span>-{formatNumber(financialData.leaderAdvances * (financialData.leaderBreakdown.globalLeadersPercentage / (financialData.leaderBreakdown.globalLeadersPercentage + financialData.leaderBreakdown.customLeadersPercentage || 1)))}</span>
                     </div>
                   )}
@@ -415,7 +415,7 @@ const FinancialBreakdown: React.FC = () => {
                     {/* Leader Cash Advances for Custom Leaders */}
                     {financialData.leaderAdvances > 0 && (
                       <div className="flex justify-between items-center text-xs text-yellow-600 mt-1">
-                        <span>Adelantos Líderes (Proporcional)</span>
+                        <span>Adelantos Líderes</span>
                         <span>-{formatNumber(financialData.leaderAdvances * (financialData.leaderBreakdown.customLeadersPercentage / (financialData.leaderBreakdown.globalLeadersPercentage + financialData.leaderBreakdown.customLeadersPercentage || 1)))}</span>
                       </div>
                     )}
