@@ -28,9 +28,8 @@ const Transactions: React.FC = () => {
   const [selectedLeader, setSelectedLeader] = useState<string>("")
   const [sortBy, setSortBy] = useState<'name' | 'amount' | 'books'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
-  const [bookTitleFilter, setBookTitleFilter] = useState<string>("")
+  const [bookTitleFilter] = useState<string>("")
   const [colporterFilter, setColporterFilter] = useState<string>("")
-  const [showByTitle, setShowByTitle] = useState(false)
   const [activeTab, setActiveTab] = useState<"finances" | "delivered-books">(() => {
     if (location.pathname === "/transactions/delivered-books") {
       return "delivered-books"
@@ -293,18 +292,6 @@ const Transactions: React.FC = () => {
       .sort((a, b) => a.title.localeCompare(b.title))
   }, [transactions, selectedDate])
 
-  // Get unique book titles for filter
-  const uniqueBookTitles = React.useMemo(() => {
-    const titles = new Set<string>()
-    transactions
-      .filter(t => t.date === formatDateToString(selectedDate) && t.status !== "REJECTED")
-      .forEach(transaction => {
-        transaction.books?.forEach(book => {
-          titles.add(book.title)
-        })
-      })
-    return Array.from(titles).sort()
-  }, [transactions, selectedDate])
 
   // Get unique colporters for filter
   const uniqueColporters = React.useMemo(() => {
@@ -609,7 +596,7 @@ const Transactions: React.FC = () => {
                             const quantity = bookData?.quantity || 0;
                             
                             // Apply book title filter if in title view mode
-                            if (showByTitle && bookTitleFilter && !book.title.toLowerCase().includes(bookTitleFilter.toLowerCase())) {
+                            if  (bookTitleFilter && !book.title.toLowerCase().includes(bookTitleFilter.toLowerCase())) {
                               return null;
                             }
                             
@@ -648,7 +635,7 @@ const Transactions: React.FC = () => {
                         {t('common.totals')}
                       </td>
                       {bookTotalsByTitle
-                        .filter(book => !showByTitle || !bookTitleFilter || book.title.toLowerCase().includes(bookTitleFilter.toLowerCase()))
+                        .filter(book => !bookTitleFilter || book.title.toLowerCase().includes(bookTitleFilter.toLowerCase()))
                         .map((book) => (
                         <td key={book.title} className="px-2 py-3 text-center border-l border-gray-200 bg-gray-50">
                           <Badge variant={book.size === BookSize.LARGE ? 'primary' : 'success'} className="bg-white">
@@ -658,33 +645,22 @@ const Transactions: React.FC = () => {
                       ))}
                       <td className="px-4 py-3 text-center border-l-2 border-[#0052B4] bg-gray-50">
                         <Badge variant="secondary" className="bg-white" size="lg">
-                          {showByTitle 
-                            ? bookTotalsByTitle
-                                .filter(book => !bookTitleFilter || book.title.toLowerCase().includes(bookTitleFilter.toLowerCase()))
-                                .reduce((sum, book) => sum + book.quantity, 0)
-                            : bookTotals.large + bookTotals.small
+                          {
+                            bookTotals.large + bookTotals.small
                           }
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-center border-l-2 border-[#0052B4] bg-gray-50">
                         <Badge variant="primary" className="bg-white" size="sm">
-                          {showByTitle 
-                            ? bookTotalsByTitle
-                                .filter(book => !bookTitleFilter || book.title.toLowerCase().includes(bookTitleFilter.toLowerCase()))
-                                .filter(book => book.size === BookSize.LARGE)
-                                .reduce((sum, book) => sum + book.quantity, 0)
-                            : bookTotals.large
+                          {
+                            bookTotals.large
                           }
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-center border-l border-[#0052B4] bg-gray-50">
                         <Badge variant="success" className="bg-white" size="sm">
-                          {showByTitle 
-                            ? bookTotalsByTitle
-                                .filter(book => !bookTitleFilter || book.title.toLowerCase().includes(bookTitleFilter.toLowerCase()))
-                                .filter(book => book.size === BookSize.SMALL)
-                                .reduce((sum, book) => sum + book.quantity, 0)
-                            : bookTotals.small
+                          {
+                            bookTotals.small
                           }
                         </Badge>
                       </td>
