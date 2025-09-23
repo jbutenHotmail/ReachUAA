@@ -28,6 +28,9 @@ const Transactions: React.FC = () => {
   const [selectedLeader, setSelectedLeader] = useState<string>("")
   const [sortBy, setSortBy] = useState<'name' | 'amount' | 'books'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [bookTitleFilter, setBookTitleFilter] = useState<string>("")
+  const [colporterFilter, setColporterFilter] = useState<string>("")
+  const [showByTitle, setShowByTitle] = useState(false)
   const [activeTab, setActiveTab] = useState<"finances" | "delivered-books">(() => {
     if (location.pathname === "/transactions/delivered-books") {
       return "delivered-books"
@@ -84,16 +87,14 @@ const Transactions: React.FC = () => {
     setSelectedDate(new Date())
   }
 
-  // Nueva función para manejar el cambio de fecha desde el input
   const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = event.target.value
     if (dateValue) {
-      const newDate = new Date(dateValue + "T00:00:00") // Agregar tiempo para evitar problemas de zona horaria
+      const newDate = new Date(dateValue + "T00:00:00")
       setSelectedDate(newDate)
     }
   }
 
-  // Función para formatear la fecha para el input (YYYY-MM-DD)
   const formatDateForInput = (date: Date): string => {
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, "0")
@@ -105,7 +106,6 @@ const Transactions: React.FC = () => {
     (t) => t.status !== "REJECTED" && t.date === formatDateToString(selectedDate),
   )
 
-  // Apply sorting to filtered transactions
   const sortedTransactions = React.useMemo(() => {
     let filtered = transactions.filter((t) => t.date === formatDateToString(selectedDate))
     
@@ -115,7 +115,6 @@ const Transactions: React.FC = () => {
       )
     }
     
-    // Apply sorting
     return filtered.sort((a, b) => {
       let aValue: string | number
       let bValue: string | number
@@ -169,7 +168,6 @@ const Transactions: React.FC = () => {
       totals.set(t.leaderId, current)
     })
 
-    // Calculate earnings for each leader based on their team sales
     totals.forEach((leader) => {
       leader.earnings = leader.total * (leaderPercentage / 100)
     })
@@ -181,7 +179,6 @@ const Transactions: React.FC = () => {
     return validTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0)
   }, [validTransactions])
 
-  // Sort leader totals
   const sortedLeaderTotals = React.useMemo(() => {
     return [...leaderTotals].sort((a, b) => {
       let aValue: string | number
@@ -232,6 +229,94 @@ const Transactions: React.FC = () => {
     )
   }, [validTransactions])
 
+  const bookTotalsByTitle = React.useMemo(() => {
+    const dayTransactions = transactions.filter(
+      (t) => {
+        const matchesDate = t.date === formatDateToString(selectedDate)
+        const matchesStatus = t.status !== "REJECTED"
+        const matchesLeader = !selectedLeader || Number(t.leaderId) === Number(selectedLeader)
+        return matchesDate && matchesStatus && matchesLeader
+      }
+    )
+
+    const bookMap = new Map<string, { 
+      title: string; 
+      quantity: number; 
+      size: string; 
+      price: number;
+      colporters: Array<{ name: string; quantity: number; transactionId: string }>;
+    }>()
+
+    dayTransactions.forEach((transaction) => {
+      transaction.books?.forEach((book) => {
+        const existing = bookMap.get(book.id)
+        if (existing) {
+          existing.quantity += book.quantity
+          const existingColporter = existing.colporters.find(c => c.name === transaction.studentName)
+          if (existingColporter) {
+            existingColporter.quantity += book.quantity
+          } else {
+            existing.colporters.push({
+              name: transaction.studentName,
+              quantity: book.quantity,
+              transactionId: transaction.id
+            })
+          }
+        } else {
+          bookMap.set(book.id, {
+            title: book.title,
+            quantity: book.quantity,
+            size: book.size,
+            price: book.price,
+            colporters: [{
+              name: transaction.studentName,
+              quantity: book.quantity,
+              transactionId: transaction.id
+            }]
+          })
+        }
+      })
+    })
+
+    return Array.from(bookMap.values())
+      .map(book => ({
+        ...book,
+        colporters: book.colporters.sort((a, b) => a.name.localeCompare(b.name))
+      }))
+      .filter(book => {
+        const matchesTitle = !bookTitleFilter || book.title.toLowerCase().includes(bookTitleFilter.toLowerCase())
+        const matchesColporter = !colporterFilter || book.colporters.some(c => 
+          c.name.toLowerCase().includes(colporterFilter.toLowerCase())
+        )
+        return matchesTitle && matchesColporter
+      })
+      .sort((a, b) => a.title.localeCompare(b.title))
+  }, [transactions, selectedDate])
+
+  // Get unique book titles for filter
+  const uniqueBookTitles = React.useMemo(() => {
+    const titles = new Set<string>()
+    transactions
+      .filter(t => t.date === formatDateToString(selectedDate) && t.status !== "REJECTED")
+      .forEach(transaction => {
+        transaction.books?.forEach(book => {
+          titles.add(book.title)
+        })
+      })
+    return Array.from(titles).sort()
+  }, [transactions, selectedDate])
+
+  // Get unique colporters for filter
+  const uniqueColporters = React.useMemo(() => {
+    const colporters = new Set<string>()
+    transactions
+      .filter(t => t.date === formatDateToString(selectedDate) && t.status !== "REJECTED")
+      .forEach(transaction => {
+        colporters.add(transaction.studentName)
+      })
+    return Array.from(colporters).sort()
+  }, [transactions, selectedDate])
+
   const tabs = [
     {
       id: "finances",
@@ -270,7 +355,6 @@ const Transactions: React.FC = () => {
                     MozAppearance: "textfield",
                   }}
                 />
-                {/* Fallback display para navegadores que no soporten input date */}
                 <noscript>
                   <span className="text-xs sm:text-sm font-medium">
                     {selectedDate.toLocaleDateString(undefined, {
@@ -332,6 +416,20 @@ const Transactions: React.FC = () => {
               ))}
             </select>
           )}
+          {activeTab === "delivered-books" && (
+            <select
+              value={colporterFilter}
+              onChange={(e) => setColporterFilter(e.target.value)}
+              className="block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
+            >
+              <option value="">Todos los colportores</option>
+              {uniqueColporters.map((colporter) => (
+                <option key={colporter} value={colporter}>
+                  {colporter}
+                </option>
+              ))}
+            </select>
+          )}
           <Button
             variant="primary"
             leftIcon={<Plus size={18} />}
@@ -379,80 +477,215 @@ const Transactions: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead>
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0 cursor-pointer hover:bg-[#003d85]"
-                          onClick={() => handleSortChange('name')}>
+                      <th
+                        className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0 cursor-pointer hover:bg-[#003d85]"
+                        onClick={() => handleSortChange('name')}
+                      >
                         <div className="flex items-center gap-1">
                           {t("transactions.colporter")}
                           <span className="text-xs">{getSortIcon('name')}</span>
                         </div>
                       </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-primary-700 cursor-pointer hover:bg-primary-800"
-                          onClick={() => handleSortChange('books')}>
-                        <div className="flex items-center justify-center gap-1">
-                          {t("transactions.largeBooks")}
-                          <span className="text-xs">{getSortIcon('books')}</span>
-                        </div>
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-success-600">
-                        {t("transactions.smallBooks")}
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] cursor-pointer hover:bg-[#002952]"
-                          onClick={() => handleSortChange('books')}>
+                      {bookTotalsByTitle.map((book) => (
+                        <th
+                          key={book.title}
+                          className="px-2 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-l border-white/20 min-w-[80px] cursor-pointer hover:bg-[#002a5c]"
+                          onClick={() => handleSortChange('name')}
+                        >
+                          <div className="flex flex-col items-center">
+                            <div className="text-[10px] leading-tight mb-1 max-w-[70px] break-words text-center">
+                              {book.title.length > 20 ? `${book.title.substring(0, 20)}...` : book.title}
+                            </div>
+                            <span className="text-xs">{getSortIcon('name')}</span>
+                          </div>
+                        </th>
+                      ))}
+                      <th
+                        className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] border-l-2 border-white cursor-pointer hover:bg-[#003d85]"
+                        onClick={() => handleSortChange('books')}
+                      >
                         <div className="flex items-center justify-center gap-1">
                           {t("transactions.totalBooks")}
                           <span className="text-xs">{getSortIcon('books')}</span>
                         </div>
                       </th>
+                      <th
+                        className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-primary-700 cursor-pointer hover:bg-primary-800 border-l-2 border-white"
+                        onClick={() => handleSortChange('books')}
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          {t("transactions.largeBooks")}
+                          <span className="text-xs">{getSortIcon('books')}</span>
+                        </div>
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-success-600 border-l border-white">
+                        {t("transactions.smallBooks")}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {sortedTransactions.filter(t => t.status !== 'REJECTED').map((transaction, index) => {
-                      const largeBooks =
-                        transaction.books?.reduce((sum, book) => {
-                          const bookSize = book.size
-                          return sum + (bookSize === BookSize.LARGE ? book.quantity : 0)
-                        }, 0) || 0
-                      const smallBooks =
-                        transaction.books?.reduce((sum, book) => {
-                          const bookSize = book.size
-                          return sum + (bookSize === BookSize.SMALL ? book.quantity : 0)
-                        }, 0) || 0
-                      const totalBooks = largeBooks + smallBooks
+                    {(() => {
+                      const colporterMap = new Map<
+                        string,
+                        {
+                          name: string;
+                          studentId: string;
+                          books: Map<string, { quantity: number; size: string }>;
+                          largeTotal: number;
+                          smallTotal: number;
+                          total: number;
+                        }
+                      >();
 
-                      return (
-                        <tr key={transaction.id} className={index % 2 === 0 ? "bg-yellow-50" : "bg-white"}>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-white bg-[#0052B4] sticky left-0">
-                            {transaction.studentName}
+                      sortedTransactions
+                        .filter((t) => {
+                          const matchesStatus = t.status !== 'REJECTED'
+                          const matchesLeader = !selectedLeader || Number(t.leaderId) === Number(selectedLeader)
+                          return matchesStatus && matchesLeader
+                        })
+                        .forEach((transaction) => {
+                          if (!colporterMap.has(transaction.studentId)) {
+                            colporterMap.set(transaction.studentId, {
+                              name: transaction.studentName,
+                              studentId: transaction.studentId,
+                              books: new Map(),
+                              largeTotal: 0,
+                              smallTotal: 0,
+                              total: 0,
+                            });
+                          }
+
+                          const colporter = colporterMap.get(transaction.studentId)!;
+
+                          transaction.books?.forEach((book) => {
+                            // Apply book title filter
+                            const matchesBookTitle = !bookTitleFilter || book.title.toLowerCase().includes(bookTitleFilter.toLowerCase())
+                            if (!matchesBookTitle) return
+                            
+                            const currentBook = colporter.books.get(book.title);
+                            const newQuantity = (currentBook?.quantity || 0) + book.quantity;
+                            colporter.books.set(book.title, {
+                              quantity: newQuantity,
+                              size: book.size,
+                            });
+
+                            if (book.size === BookSize.LARGE) {
+                              colporter.largeTotal += book.quantity;
+                            } else {
+                              colporter.smallTotal += book.quantity;
+                            }
+                            colporter.total += book.quantity;
+                          });
+                        });
+
+                      const colporterArray = Array.from(colporterMap.values())
+                        .filter(colporter => {
+                          // Apply colporter filter
+                          const matchesColporter = !colporterFilter || colporter.name.toLowerCase().includes(colporterFilter.toLowerCase())
+                          return matchesColporter && colporter.total > 0
+                        })
+                        .sort((a, b) => {
+                          switch (sortBy) {
+                            case 'name':
+                              const nameComparison = a.name.localeCompare(b.name);
+                              return sortOrder === 'asc' ? nameComparison : -nameComparison;
+                            case 'books':
+                              const booksComparison = a.total - b.total;
+                              return sortOrder === 'asc' ? booksComparison : -booksComparison;
+                            default:
+                              return a.name.localeCompare(b.name);
+                          }
+                        });
+
+                      return colporterArray.map((colporter, index) => (
+                        <tr key={colporter.studentId} className={index % 2 === 0 ? 'bg-yellow-50' : 'bg-white'}>
+                          <td className="px-4 py-3 text-sm font-medium text-white bg-[#0052B4] sticky left-0">
+                            <div className="max-w-[120px] truncate" title={colporter.name}>
+                              {colporter.name}
+                            </div>
                           </td>
-                          <td className="px-4 py-3 text-center">
-                            <Badge variant="primary">{largeBooks}</Badge>
+                          {bookTotalsByTitle.map((book) => {
+                            const bookData = colporter.books.get(book.title);
+                            const quantity = bookData?.quantity || 0;
+                            
+                            // Apply book title filter if in title view mode
+                            if (showByTitle && bookTitleFilter && !book.title.toLowerCase().includes(bookTitleFilter.toLowerCase())) {
+                              return null;
+                            }
+                            
+                            return (
+                              <td key={book.title} className="px-2 py-3 text-center border-l border-gray-200">
+                                {quantity > 0 ? (
+                                  <Badge variant={book.size === BookSize.LARGE ? 'primary' : 'success'} size="sm">
+                                    {quantity}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-gray-300 text-xs">-</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                          <td className="px-4 py-3 text-center border-l-2 border-[#0052B4]">
+                            <Badge variant="secondary" size="lg">
+                              {colporter.total}
+                            </Badge>
                           </td>
-                          <td className="px-4 py-3 text-center">
-                            <Badge variant="success">{smallBooks}</Badge>
+                          <td className="px-4 py-3 text-center border-l-2 border-[#0052B4]">
+                            <Badge variant="primary" size="sm">
+                              {colporter.largeTotal}
+                            </Badge>
                           </td>
-                          <td className="px-4 py-3 text-center">
-                            <Badge variant="secondary">{totalBooks}</Badge>
+                          <td className="px-4 py-3 text-center border-l border-[#0052B4]">
+                            <Badge variant="success" size="sm">
+                              {colporter.smallTotal}
+                            </Badge>
                           </td>
                         </tr>
-                      )
-                    })}
-                    <tr>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-white bg-[#0052B4] sticky left-0">
-                        {t("common.totals")}
+                      ));
+                    })()}
+                    <tr className="bg-gray-100">
+                      <td className="px-4 py-3 text-sm font-bold text-white bg-[#0052B4] sticky left-0">
+                        {t('common.totals')}
                       </td>
-                      <td className="px-4 py-3 text-center bg-primary-900 text-white">
-                        <Badge variant="primary" className="bg-white">
-                          {bookTotals.large}
+                      {bookTotalsByTitle
+                        .filter(book => !showByTitle || !bookTitleFilter || book.title.toLowerCase().includes(bookTitleFilter.toLowerCase()))
+                        .map((book) => (
+                        <td key={book.title} className="px-2 py-3 text-center border-l border-gray-200 bg-gray-50">
+                          <Badge variant={book.size === BookSize.LARGE ? 'primary' : 'success'} className="bg-white">
+                            {book.quantity}
+                          </Badge>
+                        </td>
+                      ))}
+                      <td className="px-4 py-3 text-center border-l-2 border-[#0052B4] bg-gray-50">
+                        <Badge variant="secondary" className="bg-white" size="lg">
+                          {showByTitle 
+                            ? bookTotalsByTitle
+                                .filter(book => !bookTitleFilter || book.title.toLowerCase().includes(bookTitleFilter.toLowerCase()))
+                                .reduce((sum, book) => sum + book.quantity, 0)
+                            : bookTotals.large + bookTotals.small
+                          }
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-center bg-success-900 text-white">
-                        <Badge variant="success" className="bg-white">
-                          {bookTotals.small}
+                      <td className="px-4 py-3 text-center border-l-2 border-[#0052B4] bg-gray-50">
+                        <Badge variant="primary" className="bg-white" size="sm">
+                          {showByTitle 
+                            ? bookTotalsByTitle
+                                .filter(book => !bookTitleFilter || book.title.toLowerCase().includes(bookTitleFilter.toLowerCase()))
+                                .filter(book => book.size === BookSize.LARGE)
+                                .reduce((sum, book) => sum + book.quantity, 0)
+                            : bookTotals.large
+                          }
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-center bg-[#003D85] text-white">
-                        <Badge variant="secondary" className="bg-white">
-                          {bookTotals.large + bookTotals.small}
+                      <td className="px-4 py-3 text-center border-l border-[#0052B4] bg-gray-50">
+                        <Badge variant="success" className="bg-white" size="sm">
+                          {showByTitle 
+                            ? bookTotalsByTitle
+                                .filter(book => !bookTitleFilter || book.title.toLowerCase().includes(bookTitleFilter.toLowerCase()))
+                                .filter(book => book.size === BookSize.SMALL)
+                                .reduce((sum, book) => sum + book.quantity, 0)
+                            : bookTotals.small
+                          }
                         </Badge>
                       </td>
                     </tr>
@@ -464,7 +697,6 @@ const Transactions: React.FC = () => {
         </div>
       </div>
 
-      {/* Summary Section - Now below the main content */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         {activeTab === "finances" ? (
           <>
@@ -495,20 +727,34 @@ const Transactions: React.FC = () => {
           <>
             <Card className="p-4">
               <div className="text-center">
-                <p className="text-sm font-medium text-primary-700">{t("transactions.largeBooks")}</p>
-                <p className="mt-1 text-2xl font-bold text-primary-600">{bookTotals.large}</p>
+                <p className="text-sm font-medium text-primary-700">{t("transactions.uniqueTitles")}</p>
+                <p className="mt-1 text-2xl font-bold text-primary-600">{bookTotalsByTitle.length}</p>
               </div>
             </Card>
             <Card className="p-4">
               <div className="text-center">
-                <p className="text-sm font-medium text-success-700">{t("transactions.smallBooks")}</p>
-                <p className="mt-1 text-2xl font-bold text-success-600">{bookTotals.small}</p>
+                <p className="text-sm font-medium text-success-700">{t("transactions.totalQuantity")}</p>
+                <p className="mt-1 text-2xl font-bold text-success-600">
+                  {bookTotalsByTitle.reduce((sum, book) => sum + book.quantity, 0)}
+                </p>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="text-center">
+                <p className="text-sm font-medium text-warning-700">{t("transactions.totalValue")}</p>
+                <p className="mt-1 text-2xl font-bold text-warning-600">
+                  ${formatNumber(bookTotalsByTitle.reduce((sum, book) => sum + (book.price * book.quantity), 0))}
+                </p>
               </div>
             </Card>
             <Card className="p-4 bg-[#0052B4]">
               <div className="text-center">
-                <p className="text-sm font-medium">{t("transactions.totalBooks")}</p>
-                <p className="mt-1 text-4xl font-bold">{bookTotals.large + bookTotals.small}</p>
+                <p className="text-sm font-medium">{t("transactions.avgPerTitle")}</p>
+                <p className="mt-1 text-2xl font-bold">
+                  {bookTotalsByTitle.length > 0 
+                    ? Math.round(bookTotalsByTitle.reduce((sum, book) => sum + book.quantity, 0) / bookTotalsByTitle.length)
+                    : 0}
+                </p>
               </div>
             </Card>
           </>
@@ -518,4 +764,4 @@ const Transactions: React.FC = () => {
   )
 }
 
-export default Transactions
+export default Transactions;

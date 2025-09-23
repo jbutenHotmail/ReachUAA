@@ -876,6 +876,10 @@ export default {
   },
   transactions: {
     cash: "Efectivo",
+    uniqueTitles: "Títulos Únicos",
+    totalQuantity: "Cantidad Total",
+    totalValue: "Valor Total",
+    avgPerTitle: "Promedio por Título",
     successCreated: "Transacción creada exitosamente",
     alreadyTransacted: "Estudiante ya tiene una transacción para esta fecha",
     transactionAproved: "Transacción aprobada exitosamente",
