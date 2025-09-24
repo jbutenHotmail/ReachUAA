@@ -64,7 +64,7 @@ export interface Charge {
   amount: number;
   reason: string;
   description?: string;
-  category: 'FINE' | 'DEDUCTION' | 'PENALTY' | 'OTHER';
+  category: 'FINE' | 'DEDUCTION' | 'PENALTY' | 'PROGRAM_FEE' | 'FOOD' | 'MEDICAL_INSURANCE' | 'OTHER';
   status: 'PENDING' | 'APPLIED' | 'CANCELLED';
   appliedBy: string;
   appliedByName: string;

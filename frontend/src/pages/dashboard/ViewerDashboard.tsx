@@ -11,7 +11,7 @@ import { useBibleStudyStore } from "../../stores/bibleStudyStore"
 import { useTransactionStore } from "../../stores/transactionStore"
 import GoalProgress from "../../components/dashboard/GoalProgress"
 import Card from "../../components/ui/Card"
-import { FileText, DollarSign, BookText, RefreshCw, Grid3X3, BookOpen } from "lucide-react"
+import { FileText, DollarSign, BookText, RefreshCw, Grid3X3, BookOpen, Target } from "lucide-react"
 import Button from "../../components/ui/Button"
 import LoadingScreen from "../../components/ui/LoadingScreen"
 import { formatNumber } from "../../utils/numberUtils"
@@ -24,7 +24,7 @@ const ViewerDashboard: React.FC = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const { program } = useProgramStore()
+  const { program, fetchProgram } = useProgramStore()
   const { transactions, fetchAllTransactions, wereTransactionsFetched } = useTransactionStore()
   const { bibleStudies, fetchBibleStudies, wereBibleStudiesFetched } = useBibleStudyStore()
   const {
@@ -36,7 +36,6 @@ const ViewerDashboard: React.FC = () => {
     fetchDashboardStats,
     werePersonalStatsFetched,
   } = useDashboardStore()
-
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState<"summary" | "daily">("summary")
 
@@ -58,6 +57,7 @@ const ViewerDashboard: React.FC = () => {
     setIsRefreshing(true)
     try {
       await fetchPersonalStats(user.id, true, "user")
+      await fetchProgram();
     } catch (error) {
       console.error("Error refreshing data:", error)
     } finally {
@@ -180,6 +180,7 @@ const ViewerDashboard: React.FC = () => {
     if (!personalStats || !personalStats.transactions) return 0
     return personalStats.transactions.reduce((sum, t) => Number(sum) + (Number(t.hours_worked) || 0), 0)
   }, [personalStats])
+
   // Loading state
   if (isLoadingPersonalStats || !personalStats) {
     return (
@@ -225,12 +226,12 @@ const ViewerDashboard: React.FC = () => {
         </Button>
       </div>
 
-      {/* Program Goal */}
+      {/* Program Goal
       {programGoal && (
         <div className="grid grid-cols-1 gap-4 sm:gap-6">
           <GoalProgress goal={programGoal} />
         </div>
-      )}
+      )} */}
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200">
@@ -287,7 +288,6 @@ const ViewerDashboard: React.FC = () => {
                     <p className="mt-1 text-2xl font-bold text-primary-600">
                       ${formatNumber(personalStats.totals.total)}
                     </p>
-                    <p className="text-xs text-gray-500">{t("dashboard.currentMonth")}</p>
                   </div>
                 </Card>
 
@@ -513,6 +513,203 @@ const ViewerDashboard: React.FC = () => {
                   </div>
                 </div>
               </Card>
+
+              {/* Personal Program Projection */}
+              <Card title="Proyección Personal de Fin de Programa" icon={<Target className="text-purple-600" size={20} />}>
+                <div className="space-y-4">
+                  {(() => {
+                    // Calculate projection based on current performance
+                    const workingDaysWithSales = Object.keys(personalStats.dailyEarnings).length
+                    const totalSales = personalStats.totals.total
+                    const dailyAverage = totalSales / Math.max(workingDaysWithSales, 1)
+
+                    // Calculate program duration and remaining days
+                    const programStart = new Date(personalStats.startDate)
+                    const programEnd = new Date(personalStats.endDate)
+                    const today = new Date()
+
+                    // Calculate working days using program configuration
+                    const calculateWorkingDays = (startDate: Date, endDate: Date) => {
+                      let workingDaysCount = 0
+                      const currentDate = new Date(startDate)
+                      
+                      while (currentDate <= endDate) {
+                        // Check if this date is a working day according to program config
+                        const dateStr = currentDate.toISOString().split('T')[0]
+                        
+                        // Check custom days first
+                        const customDay = program?.customDays?.find(day => {
+                          const customDayStr = new Date(day.date).toISOString().split('T')[0]
+                          return customDayStr === dateStr
+                        })
+                        
+                        let isWorkingDay = false
+                        if (customDay) {
+                          // Use custom day setting - only count if it's marked as working day
+                          isWorkingDay = customDay.is_working_day === true || Number(customDay.is_working_day) === 1
+                        } else {
+                          // Use default working days
+                          const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+                          const workingDay = program?.workingDays?.find(day => day.day_of_week === dayName)
+                          isWorkingDay = workingDay?.is_working_day === true || Number(workingDay?.is_working_day) === 1
+                        }
+                        
+                        if (isWorkingDay) {
+                          workingDaysCount++
+                        }
+                        
+                        currentDate.setDate(currentDate.getDate() + 1)
+                      }
+                      
+                      return workingDaysCount
+                    }
+                    
+                    const totalWorkingDays = calculateWorkingDays(programStart, programEnd)
+                    
+                    // Check if today is a working day
+                    const todayIsWorkingDay = (() => {
+                      if (today < programStart || today > programEnd) return false
+                      
+                      const todayStr = today.toISOString().split('T')[0]
+                      const customDay = program?.customDays?.find(day => {
+                        const customDayStr = new Date(day.date).toISOString().split('T')[0]
+                        
+                        return customDayStr === todayStr
+                      })
+                      
+                      if (customDay) {
+                        // Only count as working day if explicitly marked as such
+                        return customDay.is_working_day === true || Number(customDay.is_working_day) === 1
+                      }
+                      const dayName = today.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+                      const workingDay = program?.workingDays?.find(day => day.day_of_week === dayName)
+                      return workingDay?.is_working_day === true || Number(workingDay?.is_working_day) === 1
+                    })()
+                   console.log(calculateWorkingDays(programStart, today), todayIsWorkingDay)
+
+                    // Calculate elapsed working days including today if it's a working day
+                    const elapsedWorkingDays = calculateWorkingDays(programStart, today);
+                    const remainingWorkingDays = Math.max(0, totalWorkingDays - elapsedWorkingDays) + (todayIsWorkingDay ? 0 : -1)
+
+                    // Calculate projections
+                    const projectedTotalSales = dailyAverage * totalWorkingDays
+                    const projectedRemainingEarnings = dailyAverage * remainingWorkingDays
+                    const projectedFinalEarnings = projectedTotalSales * (personalStats.earnings.percentage / 100)
+
+                    // Calculate progress percentage
+                    const progressPercentage = Math.min(100, (elapsedWorkingDays / totalWorkingDays) * 100)
+
+                    return (
+                      <>
+                        {/* Current vs Projected */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+                            <div className="text-center">
+                              <p className="text-sm font-medium text-blue-600">Ventas Actuales</p>
+                              <p className="text-2xl font-bold text-blue-700">${formatNumber(totalSales)}</p>
+                              <p className="text-xs text-blue-600 mt-1">
+                                {workingDaysWithSales} de {elapsedWorkingDays} días laborales
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg border border-purple-200">
+                            <div className="text-center">
+                              <p className="text-sm font-medium text-purple-600">Proyección Final</p>
+                              <p className="text-2xl font-bold text-purple-700">${formatNumber(projectedTotalSales)}</p>
+                              <p className="text-xs text-purple-600 mt-1">
+                                {totalWorkingDays} días laborales totales
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Progreso del Programa</span>
+                            <span className="font-medium">{progressPercentage.toFixed(1)}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-3">
+                            <div
+                              className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-1000 ease-out"
+                              style={{ width: `${progressPercentage}%` }}
+                            ></div>
+                          </div>
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>{programStart.toLocaleDateString()}</span>
+                            <span>{remainingWorkingDays} días laborales restantes</span>
+                            <span>{programEnd.toLocaleDateString()}</span>
+                          </div>
+                        </div>
+
+                        {/* Earnings Projection */}
+                        <div className="p-4 bg-gradient-to-r from-success-50 to-success-100 rounded-lg border border-success-200">
+                          <div className="space-y-3">
+                            <div className="text-center">
+                              <p className="text-sm font-medium text-success-600">Ganancias Proyectadas</p>
+                              <p className="text-3xl font-bold text-success-700">${formatNumber(projectedFinalEarnings)}</p>
+                              <p className="text-xs text-success-600">
+                                {personalStats.earnings.percentage}% de ${formatNumber(projectedTotalSales)}
+                              </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              <div className="text-center p-2 bg-white/60 rounded">
+                                <p className="text-success-600">Promedio Diario</p>
+                                <p className="font-bold text-success-700">${formatNumber(dailyAverage)}</p>
+                              </div>
+                              <div className="text-center p-2 bg-white/60 rounded">
+                                <p className="text-success-600">Potencial Restante</p>
+                                <p className="font-bold text-success-700">${formatNumber(projectedRemainingEarnings)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Performance Insights */}
+                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                          <h4 className="text-sm font-semibold text-gray-700 mb-3">💡 Insights de Rendimiento</h4>
+                          <div className="space-y-2 text-sm text-gray-600">
+                            {dailyAverage > 100 && (
+                              <div className="flex items-center gap-2 text-success-600">
+                                <span>🎯</span>
+                                <span>¡Excelente ritmo! Estás por encima del promedio esperado.</span>
+                              </div>
+                            )}
+                            {dailyAverage <= 100 && dailyAverage > 50 && (
+                              <div className="flex items-center gap-2 text-blue-600">
+                                <span>📈</span>
+                                <span>Buen progreso. Considera aumentar un poco el ritmo.</span>
+                              </div>
+                            )}
+                            {dailyAverage <= 50 && (
+                              <div className="flex items-center gap-2 text-warning-600">
+                                <span>⚡</span>
+                                <span>Hay potencial para mejorar. ¡Tú puedes lograrlo!</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <span>📅</span>
+                              <span>
+                                Para alcanzar ${formatNumber(projectedFinalEarnings)} necesitas mantener un promedio de ${formatNumber(dailyAverage)} por día laboral.
+                              </span>
+                            </div>
+                            {remainingWorkingDays > 0 && (
+                              <div className="flex items-center gap-2">
+                                <span>⏰</span>
+                                <span>
+                                  Con {remainingWorkingDays} días laborales restantes, podrías ganar ${formatNumber(projectedRemainingEarnings)} adicionales.
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )
+                  })()}
+                </div>
+              </Card>
             </>
           )}
 
@@ -552,7 +749,7 @@ const ViewerDashboard: React.FC = () => {
                               <div className="flex items-center justify-center gap-1">
                                 <DollarSign size={12} className="text-primary-600" />
                                 <span className="text-sm font-bold text-primary-600">
-                                  ${day.totals.sales.toFixed(0)}
+                                  ${formatNumber(day.totals.sales)}
                                 </span>
                               </div>
                             )}

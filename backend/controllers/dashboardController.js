@@ -221,7 +221,6 @@ export const getDashboardStats = async (req, res) => {
       },
       salesChart
     };
-    console.log(stats.month);
     res.json(stats);
   } catch (error) {
     console.error('Error getting dashboard stats:', error);

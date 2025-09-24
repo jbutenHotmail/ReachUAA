@@ -981,18 +981,29 @@ export const getProgramReport = async (req, res) => {
 export const getIndividualEarningsReport = async (req, res) => {
   try {
     const { id } = req.params
-    const { startDate, endDate, type } = req.query
+    const { startDate, endDate, type, currentProgramId } = req.query
+
     let reportStartDate = startDate
     let reportEndDate = endDate
-    console.log(type)
-    if (!startDate || !endDate) {
-      const today = new Date()
-      const firstDay = new Date(today.getFullYear(),1)
-      const lastDay = new Date(today.getFullYear() + 1, 0)
 
-      reportStartDate = formatDateToYYYYMMDD(firstDay)
-      reportEndDate = formatDateToYYYYMMDD(lastDay)
-    }
+    if ((!startDate || !endDate) && currentProgramId) {
+      
+        const program = await db.getOne(
+          "SELECT start_date, end_date FROM programs WHERE id = ?",
+          [currentProgramId]
+        );
+        if (program) {
+          reportStartDate = reportStartDate || program.start_date;
+          reportEndDate = reportEndDate || program.end_date;
+        } else {
+        const today = new Date()
+        const firstDay = new Date(today.getFullYear(),1)
+        const lastDay = new Date(today.getFullYear() + 1, 0)
+  
+        reportStartDate = formatDateToYYYYMMDD(firstDay)
+        reportEndDate = formatDateToYYYYMMDD(lastDay)
+      }
+      } 
 
     const person = await db.getOne(
       `SELECT id, CONCAT(first_name, ' ', last_name) as name, email, phone, person_type, program_id, 
@@ -1016,7 +1027,6 @@ export const getIndividualEarningsReport = async (req, res) => {
 
     let transactionsQuery = `SELECT t.*, CONCAT(lp.first_name, ' ', lp.last_name) as leader_name FROM transactions t JOIN people lp ON t.leader_id = lp.id WHERE t.student_id = ? AND t.transaction_date BETWEEN ? AND ? AND t.status = 'APPROVED' ORDER BY t.transaction_date, t.created_at DESC`
     let transactionParams = [person.id, reportStartDate, reportEndDate]
-    console.log(person.id, reportStartDate, reportEndDate)
     if (person.person_type === "LEADER") {
       transactionsQuery = `SELECT t.*, CONCAT(sp.first_name, ' ', sp.last_name) as student_name FROM transactions t JOIN people sp ON t.student_id = sp.id WHERE t.leader_id = ? AND t.transaction_date BETWEEN ? AND ? AND t.status = 'APPROVED' ORDER BY t.transaction_date, t.created_at DESC`
       transactionParams = [person.id, reportStartDate, reportEndDate]

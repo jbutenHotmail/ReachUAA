@@ -73,10 +73,6 @@ function App() {
       fetchProgram();
     }
     
-    // Si el usuario no es ADMIN pero hay un programa en localStorage, resetear el store
-    if (isAuthenticated && user?.role !== UserRole.ADMIN && program) {
-      resetStore();
-    }
   }, [isAuthenticated, fetchProgram, wasProgramFetched, user, program, resetStore]);
 
   // Try to refresh token on app load
