@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 import { useEffect, useState, useMemo } from "react"
 import { useTranslation } from "react-i18next"
@@ -9,7 +7,6 @@ import { useProgramStore } from "../../stores/programStore"
 import { useDashboardStore } from "../../stores/dashboardStore"
 import { useBibleStudyStore } from "../../stores/bibleStudyStore"
 import { useTransactionStore } from "../../stores/transactionStore"
-import GoalProgress from "../../components/dashboard/GoalProgress"
 import Card from "../../components/ui/Card"
 import { FileText, DollarSign, BookText, RefreshCw, Grid3X3, BookOpen, Target } from "lucide-react"
 import Button from "../../components/ui/Button"
@@ -28,7 +25,6 @@ const ViewerDashboard: React.FC = () => {
   const { transactions, fetchAllTransactions, wereTransactionsFetched } = useTransactionStore()
   const { bibleStudies, fetchBibleStudies, wereBibleStudiesFetched } = useBibleStudyStore()
   const {
-    stats,
     personalStats,
     isLoadingPersonalStats,
     personalStatsError,
@@ -144,17 +140,6 @@ const ViewerDashboard: React.FC = () => {
       .filter((day) => day.totals.sales > 0 || day.totals.studies > 0)
   }, [userTransactions, userBibleStudies])
 
-  // Program goal calculation
-  const programGoal =
-    program && stats
-      ? {
-          amount: Number.parseFloat(program.financial_goal),
-          achieved: stats.program.achieved,
-          startDate: program.start_date,
-          endDate: program.end_date,
-        }
-      : null
-
   // Book totals calculation
   const bookTotals = useMemo(() => {
     if (!personalStats || !personalStats.transactions) return { large: 0, small: 0, total: 0 }
@@ -226,13 +211,6 @@ const ViewerDashboard: React.FC = () => {
         </Button>
       </div>
 
-      {/* Program Goal
-      {programGoal && (
-        <div className="grid grid-cols-1 gap-4 sm:gap-6">
-          <GoalProgress goal={programGoal} />
-        </div>
-      )} */}
-
       {/* Tabs */}
       <div className="flex border-b border-gray-200">
         <button
@@ -299,7 +277,7 @@ const ViewerDashboard: React.FC = () => {
                     <p className="text-sm font-medium text-gray-500">{t("dashboard.totalBooks")}</p>
                     <p className="mt-1 text-2xl font-bold text-warning-600">{bookTotals.total}</p>
                     <p className="text-xs text-gray-500">
-                      {bookTotals.large} grandes, {bookTotals.small} pequeños
+                      {bookTotals.large} {t("dashboard.largeBooks")}, {bookTotals.small} {t("dashboard.smallBooks")}
                     </p>
                   </div>
                 </Card>
@@ -322,7 +300,7 @@ const ViewerDashboard: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                      <p className="text-sm font-medium text-gray-500">Top Seller</p>
+                      <p className="text-sm font-medium text-gray-500">{t("dashboard.topSeller")}</p>
                       <p
                         className="mt-1 text-lg font-bold text-purple-600 truncate max-w-full"
                         title={personalStats.topSellerBook.title}
@@ -331,7 +309,7 @@ const ViewerDashboard: React.FC = () => {
                       </p>
                       <div className="flex justify-center items-center gap-2 mt-1">
                         <Badge variant="info" size="sm">
-                          {personalStats.topSellerBook.totalQuantity} libros
+                          {personalStats.topSellerBook.totalQuantity} {t("common.books")}
                         </Badge>
                         <Badge variant="secondary" size="sm">
                           ${personalStats.topSellerBook.totalRevenue.toFixed(0)}
@@ -364,7 +342,7 @@ const ViewerDashboard: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-primary-600">
-                        {t("dashboard.yourEarnings")} ({personalStats.earnings.percentage}%)
+                        {t("dashboard.yourEarnings", { percentage: personalStats.earnings.percentage })}
                       </p>
                       <p className="text-2xl font-bold text-primary-700 mt-1">
                         ${formatNumber(personalStats.earnings.net)}
@@ -493,8 +471,8 @@ const ViewerDashboard: React.FC = () => {
                       .map(([date, amount]) => {
                         const dayName = new Date(date).toLocaleDateString("en-US", { weekday: "short" })
                         const dayNum = new Date(date).getDate()
-                        const maxAmount = Math.max(...Object.values(personalStats.dailyEarnings))
-                        const heightPercentage = Math.max(10, Math.min(100, (amount / maxAmount) * 100))
+                        const maxAmount = Math.max(...Object.values(Number(personalStats.dailyEarnings)))
+                        const heightPercentage = Math.max(10, Math.min(100, (Number(amount) / maxAmount) * 100))
 
                         return (
                           <div key={date} className="flex flex-col items-center">
@@ -506,7 +484,7 @@ const ViewerDashboard: React.FC = () => {
                               ></div>
                             </div>
                             <div className="text-xs font-medium">{dayNum}</div>
-                            <div className="text-xs text-gray-600">${formatNumber(amount, 0)}</div>
+                            <div className="text-xs text-gray-600">${formatNumber(Number(amount), 0)}</div>
                           </div>
                         )
                       })}
@@ -515,7 +493,7 @@ const ViewerDashboard: React.FC = () => {
               </Card>
 
               {/* Personal Program Projection */}
-              <Card title="Proyección Personal de Fin de Programa" icon={<Target className="text-purple-600" size={20} />}>
+              <Card title={t("dashboard.personalProgramProjection")} icon={<Target className="text-purple-600" size={20} />}>
                 <div className="space-y-4">
                   {(() => {
                     // Calculate projection based on current performance
@@ -585,10 +563,9 @@ const ViewerDashboard: React.FC = () => {
                       const workingDay = program?.workingDays?.find(day => day.day_of_week === dayName)
                       return workingDay?.is_working_day === true || Number(workingDay?.is_working_day) === 1
                     })()
-                   console.log(calculateWorkingDays(programStart, today), todayIsWorkingDay)
 
                     // Calculate elapsed working days including today if it's a working day
-                    const elapsedWorkingDays = calculateWorkingDays(programStart, today);
+                    const elapsedWorkingDays = calculateWorkingDays(programStart, today)
                     const remainingWorkingDays = Math.max(0, totalWorkingDays - elapsedWorkingDays) + (todayIsWorkingDay ? 0 : -1)
 
                     // Calculate projections
@@ -605,20 +582,20 @@ const ViewerDashboard: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200">
                             <div className="text-center">
-                              <p className="text-sm font-medium text-blue-600">Ventas Actuales</p>
+                              <p className="text-sm font-medium text-blue-600">{t("dashboard.currentSales")}</p>
                               <p className="text-2xl font-bold text-blue-700">${formatNumber(totalSales)}</p>
                               <p className="text-xs text-blue-600 mt-1">
-                                {workingDaysWithSales} de {elapsedWorkingDays} días laborales
+                                {t("dashboard.workingDaysProgress", { workingDaysWithSales, elapsedWorkingDays })}
                               </p>
                             </div>
                           </div>
 
                           <div className="p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg border border-purple-200">
                             <div className="text-center">
-                              <p className="text-sm font-medium text-purple-600">Proyección Final</p>
+                              <p className="text-sm font-medium text-purple-600">{t("dashboard.finalProjection")}</p>
                               <p className="text-2xl font-bold text-purple-700">${formatNumber(projectedTotalSales)}</p>
                               <p className="text-xs text-purple-600 mt-1">
-                                {totalWorkingDays} días laborales totales
+                                {t("dashboard.totalWorkingDays", { count: totalWorkingDays })}
                               </p>
                             </div>
                           </div>
@@ -627,8 +604,8 @@ const ViewerDashboard: React.FC = () => {
                         {/* Progress Bar */}
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Progreso del Programa</span>
-                            <span className="font-medium">{progressPercentage.toFixed(1)}%</span>
+                            <span className="text-gray-600">{t("dashboard.programProgress")}</span>
+                            <span className="font-medium">{t("dashboard.progressPercentage", { percentage: progressPercentage.toFixed(1) })}</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-3">
                             <div
@@ -638,7 +615,7 @@ const ViewerDashboard: React.FC = () => {
                           </div>
                           <div className="flex justify-between text-xs text-gray-500">
                             <span>{programStart.toLocaleDateString()}</span>
-                            <span>{remainingWorkingDays} días laborales restantes</span>
+                            <span>{t("dashboard.remainingWorkingDays", { count: remainingWorkingDays })}</span>
                             <span>{programEnd.toLocaleDateString()}</span>
                           </div>
                         </div>
@@ -647,20 +624,20 @@ const ViewerDashboard: React.FC = () => {
                         <div className="p-4 bg-gradient-to-r from-success-50 to-success-100 rounded-lg border border-success-200">
                           <div className="space-y-3">
                             <div className="text-center">
-                              <p className="text-sm font-medium text-success-600">Ganancias Proyectadas</p>
+                              <p className="text-sm font-medium text-success-600">{t("dashboard.projectedEarnings")}</p>
                               <p className="text-3xl font-bold text-success-700">${formatNumber(projectedFinalEarnings)}</p>
                               <p className="text-xs text-success-600">
-                                {personalStats.earnings.percentage}% de ${formatNumber(projectedTotalSales)}
+                                {t("dashboard.earningsPercentage", { percentage: personalStats.earnings.percentage, total: formatNumber(projectedTotalSales) })}
                               </p>
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 text-sm">
                               <div className="text-center p-2 bg-white/60 rounded">
-                                <p className="text-success-600">Promedio Diario</p>
+                                <p className="text-success-600">{t("dashboard.dailyAverageProjection")}</p>
                                 <p className="font-bold text-success-700">${formatNumber(dailyAverage)}</p>
                               </div>
                               <div className="text-center p-2 bg-white/60 rounded">
-                                <p className="text-success-600">Potencial Restante</p>
+                                <p className="text-success-600">{t("dashboard.remainingPotential")}</p>
                                 <p className="font-bold text-success-700">${formatNumber(projectedRemainingEarnings)}</p>
                               </div>
                             </div>
@@ -669,37 +646,43 @@ const ViewerDashboard: React.FC = () => {
 
                         {/* Performance Insights */}
                         <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                          <h4 className="text-sm font-semibold text-gray-700 mb-3">💡 Insights de Rendimiento</h4>
+                          <h4 className="text-sm font-semibold text-gray-700 mb-3">{t("dashboard.performanceInsights")}</h4>
                           <div className="space-y-2 text-sm text-gray-600">
                             {dailyAverage > 100 && (
                               <div className="flex items-center gap-2 text-success-600">
                                 <span>🎯</span>
-                                <span>¡Excelente ritmo! Estás por encima del promedio esperado.</span>
+                                <span>{t("dashboard.highPerformanceInsight")}</span>
                               </div>
                             )}
                             {dailyAverage <= 100 && dailyAverage > 50 && (
                               <div className="flex items-center gap-2 text-blue-600">
                                 <span>📈</span>
-                                <span>Buen progreso. Considera aumentar un poco el ritmo.</span>
+                                <span>{t("dashboard.moderatePerformanceInsight")}</span>
                               </div>
                             )}
                             {dailyAverage <= 50 && (
                               <div className="flex items-center gap-2 text-warning-600">
                                 <span>⚡</span>
-                                <span>Hay potencial para mejorar. ¡Tú puedes lograrlo!</span>
+                                <span>{t("dashboard.lowPerformanceInsight")}</span>
                               </div>
                             )}
                             <div className="flex items-center gap-2">
                               <span>📅</span>
                               <span>
-                                Para alcanzar ${formatNumber(projectedFinalEarnings)} necesitas mantener un promedio de ${formatNumber(dailyAverage)} por día laboral.
+                                {t("dashboard.earningsGoalInsight", {
+                                  earnings: formatNumber(projectedFinalEarnings),
+                                  average: formatNumber(dailyAverage)
+                                })}
                               </span>
                             </div>
                             {remainingWorkingDays > 0 && (
                               <div className="flex items-center gap-2">
                                 <span>⏰</span>
                                 <span>
-                                  Con {remainingWorkingDays} días laborales restantes, podrías ganar ${formatNumber(projectedRemainingEarnings)} adicionales.
+                                  {t("dashboard.remainingEarningsInsight", {
+                                    remainingDays: remainingWorkingDays,
+                                    earnings: formatNumber(projectedRemainingEarnings)
+                                  })}
                                 </span>
                               </div>
                             )}
@@ -774,7 +757,7 @@ const ViewerDashboard: React.FC = () => {
                             </div>
 
                             {day.totals.sales === 0 && day.totals.books === 0 && day.totals.studies === 0 && (
-                              <div className="text-xs text-gray-400">Sin actividad</div>
+                              <div className="text-xs text-gray-400">{t("dashboard.noActivity")}</div>
                             )}
                           </div>
                         </div>

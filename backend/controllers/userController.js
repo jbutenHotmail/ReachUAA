@@ -453,7 +453,6 @@ export const resetPassword = async (req, res) => {
     // Generate default password based on name
     let defaultPassword;
     if (user.first_name && user.last_name) {
-      console.log(`${user.first_name.toLowerCase()}.${user.last_name.toLowerCase()}`);
       defaultPassword = `${user.first_name.toLowerCase()}.${user.last_name.toLowerCase()}`;
     } else {
       // If no name is available, use email as base for password
@@ -558,7 +557,6 @@ export const getUserProfile = async (req, res) => {
 
 // Update user profile
 export const updateProfile = async (req, res) => {
-  console.log('profileImage');
   try {
     const userId = req.user.id;
     const { name, phone, address, profileImage, profile_image_url } = req.body;

@@ -56,7 +56,6 @@ export const uploadProfileImage = async (req, res) => {
 
     // Public URL of the file
     const imageUrl = `https://${config.SPACES_BUCKET}.nyc3.digitaloceanspaces.com/${fileName}`;
-    console.log('Profile Image URL:', imageUrl);
     
     res.json({ imageUrl });
   } catch (error) {
@@ -89,7 +88,6 @@ export const uploadProgramLogo = async (req, res) => {
 
     // Public URL of the file
     const imageUrl = `https://${config.SPACES_BUCKET}.nyc3.digitaloceanspaces.com/${fileName}`;
-    console.log('Program Logo URL:', imageUrl);
     
     res.json({ imageUrl });
   } catch (error) {
@@ -122,7 +120,6 @@ export const uploadBookImage = async (req, res) => {
 
     // Public URL of the file
     const imageUrl = `https://${config.SPACES_BUCKET}.nyc3.digitaloceanspaces.com/${fileName}`;
-    console.log('Book Image URL:', imageUrl);
     
     res.json({ imageUrl });
   } catch (error) {
@@ -155,7 +152,6 @@ export const uploadBibleStudyPhoto = async (req, res) => {
 
     // Public URL of the file
     const imageUrl = `https://${config.SPACES_BUCKET}.nyc3.digitaloceanspaces.com/${fileName}`;
-    console.log('Bible Study Photo URL:', imageUrl);
     
     res.json({ imageUrl });
   } catch (error) {

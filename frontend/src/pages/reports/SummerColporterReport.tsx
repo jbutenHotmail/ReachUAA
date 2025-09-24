@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
@@ -58,10 +56,19 @@ const SummerColporterReport: React.FC = () => {
     Record<string, { sales: number; days: number; books: { large: number; small: number } }>
   >({})
   const [dailySales, setDailySales] = useState<Record<string, number>>({})
-  const [dailyBooks, setDailyBooks] = useState<Record<string, { large: number; small: number }>>({})
   const [teamMembers, setTeamMembers] = useState<any[]>([])
   const [bibleStudies, setBibleStudies] = useState<any[]>([])
   const [topSellerBook, setTopSellerBook] = useState<any>(null)
+  const [booksByTitle, setBooksByTitle] = useState<Record<string, { title: string; size: string; dailyQuantities: Record<string, number>; total: number }>>({})
+  const [programProjection, setProgramProjection] = useState<{
+    totalWorkingDays: number;
+    elapsedWorkingDays: number;
+    remainingWorkingDays: number;
+    currentAverage: number;
+    projectedTotal: number;
+    projectedEarnings: number;
+    progressPercentage: number;
+  } | null>(null)
 
   // Fetch person ID by name
   useEffect(() => {
@@ -73,7 +80,7 @@ const SummerColporterReport: React.FC = () => {
         }
         const colporters: Colporter[] = await api.get("/people/colporters", { params })
         const colporter = colporters.find(
-          (p: any) => `${p.name} ${p.apellido}`.trim() === name.trim() || p.name === name.trim(),
+          (p: any) => `${p.name} ${p.apellido}`.trim() === name?.trim() || p.name === name?.trim(),
         )
         if (colporter) {
           setPersonId(colporter.id)
@@ -122,9 +129,17 @@ const SummerColporterReport: React.FC = () => {
         // Set the data from the report
         setBibleStudies(reportData.bibleStudies || [])
         setTopSellerBook(reportData.topSellerBook || null)
+        
+        // Store valid transactions for later use
+        const validTxns = reportData.transactions.filter((t: any) => t.status === "APPROVED")        
+        // Process books by title for the table
+        processBooksByTitle(validTxns)
 
         // Process the transactions to get statistics
         processTransactionData(reportData.transactions, personType)
+        
+        // Calculate program projection
+        calculateProgramProjection(validTxns)
 
         // If this is a leader, also fetch their team members
         if (personType === "LEADER") {
@@ -142,6 +157,107 @@ const SummerColporterReport: React.FC = () => {
       loadTransactionData()
     }
   }, [personId, personType, t])
+
+  // Process books by title for the table display
+  const processBooksByTitle = (transactions: any[]) => {
+    const bookMap: Record<string, { title: string; size: string; dailyQuantities: Record<string, number>; total: number }> = {}
+    
+    transactions.forEach(transaction => {
+      if (transaction.books && transaction.books.length > 0) {
+        transaction.books.forEach((book: any) => {
+          if (!bookMap[book.title]) {
+            bookMap[book.title] = {
+              title: book.title,
+              size: book.size,
+              dailyQuantities: {},
+              total: 0
+            }
+          }
+          
+          const date = transaction.date
+          bookMap[book.title].dailyQuantities[date] = (bookMap[book.title].dailyQuantities[date] || 0) + book.quantity
+          bookMap[book.title].total += book.quantity
+        })
+      }
+    })
+    
+    setBooksByTitle(bookMap)
+  }
+
+  // Calculate program projection taking into account custom days
+  const calculateProgramProjection = (transactions: any[]) => {
+    if (!program || transactions.length === 0) {
+      setProgramProjection(null)
+      return
+    }
+
+    const programStart = new Date(program.start_date)
+    const programEnd = new Date(program.end_date)
+    const today = new Date()
+
+    // Function to check if a date is a working day
+    const isWorkingDay = (date: Date): boolean => {
+      const dateStr = date.toISOString().split('T')[0]
+      
+      // Check custom days first
+      const customDay = program.customDays?.find(day => {
+        const customDayStr = new Date(day.date).toISOString().split('T')[0]
+        return customDayStr === dateStr
+      })
+      
+      if (customDay) {
+        return customDay.is_working_day === true || Number(customDay.is_working_day) === 1
+      }
+      
+      // Check default working days
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+      const workingDay = program.workingDays?.find(day => day.day_of_week === dayName)
+      return workingDay?.is_working_day === true || Number(workingDay?.is_working_day) === 1
+    }
+
+    // Calculate total working days in the program
+    let totalWorkingDays = 0
+    let elapsedWorkingDays = 0
+   
+    for (let d = new Date(programStart); d <= programEnd; d.setDate(d.getDate() + 1)) {
+      if (isWorkingDay(d)) {
+        totalWorkingDays++
+        if (d.setHours(0,0,0,0) < today.setHours(0,0,0,0)) {
+          elapsedWorkingDays++
+        }
+      }
+    }
+
+    const remainingWorkingDays = Math.max(0, totalWorkingDays - elapsedWorkingDays)
+    
+    // Calculate current performance
+    const totalSales = transactions.reduce((sum, t) => sum + Number(t.total), 0)
+    const workingDaysWithSales = transactions.length
+    const currentAverage = totalSales / Math.max(workingDaysWithSales, 1)
+    
+    // Calculate projections
+    const projectedTotal = currentAverage * totalWorkingDays
+    const percentage = personType === "COLPORTER"
+      ? program?.financialConfig?.colporter_percentage
+        ? parseFloat(program.financialConfig.colporter_percentage)
+        : 50
+      : program?.financialConfig?.leader_percentage
+        ? parseFloat(program.financialConfig.leader_percentage)
+        : 15
+    
+    const projectedEarnings = projectedTotal * (percentage / 100)
+    const progressPercentage = (elapsedWorkingDays / totalWorkingDays) * 100
+
+    setProgramProjection({
+      totalWorkingDays,
+      elapsedWorkingDays,
+      remainingWorkingDays,
+      currentAverage,
+      projectedTotal,
+      projectedEarnings,
+      progressPercentage
+    })
+  }
 
   // Fetch team members for a leader
   const fetchTeamMembers = async (leaderId: string, leaderTransactions: any[]) => {
@@ -207,7 +323,6 @@ const SummerColporterReport: React.FC = () => {
       setStats(null)
       setMonthlyData({})
       setDailySales({})
-      setDailyBooks({})
       return
     }
 
@@ -218,7 +333,6 @@ const SummerColporterReport: React.FC = () => {
       setStats(null)
       setMonthlyData({})
       setDailySales({})
-      setDailyBooks({})
       return
     }
 
@@ -356,7 +470,6 @@ const SummerColporterReport: React.FC = () => {
 
     setMonthlyData(monthlyDataObj)
     setDailySales(dailySalesData)
-    setDailyBooks(dailyBooksData)
   }
 
   if (isLoading) {
@@ -413,7 +526,7 @@ const SummerColporterReport: React.FC = () => {
           </h1>
           <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
             <Calendar size={16} />
-            {t("summerColporterReport.completeProgram")} • {stats.workingDays} días laborales
+            {t("summerColporterReport.completeProgram")} • {t("summerColporterReport.workingDays", { count: stats.workingDays })}
           </p>
         </div>
       </div>
@@ -427,7 +540,7 @@ const SummerColporterReport: React.FC = () => {
             </div>
             <p className="text-sm font-medium text-gray-500">{t("summerColporterReport.totalSalesBruto")}</p>
             <p className="mt-1 text-2xl font-bold text-primary-600">${formatNumber(stats.bruto.total)}</p>
-            <p className="text-xs text-gray-500">100% de las ventas</p>
+            <p className="text-xs text-gray-500">{t("summerColporterReport.salesPercentage", { percentage: 100 })}</p>
           </div>
         </Card>
 
@@ -438,7 +551,7 @@ const SummerColporterReport: React.FC = () => {
             </div>
             <p className="text-sm font-medium text-gray-500">{t("summerColporterReport.netEarningsNeto")}</p>
             <p className="mt-1 text-2xl font-bold text-success-600">${formatNumber(stats.neto.total)}</p>
-            <p className="text-xs text-gray-500">{percentage}% de las ventas</p>
+            <p className="text-xs text-gray-500">{t("summerColporterReport.salesPercentage", { percentage })}</p>
           </div>
         </Card>
 
@@ -450,20 +563,18 @@ const SummerColporterReport: React.FC = () => {
             <p className="text-sm font-medium text-gray-500">{t("summerColporterReport.totalBooks")}</p>
             <p className="mt-1 text-2xl font-bold text-warning-600">{totalBooks}</p>
             <p className="text-xs text-gray-500">
-              {stats.libros.grandes} grandes ({largeBooksPercentage}%), {stats.libros.pequenos} pequeños (
-              {smallBooksPercentage}%)
+              {t("summerColporterReport.largeBooksPercentage", { count: stats.libros.grandes, percentage: largeBooksPercentage })}, {t("summerColporterReport.smallBooksPercentage", { count: stats.libros.pequenos, percentage: smallBooksPercentage })}
             </p>
           </div>
         </Card>
 
         <Card>
           <div className="text-center">
-            <div className="flex items-center justify-center mb-2">
+            <div className="flex items-center justify-center mb-5">
               <Calendar className="text-blue-600" size={24} />
             </div>
-            <p className="text-sm font-medium text-gray-500">Horas Trabajadas</p>
+            <p className="text-sm font-medium text-gray-500">{t("common.hoursWorked")}</p>
             <p className="mt-1 text-2xl font-bold text-blue-600">{formatNumber(stats.hoursWorked.total)}</p>
-            <p className="text-xs text-gray-500">Promedio: {formatNumber(stats.hoursWorked.average)}</p>
           </div>
         </Card>
 
@@ -486,13 +597,13 @@ const SummerColporterReport: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <p className="text-sm font-medium text-gray-500">Top Seller</p>
+              <p className="text-sm font-medium text-gray-500">{t("summerColporterReport.topSeller")}</p>
               <p className="mt-1 text-lg font-bold text-purple-600 truncate max-w-full" title={topSellerBook.title}>
                 {topSellerBook.title}
               </p>
               <div className="flex justify-center items-center gap-2 mt-1">
                 <Badge variant="info" size="sm">
-                  {topSellerBook.totalQuantity} libros
+                  {topSellerBook.totalQuantity} {t("common.books")}
                 </Badge>
                 <Badge variant="secondary" size="sm">
                   ${Number(topSellerBook.totalRevenue).toFixed(0)}
@@ -505,21 +616,21 @@ const SummerColporterReport: React.FC = () => {
 
       {/* Bible Studies Section */}
       {bibleStudies.length > 0 && (
-        <Card title="Estudios Bíblicos Registrados" icon={<BookOpen size={20} />}>
+        <Card title={t("summerColporterReport.registeredBibleStudies")} icon={<BookOpen size={20} />}>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="p-3 bg-blue-50 rounded-lg text-center">
-                <p className="text-sm font-medium text-blue-600">Total Registrados</p>
+                <p className="text-sm font-medium text-blue-600">{t("summerColporterReport.totalRegistered")}</p>
                 <p className="text-2xl font-bold text-blue-700">{bibleStudies.length}</p>
               </div>
               <div className="p-3 bg-green-50 rounded-lg text-center">
-                <p className="text-sm font-medium text-green-600">Estudios Bíblicos</p>
+                <p className="text-sm font-medium text-green-600">{t("summerColporterReport.bibleStudies")}</p>
                 <p className="text-2xl font-bold text-green-700">
                   {bibleStudies.filter((bs) => bs.study_type === "Estudio Bíblico").length}
                 </p>
               </div>
               <div className="p-3 bg-purple-50 rounded-lg text-center">
-                <p className="text-sm font-medium text-purple-600">Grupos de Oración</p>
+                <p className="text-sm font-medium text-purple-600">{t("summerColporterReport.prayerGroups")}</p>
                 <p className="text-2xl font-bold text-purple-700">
                   {bibleStudies.filter((bs) => bs.study_type === "Grupo de Oración").length}
                 </p>
@@ -531,19 +642,19 @@ const SummerColporterReport: React.FC = () => {
                 <thead>
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Nombre
+                      {t("common.name")}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Teléfono
+                      {t("common.phone")}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Ubicación
+                      {t("common.location")}
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tipo
+                      {t("common.type")}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Fecha
+                      {t("common.date")}
                     </th>
                   </tr>
                 </thead>
@@ -575,7 +686,7 @@ const SummerColporterReport: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{study.phone}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                        {study.municipality_name || study.location || "No especificado"}
+                        {study.municipality_name || study.location || t("common.notSpecified")}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-center">
                         <Badge
@@ -602,6 +713,169 @@ const SummerColporterReport: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Program Projection */}
+      {programProjection && (
+        <Card title={t("summerColporterReport.programProjection")} icon={<TrendingUp size={20} />}>
+          <div className="space-y-6">
+            {/* Progress Overview */}
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{t("summerColporterReport.programProgress")}</h3>
+                  <p className="text-sm text-gray-600">
+                    {t("summerColporterReport.workedDays", { count: programProjection.elapsedWorkingDays })} {t("common.of")} {t("summerColporterReport.totalWorkingDays", { count: programProjection.totalWorkingDays })}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-blue-700">
+                    {programProjection.progressPercentage.toFixed(1)}%
+                  </p>
+                  <p className="text-sm text-blue-600">{t("summerColporterReport.completed")}</p>
+                </div>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="space-y-2">
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-1000 ease-out"
+                    style={{ width: `${programProjection.progressPercentage}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>{new Date(program.start_date).toLocaleDateString()}</span>
+                  <span>{t("summerColporterReport.remainingDays", { count: programProjection.remainingWorkingDays })}</span>
+                  <span>{new Date(program.end_date).toLocaleDateString()}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Projection Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-lg border border-green-200">
+                <div className="text-center">
+                  <p className="text-sm font-medium text-green-600">{t("summerColporterReport.currentSales")}</p>
+                  <p className="text-2xl font-bold text-green-700">${formatNumber(stats.bruto.total)}</p>
+                  <p className="text-xs text-green-600 mt-1">
+                    {t("summerColporterReport.workingDays", { count: stats.workingDays })}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+                <div className="text-center">
+                  <p className="text-sm font-medium text-blue-600">{t("summerColporterReport.dailyAverageProjection")}</p>
+                  <p className="text-2xl font-bold text-blue-700">${formatNumber(programProjection.currentAverage)}</p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    {t("summerColporterReport.perWorkingDay")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg border border-purple-200">
+                <div className="text-center">
+                  <p className="text-sm font-medium text-purple-600">{t("summerColporterReport.totalProjection")}</p>
+                  <p className="text-2xl font-bold text-purple-700">${formatNumber(programProjection.projectedTotal)}</p>
+                  <p className="text-xs text-purple-600 mt-1">
+                    {t("summerColporterReport.atProgramEnd")}
+                  </p>
+                  <p className="text-xs text-purple-500 mt-1">
+                    {t("summerColporterReport.basedOnAverage", { average: formatNumber(programProjection.currentAverage) })}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg border border-yellow-200">
+                <div className="text-center">
+                  <p className="text-sm font-medium text-yellow-600">{t("summerColporterReport.projectedEarnings")}</p>
+                  <p className="text-2xl font-bold text-yellow-700">${formatNumber(programProjection.projectedEarnings)}</p>
+                  <p className="text-xs text-yellow-600 mt-1">
+                    {t("summerColporterReport.salesPercentage", { percentage })}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Breakdown */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <h4 className="font-semibold text-gray-900">{t("summerColporterReport.performanceAnalysis")}</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm font-medium text-gray-700">{t("summerColporterReport.totalWorkingDays")}</span>
+                    <span className="text-lg font-bold text-gray-900">{programProjection.totalWorkingDays}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                    <span className="text-sm font-medium text-blue-700">{t("summerColporterReport.workedDays")}</span>
+                    <span className="text-lg font-bold text-blue-900">{programProjection.elapsedWorkingDays}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+                    <span className="text-sm font-medium text-orange-700">{t("summerColporterReport.remainingDays")}</span>
+                    <span className="text-lg font-bold text-orange-900">{programProjection.remainingWorkingDays}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="font-semibold text-gray-900">{t("summerColporterReport.remainingPotential")}</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                    <span className="text-sm font-medium text-green-700">{t("summerColporterReport.potentialSales")}</span>
+                    <span className="text-lg font-bold text-green-900">
+                      ${formatNumber(programProjection.currentAverage * programProjection.remainingWorkingDays)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
+                    <span className="text-sm font-medium text-purple-700">{t("summerColporterReport.potentialEarnings")}</span>
+                    <span className="text-lg font-bold text-purple-900">
+                      ${formatNumber((programProjection.currentAverage * programProjection.remainingWorkingDays) * (Number(percentage) / 100))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+                    <span className="text-sm font-medium text-yellow-700">{t("summerColporterReport.differenceVsCurrent")}</span>
+                    <span className="text-lg font-bold text-yellow-900">
+                      +${formatNumber(programProjection.projectedEarnings - stats.neto.total)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Performance Insights */}
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">{t("summerColporterReport.performanceInsights")}</h4>
+              <div className="space-y-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2">
+                  <span>📊</span>
+                  <span>
+                    {t("summerColporterReport.insightProgramProgress", {
+                      elapsedDays: programProjection.elapsedWorkingDays,
+                      totalDays: programProjection.totalWorkingDays,
+                      percentage: programProjection.progressPercentage.toFixed(1)
+                    })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>📅</span>
+                  <span>
+                    {t("summerColporterReport.insightProjectedEarnings", {
+                      average: formatNumber(programProjection.currentAverage),
+                      earnings: formatNumber(programProjection.projectedEarnings)
+                    })}
+                  </span>
+                </div>
+                {programProjection.remainingWorkingDays === 0 && (
+                  <div className="flex items-center gap-2 text-success-600">
+                    <span>🏁</span>
+                    <span>{t("summerColporterReport.insightProgramCompleted")}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </Card>
@@ -649,14 +923,14 @@ const SummerColporterReport: React.FC = () => {
           </div>
 
           <div className="p-3 bg-blue-50 rounded-lg">
-            <h4 className="font-semibold text-blue-700 text-sm">Horas Promedio</h4>
-            <p className="text-xs text-blue-600 mt-1">Por día trabajado</p>
+            <h4 className="font-semibold text-blue-700 text-sm">{t("common.averageHours")}</h4>
+            <p className="text-xs text-blue-600 mt-1">{t("summerColporterReport.perWorkingDay")}</p>
             <p className="text-base font-bold text-blue-700">{formatNumber(stats.hoursWorked.average)}</p>
           </div>
 
           <div className="p-3 bg-purple-50 rounded-lg">
-            <h4 className="font-semibold text-purple-700 text-sm">Estudios Bíblicos</h4>
-            <p className="text-xs text-purple-600 mt-1">Registrados</p>
+            <h4 className="font-semibold text-purple-700 text-sm">{t("summerColporterReport.bibleStudies")}</h4>
+            <p className="text-xs text-purple-600 mt-1">{t("common.registered")}</p>
             <p className="text-base font-bold text-purple-700">{bibleStudies.length}</p>
           </div>
         </div>
@@ -675,7 +949,7 @@ const SummerColporterReport: React.FC = () => {
                     {t("summerColporterReport.totalSales")}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Horas
+                    {t("common.hours")}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {t("summerColporterReport.largeBooks")}
@@ -854,50 +1128,97 @@ const SummerColporterReport: React.FC = () => {
               <thead>
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-[#0052B4] sticky left-0 z-10 border-b">
-                    {t("summerColporterReport.date")}
+                    {name}
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-primary-700 border-b">
-                    {t("summerColporterReport.largeBooks")}
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-success-600 border-b">
-                    {t("summerColporterReport.smallBooks")}
-                  </th>
+                  {Object.keys(dailySales).sort().map((date) => (
+                    <th
+                      key={date}
+                      className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b min-w-[80px]"
+                    >
+                      <div className="flex flex-col items-center">
+                        <span className="text-[10px]">
+                          {new Date(date).toLocaleDateString("es-ES", { weekday: "short", timeZone: "UTC" })}
+                        </span>
+                        <span className="font-bold">
+                          {new Date(date).getDate()}
+                        </span>
+                        <span className="text-[10px]">
+                          {new Date(date).toLocaleDateString("es-ES", { month: "short", timeZone: "UTC" })}
+                        </span>
+                      </div>
+                    </th>
+                  ))}
                   <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                    {t("summerColporterReport.totalBooksLabel")}
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-white uppercase tracking-wider bg-[#003D85] border-b">
-                    {t("summerColporterReport.sales")}
+                    {t("common.total")}
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {Object.keys(dailySales)
-                  .sort()
-                  .map((date) => (
-                    <tr key={date} className="hover:bg-gray-50">
+                {Object.entries(booksByTitle)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([bookTitle, bookData]) => (
+                    <tr key={bookTitle} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 z-10 bg-white">
-                        {new Date(date).toLocaleDateString("es-ES", {
-                          weekday: "short",
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                          timeZone: "UTC",
-                        })}
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant={bookData.size === "LARGE" ? "primary" : "success"} 
+                            size="sm"
+                          >
+                            {bookData.size === "LARGE" ? "G" : "P"}
+                          </Badge>
+                          <span className="min-w-0 flex-1" title={bookTitle}>
+                            {bookTitle}
+                          </span>
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-center">
-                        <Badge variant="primary">{dailyBooks[date]?.large || 0}</Badge>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center">
-                        <Badge variant="success">{dailyBooks[date]?.small || 0}</Badge>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center font-medium">
-                        <Badge variant="secondary">
-                          {(dailyBooks[date]?.large || 0) + (dailyBooks[date]?.small || 0)}
+                      {Object.keys(dailySales).sort().map((date) => (
+                        <td key={date} className="px-4 py-3 text-sm text-center whitespace-nowrap">
+                          {bookData.dailyQuantities[date] ? (
+                            <Badge 
+                              variant={bookData.size === "LARGE" ? "primary" : "success"} 
+                              size="sm"
+                            >
+                              {bookData.dailyQuantities[date]}
+                            </Badge>
+                          ) : (
+                            <span className="text-gray-300 text-xs">-</span>
+                          )}
+                        </td>
+                      ))}
+                      <td className="px-4 py-3 text-sm text-center font-medium whitespace-nowrap">
+                        <Badge 
+                          variant={bookData.size === "LARGE" ? "primary" : "success"}
+                          size="lg"
+                        >
+                          {bookData.total}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-sm text-right font-medium">${formatNumber(dailySales[date])}</td>
                     </tr>
                   ))}
+                
+                {/* Totals row */}
+                <tr className="bg-gray-100">
+                  <td className="px-4 py-3 text-sm font-bold text-white bg-[#0052B4] sticky left-0 z-10">
+                    {t("common.totals")}
+                  </td>
+                  {Object.keys(dailySales).sort().map((date) => {
+                    const dayTotal = Object.values(booksByTitle).reduce((sum, book) => 
+                      sum + (book.dailyQuantities[date] || 0), 0
+                    )
+                    return (
+                      <td key={date} className="px-4 py-3 text-sm text-center whitespace-nowrap">
+                        <Badge variant="secondary" size="sm">
+                          {dayTotal}
+                        </Badge>
+                      </td>
+                    )
+                  })}
+                  <td className="px-4 py-3 text-sm text-center font-bold whitespace-nowrap">
+                    <Badge variant="secondary" size="lg">
+                      {Object.values(booksByTitle).reduce((sum, book) => sum + book.total, 0)}
+                    </Badge>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
