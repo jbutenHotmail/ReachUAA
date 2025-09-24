@@ -749,7 +749,7 @@ const SummerColporterReport: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-xs text-gray-500">
                   <span>{new Date(program.start_date).toLocaleDateString()}</span>
-                  <span>{t("summerColporterReport.remainingDays", { count: programProjection.remainingWorkingDays })}</span>
+                  <span>{programProjection.remainingWorkingDays} {" "}{t("summerColporterReport.remainingDays")}</span>
                   <span>{new Date(program.end_date).toLocaleDateString()}</span>
                 </div>
               </div>
