@@ -99,11 +99,9 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
   const categories = [
     { value: 'FINE', label: t('addChargeForm.fine'), description: t('addChargeForm.fineDescription') },
     { value: 'DEDUCTION', label: t('addChargeForm.deduction'), description: t('addChargeForm.deductionDescription') },
-    { value: 'PENALTY', label: t('addChargeForm.penalty'), description: t('addChargeForm.penaltyDescription') },
     { value: 'PROGRAM_FEE', label: 'Program Fee', description: 'Program enrollment or material fees' },
     { value: 'FOOD', label: 'Food', description: 'Food and meal related expenses' },
     { value: 'MEDICAL_INSURANCE', label: 'Medical Insurance', description: 'Medical insurance or health expenses' },
-    { value: 'OTHER', label: t('addChargeForm.other'), description: t('addChargeForm.otherDescription') },
   ];
 
   return (
