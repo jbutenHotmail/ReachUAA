@@ -175,7 +175,6 @@ const AchievementsPage: React.FC = () => {
     const fetchBookCategories = async () => {
       try {
         const response = await api.get("/achievements/book-categories")
-        console.log("Book Categories:", response)
         setBookCategories(response)
 
         if (selectedCategory === "books_category" && response.length > 0) {
@@ -222,9 +221,7 @@ const AchievementsPage: React.FC = () => {
           }
         }
 
-        console.log("Fetching achievements with params:", params)
         const response = await api.get("/achievements", { params })
-        console.log("Achievements response:", response)
         // Deduplicate achievements by id
         const uniqueAchievements = Array.from(
           new Map(response.map((item: Achievement) => [item.id, item])).values()

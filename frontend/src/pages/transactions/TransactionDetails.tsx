@@ -41,7 +41,7 @@ const TransactionDetails: React.FC = () => {
       </div>
     )
   }
-  console.log(transaction)
+  // console.log(transaction)
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "PENDING":

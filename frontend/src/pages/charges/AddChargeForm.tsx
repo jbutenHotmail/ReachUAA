@@ -1,4 +1,3 @@
-// AddChargeForm.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, ChevronDown, DollarSign } from 'lucide-react';
@@ -7,36 +6,30 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { useUserStore } from '../../stores/userStore';
-import { useAuthStore } from '../../stores/authStore';
 import { Charge } from '../../types';
 
 interface AddChargeFormProps {
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: Omit<Charge, 'id' | 'createdAt' | 'updatedAt'>) => void;
   initialData?: Charge;
 }
 
-const AddChargeForm: React.FC<AddChargeFormProps> = ({ 
-  onClose, 
+const AddChargeForm: React.FC<AddChargeFormProps> = ({
+  onClose,
   onSubmit,
-  initialData 
+  initialData,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuthStore();
-  const { werePeopleFetched, fetchPeople, getLeaders, getColporters } = useUserStore();
-  
-  const [formData, setFormData] = React.useState({
+  const { people, fetchPeople, werePeopleFetched } = useUserStore();
+  const [formData, setFormData] = useState({
     personId: initialData?.personId || '',
-    personName: initialData?.personName || '',
     personType: initialData?.personType || 'COLPORTER',
     amount: initialData?.amount || 0,
     reason: initialData?.reason || '',
     description: initialData?.description || '',
     category: initialData?.category || 'FINE',
-    status: initialData?.status || 'PENDING',
-    appliedBy: user?.id || '',
-    appliedByName: user?.name || '',
     date: initialData?.date || new Date().toISOString().split('T')[0],
+    status: initialData?.status || 'PENDING',
   });
 
   // Person selection state
@@ -50,8 +43,10 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
   const personDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    !werePeopleFetched && fetchPeople();
-  }, [fetchPeople]);
+    if (!werePeopleFetched) {
+      fetchPeople();
+    }
+  }, [fetchPeople, werePeopleFetched]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -66,19 +61,24 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
     };
   }, []);
 
-  const people = formData.personType === 'COLPORTER' ? getColporters() : getLeaders();
-  
-  const filteredPeople = people.filter((person) =>
-    person.name.toLowerCase().includes(personSearch.toLowerCase())
-  );
+  const filteredPeople = people.filter((person) => {
+    const matchesType = person.personType === formData.personType;
+    const matchesSearch = person.name.toLowerCase().includes(personSearch.toLowerCase()) ||
+                         person.apellido.toLowerCase().includes(personSearch.toLowerCase());
+    return matchesType && matchesSearch;
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
       ...formData,
-      personId: selectedPerson?.id,
-      personName: selectedPerson?.name,
-      status: 'PENDING',
+      personId: selectedPerson?.id || formData.personId,
+      personName: selectedPerson?.name || '',
+      personType: formData.personType as 'COLPORTER' | 'LEADER',
+      category: formData.category as 'FINE' | 'DEDUCTION' | 'PENALTY' | 'PROGRAM_FEE' | 'FOOD' | 'MEDICAL_INSURANCE' | 'OTHER',
+      status: formData.status as 'PENDING' | 'APPLIED' | 'CANCELLED',
+      appliedBy: '',
+      appliedByName: '',
     });
   };
 
@@ -100,6 +100,9 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
     { value: 'FINE', label: t('addChargeForm.fine'), description: t('addChargeForm.fineDescription') },
     { value: 'DEDUCTION', label: t('addChargeForm.deduction'), description: t('addChargeForm.deductionDescription') },
     { value: 'PENALTY', label: t('addChargeForm.penalty'), description: t('addChargeForm.penaltyDescription') },
+    { value: 'PROGRAM_FEE', label: 'Program Fee', description: 'Program enrollment or material fees' },
+    { value: 'FOOD', label: 'Food', description: 'Food and meal related expenses' },
+    { value: 'MEDICAL_INSURANCE', label: 'Medical Insurance', description: 'Medical insurance or health expenses' },
     { value: 'OTHER', label: t('addChargeForm.other'), description: t('addChargeForm.otherDescription') },
   ];
 
@@ -213,12 +216,12 @@ const AddChargeForm: React.FC<AddChargeFormProps> = ({
                             type="button"
                             className="w-full text-left px-4 py-2 hover:bg-gray-50 focus:outline-none focus:bg-gray-50"
                             onClick={() => {
-                              setSelectedPerson({ id: person.id, name: person.name });
+                              setSelectedPerson({ id: person.id, name: `${person.name} ${person.apellido}` });
                               setPersonSearch('');
                               setIsPersonDropdownOpen(false);
                             }}
                           >
-                            <div className="font-medium text-sm">{person.name}</div>
+                            <div className="font-medium text-sm">{person.name} {person.apellido}</div>
                           </button>
                         ))
                       ) : (

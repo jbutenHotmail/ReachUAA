@@ -31,6 +31,7 @@ interface ReportData {
     date: string
     amount: number
     reason: string
+    category: "FINE" | "DEDUCTION" | "PROGRAM_FEE" | "FOOD" | "MEDICAL_INSURANCE"
   }>
   advances: Array<{
     id: string
@@ -195,6 +196,7 @@ const IndividualReports: React.FC = () => {
           date: c.date,
           amount: c.amount,
           reason: c.reason,
+          category: c.category,
         })),
         advances: personAdvances.map((a) => ({
           id: a.id,
@@ -310,239 +312,255 @@ const IndividualReports: React.FC = () => {
   }
 
   const printReport = () => {
-    if (!reportData) return
+  if (!reportData) return;
 
-    const weeks = groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate)
+  const weeks = groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate);
 
-    if (weeks.length === 0 && reportData.personType === "COLPORTER") {
-      setError(t("individualReports.errorNoData"))
-      return
-    }
+  if (weeks.length === 0 && reportData.personType === "COLPORTER") {
+    setError(t("individualReports.errorNoData"));
+    return;
+  }
 
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${t("individualReports.title")} - ${reportData.personName}</title>
-        <style>
+  const printContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>${t("individualReports.title")} - ${reportData.personName}</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 10px;
+          color: #333;
+          font-size: 8pt;
+        }
+        @media print {
           body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            color: #333;
-          }
-          .header {
-            text-align: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #ddd;
-          }
-          .header h1 {
-            margin: 0;
-            font-size: 24px;
-            color: #0052B4;
-          }
-          .header p {
-            margin: 5px 0;
-            font-size: 14px;
-            color: #666;
+            margin: 0.25in;
+            padding: 0;
+            font-size: 7pt;
           }
           table {
             width: 100%;
+            max-width: 100%;
+            table-layout: fixed;
+            font-size: 7pt;
             border-collapse: collapse;
-            margin-bottom: 20px;
           }
           th, td {
+            padding: 2px 3px;
             border: 1px solid #ddd;
-            padding: 8px;
             text-align: center;
+            vertical-align: middle;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
           }
-          th {
-            background-color: #f2f2f2;
-            font-weight: bold;
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
           }
-          .week-row {
-            background-color: #f9f9f9;
-          }
-          .total-row {
-            font-weight: bold;
-            background-color: #e6e6e6;
-          }
-          .net-row {
-            font-weight: bold;
-            background-color: #d4edda;
-            color: #155724;
-          }
-          .charges-header {
-            background-color: #dc3545;
-            color: white;
-          }
-          .advances-header {
-            background-color: #6f42c1;
-            color: white;
-          }
-          .charges-cell {
-            background-color: #f8d7da;
-          }
-          .advances-cell {
-            background-color: #e2d9f3;
-          }
-          .charges-section, .advances-section {
-            margin-top: 30px;
-          }
-          .charges-section h2, .advances-section h2 {
-            font-size: 18px;
-            margin-bottom: 10px;
-            color: #0052B4;
-          }
-          .summary-section {
-            margin-top: 30px;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-radius: 5px;
-          }
-          .summary-section h2 {
-            font-size: 18px;
-            margin-bottom: 10px;
-            color: #0052B4;
-          }
-          .summary-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 5px;
-          }
-          .summary-item.total {
-            font-weight: bold;
-            border-top: 1px solid #ddd;
-            padding-top: 5px;
-            margin-top: 5px;
-          }
-          .non-colportable {
-            background-color: #f8d7da;
-            color: #721c24;
-          }
-          .leader-note {
-            background-color: #cce5ff;
-            border: 1px solid #b8daff;
-            color: #004085;
-            padding: 10px;
-            margin: 15px 0;
-            border-radius: 5px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>${t("individualReports.title")}</h1>
-          <p><strong>${t("common.person")}:</strong> ${reportData.personName}</p>
-          <p><strong>${t("common.type")}:</strong> ${t(`personForm.${reportData.personType.toLowerCase()}`)}</p>
-          <p><strong>${t("reports.period")}:</strong> ${formatDateSafe(reportData.startDate)} - ${formatDateSafe(reportData.endDate)}</p>
-        </div>
-        ${
-          reportData.personType === "LEADER"
-            ? `
+   }
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 15px;
+          padding-bottom: 8px;
+          border-bottom: 1px solid #ddd;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 16pt;
+          color: #0052B4;
+        }
+        .header p {
+          margin: 3px 0;
+          font-size: 8pt;
+          color: #666;
+        }
+        th {
+          background-color: #0052B4;
+          color: white;
+          font-weight: bold;
+        }
+        .charges-header {
+          background-color: #dc3545;
+          color: white;
+        }
+        .advances-header {
+          background-color: #6f42c1;
+          color: white;
+        }
+        .week-row:nth-child(even) {
+          background-color: #fffaf0;
+        }
+        .week-row:nth-child(odd) {
+          background-color: white;
+        }
+        .charges-cell {
+          background-color: #fed7d7;
+        }
+        .advances-cell {
+          background-color: #ede9fe;
+        }
+        .total-row {
+          background-color: #f3f4f6;
+          font-weight: bold;
+        }
+        .net-row {
+          background-color: #d1fae5;
+          color: #065f46;
+          font-weight: bold;
+        }
+        .non-colportable {
+          background-color: #fed7d7;
+          color: #991b1b;
+        }
+        .leader-note {
+          background-color: #dbeafe;
+          border: 1px solid #bfdbfe;
+          color: #1e40af;
+          padding: 8px;
+          margin: 10px 0;
+          border-radius: 4px;
+        }
+        .charges-section, .advances-section {
+          margin-top: 20px;
+        }
+        .charges-section h2, .advances-section h2 {
+          font-size: 12pt;
+          margin-bottom: 8px;
+          color: #0052B4;
+        }
+        .summary-section {
+          margin-top: 20px;
+          padding: 10px;
+          background-color: #f8f9fa;
+          border-radius: 4px;
+        }
+        .summary-section h2 {
+          font-size: 12pt;
+          margin-bottom: 8px;
+          color: #0052B4;
+        }
+        .summary-item {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 3px;
+          font-size: 8pt;
+        }
+        .summary-item.total {
+          font-weight: bold;
+          border-top: 1px solid #ddd;
+          padding-top: 3px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>${t("individualReports.title")}</h1>
+        <p><strong>${t("common.person")}:</strong> ${reportData.personName}</p>
+        <p><strong>${t("common.type")}:</strong> ${t(`personForm.${reportData.personType.toLowerCase()}`)}</p>
+        <p><strong>${t("reports.period")}:</strong> ${formatDateSafe(reportData.startDate)} - ${formatDateSafe(reportData.endDate)}</p>
+      </div>
+      ${
+        reportData.personType === "LEADER"
+          ? `
             <div class="leader-note">
-              <p><strong>${t("common.note")}:</strong> ${t("individualReports.leaderEarningsBasedOnTeam", { percentage: reportData.percentage })}</p>
-              <p>${t("individualReports.teamSales")}: $${formatNumber(reportData.totalEarnings)}</p>
+              <p><strong>${t("common.note")}:</strong> ${t("reports.leaderEarningsBasedOnTeam", { percentage: reportData.percentage })}</p>
+              <p>${t("reports.teamSales")}: $${formatNumber(reportData.totalEarnings)}</p>
             </div>
           `
-            : ""
-        }
-        ${
-          reportData.personType === "COLPORTER"
-            ? `
-          <table>
-            <thead>
-              <tr>
-                <th rowspan="2">${t("common.week")}</th>
-                <th colspan="8">${t("dashboard.earningsBreakdown")}</th>
-                <th rowspan="2" class="charges-header">${t("charges.title")}</th>
-                <th rowspan="2" class="advances-header">${t("cashAdvance.title")}</th>
-              </tr>
-              <tr>
-                ${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-                  .map((dayName) => `<th>${t(`programSettings.days.${dayName.toLowerCase()}`)}</th>`)
-                  .join("")}
-                <th>${t("common.total")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${weeks
-                .map(
-                  (week, i) => `
-                <tr class="week-row">
-                  <td>${i + 1}) ${week.weekLabel}</td>
-                  ${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-                    .map((dayName) => {
-                      const dayData = week.days.find((d) => d.dayName === dayName)
-                      if (!dayData) return `<td>-</td>`
-                      const cellClass = dayData.isColportableDay ? "" : "non-colportable"
-                      return `<td class="${cellClass}">${formatNumber(dayData.amount)}${
-                        !dayData.isColportableDay ? `<br><small>${t("individualReports.nonColportable")}</small>` : ""
-                      }</td>`
-                    })
-                    .join("")}
-                  <td>${formatNumber(week.weekTotal)}</td>
-                  <td class="charges-cell">
-                    ${(() => {
-                      const weekCharges = reportData.charges.filter((charge) => {
-                        return isDateInRange(charge.date, week.startDate, week.endDate)
-                      })
-                      const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
-                      return chargeTotal > 0 ? `-${formatNumber(chargeTotal)}` : "-"
-                    })()}
-                  </td>
-                  <td class="advances-cell">
-                    ${(() => {
-                      const weekAdvances = reportData.advances
-                      const advanceTotal = weekAdvances.reduce((sum, a) => sum + a.amount, 0)
-                      return advanceTotal > 0 ? `-${formatNumber(advanceTotal)}` : "-"
-                    })()}
-                  </td>
-                </tr>
-              `,
-                )
-                .join("")}
-              <tr class="total-row">
-                <td>${t("common.totals")}</td>
+          : ""
+      }
+      <table>
+        <thead>
+          <tr>
+            <th rowspan="2">${t("common.week")}</th>
+            <th colspan="8">${reportData.personType === "COLPORTER" ? t("dashboard.earningsBreakdown") : t("dashboard.teamEarnings")}</th>
+            <th colspan="5" class="charges-header">${t("charges.title")}</th>
+            <th rowspan="2" class="advances-header">${t("cashAdvance.title")}</th>
+          </tr>
+          <tr>
+            ${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+              .map((dayName) => `<th>${t(`programSettings.days.${dayName.toLowerCase()}`)}</th>`)
+              .join("")}
+            <th>${t("common.total")}</th>
+            ${["FINE", "DEDUCTION", "PROGRAM_FEE", "FOOD", "MEDICAL_INSURANCE"]
+              .map((category) => `<th>${t(`charges.${category.toLowerCase()}`)}</th>`)
+              .join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${weeks
+            .map(
+              (week, i) => `
+              <tr class="week-row">
+                <td>${i + 1}) ${week.weekLabel}</td>
                 ${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
                   .map((dayName) => {
-                    const dayTotal = weeks.reduce((sum, week) => {
-                      const dayData = week.days.find((d) => d.dayName === dayName)
-                      return sum + (dayData ? dayData.amount : 0)
-                    }, 0)
-                    return `<td>${formatNumber(dayTotal)}</td>`
+                    const dayData = week.days.find((d) => d.dayName === dayName);
+                    const cellClass = dayData && !dayData.isColportableDay && reportData.personType === "COLPORTER" ? "non-colportable" : "";
+                    return `<td class="${cellClass}">${dayData ? formatNumber(dayData.amount) : "-"}${
+                      cellClass ? `<br><small>${t("individualReports.nonColportable")}</small>` : ""
+                    }</td>`;
                   })
                   .join("")}
-                <td>${formatNumber(Number(reportData.totalEarnings))}</td>
-                <td class="charges-cell">
-                  ${(() => {
-                    const chargeTotal = reportData.charges.reduce((sum, c) => sum + c.amount, 0)
-                    return chargeTotal > 0 ? `-${formatNumber(chargeTotal)}` : "-"
-                  })()}
-                </td>
-                <td class="advances-cell">
-                  ${(() => {
-                    const advanceTotal = reportData.advances.reduce((sum, a) => sum + a.amount, 0)
-                    return advanceTotal > 0 ? `-${formatNumber(advanceTotal)}` : "-"
-                  })()}
-                </td>
+                <td>${formatNumber(week.weekTotal)}</td>
+                ${["FINE", "DEDUCTION", "PROGRAM_FEE", "FOOD", "MEDICAL_INSURANCE"]
+                  .map((category) => {
+                    const weekCharges = reportData.charges.filter(
+                      (charge) => charge.category === category && isDateInRange(charge.date, week.startDate, week.endDate)
+                    );
+                    const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0);
+                    return `<td class="charges-cell">${chargeTotal > 0 ? `-${formatNumber(chargeTotal)}` : "-"}</td>`;
+                  })
+                  .join("")}
+                <td class="advances-cell">${
+                  (() => {
+                    const weekAdvances = reportData.advances.filter((a) => isDateInRange(a.date, week.startDate, week.endDate));
+                    const advanceTotal = weekAdvances.reduce((sum, a) => sum + a.amount, 0);
+                    return advanceTotal > 0 ? `-${formatNumber(advanceTotal)}` : "-";
+                  })()
+                }</td>
               </tr>
-            </tbody>
-          </table>
-        `
-            : ""
-        }
-        ${
-          reportData.charges.length > 0
-            ? `
+            `
+            )
+            .join("")}
+          <tr class="total-row">
+            <td>${t("common.totals")}</td>
+            <td colspan="8">${formatNumber(Number(reportData.totalEarnings))}</td>
+            <td colspan="5" class="charges-cell">${
+              (() => {
+                const chargeTotal = reportData.charges.reduce((sum, c) => sum + c.amount, 0);
+                return chargeTotal > 0 ? `-${formatNumber(chargeTotal)}` : "-";
+              })()
+            }</td>
+            <td class="advances-cell">${
+              (() => {
+                const advanceTotal = reportData.advances.reduce((sum, a) => sum + a.amount, 0);
+                return advanceTotal > 0 ? `-${formatNumber(advanceTotal)}` : "-";
+              })()
+            }</td>
+          </tr>
+          <tr class="net-row">
+            <td colspan="9">${t("dashboard.finalAmount")} (${reportData.percentage}% ${t("common.of")} ${
+              reportData.personType === "COLPORTER" ? t("dashboard.sales") : t("reports.teamSales")
+            } - ${t("charges.title")} - ${t("cashAdvance.title")})</td>
+            <td colspan="6">${formatNumber(reportData.netAmount)}</td>
+          </tr>
+        </tbody>
+      </table>
+      ${
+        reportData.charges.length > 0
+          ? `
           <div class="charges-section">
             <h2>${t("charges.title")}</h2>
-            <table>
+            <table style="font-size: 7pt;">
               <thead>
                 <tr>
                   <th>${t("charges.date")}</th>
                   <th>${t("charges.reason")}</th>
+                  <th>${t("charges.category")}</th>
                   <th>${t("charges.amount")}</th>
                 </tr>
               </thead>
@@ -550,30 +568,31 @@ const IndividualReports: React.FC = () => {
                 ${reportData.charges
                   .map(
                     (charge) => `
-                  <tr>
-                    <td>${formatDateSafe(charge.date)}</td>
-                    <td>${charge.reason}</td>
-                    <td>${formatNumber(charge.amount)}</td>
-                  </tr>
-                `,
+                    <tr>
+                      <td>${formatDateSafe(charge.date)}</td>
+                      <td>${charge.reason}</td>
+                      <td>${t(`charges.${charge.category.toLowerCase()}`)}</td>
+                      <td>$${formatNumber(charge.amount)}</td>
+                    </tr>
+                  `
                   )
                   .join("")}
                 <tr class="total-row">
-                  <td colspan="2">${t("charges.totalCharges")}</td>
-                  <td>${formatNumber(reportData.charges.reduce((sum, c) => sum + c.amount, 0))}</td>
+                  <td colspan="3">${t("charges.totalCharges")}</td>
+                  <td>$${formatNumber(reportData.charges.reduce((sum, c) => sum + c.amount, 0))}</td>
                 </tr>
               </tbody>
             </table>
           </div>
         `
-            : ""
-        }
-        ${
-          reportData.advances.length > 0
-            ? `
+          : ""
+      }
+      ${
+        reportData.advances.length > 0
+          ? `
           <div class="advances-section">
             <h2>${t("cashAdvance.title")}</h2>
-            <table>
+            <table style="font-size: 7pt;">
               <thead>
                 <tr>
                   <th>${t("cashAdvance.requestDate")}</th>
@@ -585,66 +604,67 @@ const IndividualReports: React.FC = () => {
                 ${reportData.advances
                   .map(
                     (advance) => `
-                  <tr>
-                    <td>${formatDateSafe(advance.date)}</td>
-                    <td>${formatDateSafe(advance.weekStartDate)} - ${formatDateSafe(advance.weekEndDate)}</td>
-                    <td>${formatNumber(advance.amount)}</td>
-                  </tr>
-                `,
+                    <tr>
+                      <td>${formatDateSafe(advance.date)}</td>
+                      <td>${formatDateSafe(advance.weekStartDate)} - ${formatDateSafe(advance.weekEndDate)}</td>
+                      <td>$${formatNumber(advance.amount)}</td>
+                    </tr>
+                  `
                   )
                   .join("")}
                 <tr class="total-row">
                   <td colspan="2">${t("cashAdvance.totalAdvances")}</td>
-                  <td>${formatNumber(reportData.advances.reduce((sum, a) => sum + a.amount, 0))}</td>
+                  <td>$${formatNumber(reportData.advances.reduce((sum, a) => sum + a.amount, 0))}</td>
                 </tr>
               </tbody>
             </table>
           </div>
         `
-            : ""
-        }
-        <div class="summary-section">
-          <h2>${t("dashboard.financialSummary")}</h2>
-          <div class="summary-item">
-            <span>${reportData.personType === "LEADER" ? t("individualReports.teamSales") : t("dashboard.totalSales")}:</span>
-            <span>$${formatNumber(Number(reportData.totalEarnings))}</span>
-          </div>
-          <div class="summary-item">
-            <span>${t("dashboard.totalHours")}:</span>
-            <span>${formatNumber(reportData.totalHours)}</span>
-          </div>
-          <div class="summary-item">
-            <span>${t("individualReports.percentageLabel", { personType: t(`personForm.${reportData.personType.toLowerCase()}`), percentage: reportData.percentage })}:</span>
-            <span>$${formatNumber(reportData.totalEarnings * (reportData.percentage / 100))}</span>
-          </div>
-          <div class="summary-item">
-            <span>${t("charges.totalCharges")}:</span>
-            <span>$${formatNumber(reportData.charges.reduce((sum, c) => Number(sum) + Number(c.amount), 0))}</span>
-          </div>
-          <div class="summary-item">
-            <span>${t("cashAdvance.totalAdvances")}:</span>
-            <span>$${formatNumber(reportData.advances.reduce((sum, a) => Number(sum) + Number(a.amount), 0))}</span>
-          </div>
-          <div class="summary-item total">
-            <span>${t("dashboard.finalAmount")}:</span>
-            <span>$${formatNumber(reportData.netAmount)}</span>
-          </div>
+          : ""
+      }
+      <div class="summary-section">
+        <h2>${t("dashboard.financialSummary")}</h2>
+        <div class="summary-item">
+          <span>${reportData.personType === "LEADER" ? t("reports.teamSales") : t("dashboard.totalSales")}:</span>
+          <span>$${formatNumber(Number(reportData.totalEarnings))}</span>
         </div>
-      </body>
-      </html>
-    `
+        <div class="summary-item">
+          <span>${t("dashboard.totalHours")}:</span>
+          <span>${formatNumber(reportData.totalHours)}</span>
+        </div>
+        <div class="summary-item">
+          <span>${t("individualReports.percentageLabel", { personType: t(`personForm.${reportData.personType.toLowerCase()}`), percentage: reportData.percentage })}:</span>
+          <span>$${formatNumber(reportData.totalEarnings * (reportData.percentage / 100))}</span>
+        </div>
+        <div class="summary-item">
+          <span>${t("charges.totalCharges")}:</span>
+          <span>$${formatNumber(reportData.charges.reduce((sum, c) => Number(sum) + Number(c.amount), 0))}</span>
+        </div>
+        <div class="summary-item">
+          <span>${t("cashAdvance.totalAdvances")}:</span>
+          <span>$${formatNumber(reportData.advances.reduce((sum, a) => Number(sum) + Number(a.amount), 0))}</span>
+        </div>
+        <div class="summary-item total">
+          <span>${t("dashboard.finalAmount")}:</span>
+          <span>$${formatNumber(reportData.netAmount)}</span>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
 
-    const printWindow = window.open("", "_blank")
-    if (printWindow) {
-      printWindow.document.write(printContent)
-      printWindow.document.close()
-      printWindow.focus()
-      printWindow.print()
-      printWindow.close()
-    } else {
-      setError(t("individualReports.errorPrintWindow"))
-    }
+  const printWindow = window.open("", "_blank");
+  if (printWindow) {
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  } else {
+    setError(t("individualReports.errorPrintWindow"));
   }
+};
+
 
   const exportReportCSV = () => {
     if (!reportData) return
@@ -657,7 +677,7 @@ const IndividualReports: React.FC = () => {
 
     if (reportData.personType === "COLPORTER") {
       csvContent += `${t("individualReports.weeklyBreakdown")}\r\n`
-      csvContent += `${t("common.week")},${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => t(`programSettings.days.${day.toLowerCase()}`)).join(",")},${t("common.total")},${t("charges.title")},${t("cashAdvance.title")}\r\n`
+      csvContent += `${t("common.week")},${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => t(`programSettings.days.${day.toLowerCase()}`)).join(",")},${t("common.total")},${["FINE", "DEDUCTION", "PROGRAM_FEE", "FOOD", "MEDICAL_INSURANCE"].map((category) => t(`charges.${category.toLowerCase()}`)).join(",")},${t("cashAdvance.title")}\r\n`
 
       const weeks = groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate)
       weeks.forEach((week, i) => {
@@ -667,46 +687,45 @@ const IndividualReports: React.FC = () => {
           csvContent += `${dayData ? formatNumber(dayData.amount) : "0.00"},`
         })
         csvContent += `${formatNumber(week.weekTotal)},`
-
-        const weekCharges = reportData.charges.filter((charge) => {
-          return isDateInRange(charge.date, week.startDate, week.endDate)
+        ;["FINE", "DEDUCTION", "PROGRAM_FEE", "FOOD", "MEDICAL_INSURANCE"].forEach((category) => {
+          const weekCharges = reportData.charges.filter(
+            (charge) => charge.category === category && isDateInRange(charge.date, week.startDate, week.endDate)
+          )
+          const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
+          csvContent += `${chargeTotal > 0 ? "-" + formatNumber(chargeTotal) : "-"},`
         })
-        const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
-        csvContent += `${chargeTotal > 0 ? "-" + formatNumber(chargeTotal) : "-"},`
-
         const weekAdvances = reportData.advances
         const advanceTotal = weekAdvances.reduce((sum, a) => sum + a.amount, 0)
         csvContent += `${advanceTotal > 0 ? "-" + formatNumber(advanceTotal) : "-"}\r\n`
       })
 
       csvContent += `${t("common.totals")},`
-      ;["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].forEach((dayName) => {
-        const dayTotal = weeks.reduce((sum, week) => {
-          const dayData = week.days.find((d) => d.dayName === dayName)
-          return sum + (dayData ? dayData.amount : 0)
-        }, 0)
-        csvContent += `${formatNumber(dayTotal)},`
-      })
-      csvContent += `${formatNumber(Number(reportData.totalEarnings))},`
-
+      csvContent += `${Array(8).fill("").join(",")},${formatNumber(Number(reportData.totalEarnings))},`
       const totalCharges = reportData.charges.reduce((sum, c) => sum + c.amount, 0)
-      csvContent += `${totalCharges > 0 ? "-" + formatNumber(totalCharges) : "-"},`
-
+      csvContent += `${Array(5).fill("").join(",")},${totalCharges > 0 ? "-" + formatNumber(totalCharges) : "-"},`
       const totalAdvances = reportData.advances.reduce((sum, a) => sum + a.amount, 0)
-      csvContent += `${totalAdvances > 0 ? "-" + formatNumber(totalAdvances) : "-"}\r\n\r\n`
+      csvContent += `${totalAdvances > 0 ? "-" + formatNumber(totalAdvances) : "-"}\r\n`
+      csvContent += `${t("dashboard.finalAmount")} (${reportData.percentage}% ${t("common.of")} ${t("dashboard.sales")} - ${t("charges.title")} - ${t("cashAdvance.title")}),,,,,,,,${formatNumber(reportData.netAmount)}\r\n\r\n`
     } else {
       csvContent += `${t("dashboard.teamSales")}\r\n`
-      csvContent += `${t("individualReports.teamSales")},${formatNumber(Number(reportData.totalEarnings))}\r\n`
-      csvContent += `${t("individualReports.percentageEarnings", { personType: t(`personForm.leader`), percentage: reportData.percentage })},${formatNumber(reportData.totalEarnings * (reportData.percentage / 100))}\r\n\r\n`
+      csvContent += `${t("reports.teamSales")},${formatNumber(Number(reportData.totalEarnings))}\r\n`
+      csvContent += `${t("individualReports.percentageEarnings", { personType: t(`personForm.leader`), percentage: reportData.percentage })},${formatNumber(reportData.totalEarnings * (reportData.percentage / 100))}\r\n`
+      csvContent += `${t("common.totals")},`
+      csvContent += `${Array(8).fill("").join(",")},${formatNumber(Number(reportData.totalEarnings))},`
+      const totalCharges = reportData.charges.reduce((sum, c) => sum + c.amount, 0)
+      csvContent += `${Array(5).fill("").join(",")},${totalCharges > 0 ? "-" + formatNumber(totalCharges) : "-"},`
+      const totalAdvances = reportData.advances.reduce((sum, a) => sum + a.amount, 0)
+      csvContent += `${totalAdvances > 0 ? "-" + formatNumber(totalAdvances) : "-"}\r\n`
+      csvContent += `${t("dashboard.finalAmount")} (${reportData.percentage}% ${t("common.of")} ${t("reports.teamSales")} - ${t("charges.title")} - ${t("cashAdvance.title")}),,,,,,,,${formatNumber(reportData.netAmount)}\r\n\r\n`
     }
 
     if (reportData.charges.length > 0) {
       csvContent += `${t("charges.title")}\r\n`
-      csvContent += `${t("charges.date")},${t("charges.reason")},${t("charges.amount")}\r\n`
+      csvContent += `${t("charges.date")},${t("charges.reason")},${t("charges.category")},${t("charges.amount")}\r\n`
       reportData.charges.forEach((charge) => {
-        csvContent += `${formatDateSafe(charge.date)},${charge.reason},${formatNumber(charge.amount)}\r\n`
+        csvContent += `${formatDateSafe(charge.date)},${charge.reason},${t(`charges.${charge.category.toLowerCase()}`)},${formatNumber(charge.amount)}\r\n`
       })
-      csvContent += `${t("charges.totalCharges")},,${formatNumber(
+      csvContent += `${t("charges.totalCharges")},,,${formatNumber(
         reportData.charges.reduce((sum, c) => sum + c.amount, 0),
       )}\r\n`
       csvContent += "\r\n"
@@ -725,10 +744,10 @@ const IndividualReports: React.FC = () => {
     }
 
     csvContent += `${t("dashboard.financialSummary")}\r\n`
-    csvContent += `${reportData.personType === "LEADER" ? t("individualReports.teamSales") : t("dashboard.totalSales")},,${formatNumber(Number(reportData.totalEarnings))}\r\n`
+    csvContent += `${reportData.personType === "LEADER" ? t("reports.teamSales") : t("dashboard.totalSales")},,${formatNumber(Number(reportData.totalEarnings))}\r\n`
     csvContent += `${t("individualReports.percentageEarnings", { personType: t(`personForm.${reportData.personType.toLowerCase()}`), percentage: reportData.percentage })},,${formatNumber(reportData.totalEarnings * (reportData.percentage / 100))}\r\n`
     csvContent += `${t("charges.totalCharges")},,${formatNumber(reportData.charges.reduce((sum, c) => sum + c.amount, 0))}\r\n`
-    csvContent += `${t("cashAdvance.totalAdvances")},,${formatNumber(reportData.advances.reduce((sum, a) => sum + a.amount, 0))}\r\n`
+    csvContent += `${t("cashAdvance.totalAdvances")},,${formatNumber(reportData.advances.reduce((sum, a) => Number(sum) + Number(a.amount), 0))}\r\n`
     csvContent += `${t("dashboard.finalAmount")},,${formatNumber(reportData.netAmount)}\r\n`
 
     const encodedUri = encodeURI(csvContent)
@@ -958,10 +977,7 @@ const IndividualReports: React.FC = () => {
                         <th colSpan={8} className="border border-gray-400 px-3 py-2 bg-[#0052B4] text-white text-sm">
                           {t("dashboard.earningsBreakdown")}
                         </th>
-                        <th
-                          rowSpan={2}
-                          className="border border-gray-400 px-3 py-2 bg-red-700 text-white text-sm align-middle"
-                        >
+                        <th colSpan={5} className="border border-gray-400 px-3 py-2 bg-red-700 text-white text-sm">
                           {t("charges.title")}
                         </th>
                         <th
@@ -983,6 +999,14 @@ const IndividualReports: React.FC = () => {
                         <th className="border border-gray-400 px-3 py-2 bg-[#0052B4] text-white text-sm">
                           {t("common.total")}
                         </th>
+                        {["FINE", "DEDUCTION", "PROGRAM_FEE", "FOOD", "MEDICAL_INSURANCE"].map((category) => (
+                          <th
+                            key={category}
+                            className="border border-gray-400 px-3 py-2 bg-red-700 text-white text-sm"
+                          >
+                            {t(`charges.${category.toLowerCase()}`)}
+                          </th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
@@ -1020,15 +1044,22 @@ const IndividualReports: React.FC = () => {
                             <td className="px-4 py-3 text-sm text-center font-medium whitespace-nowrap">
                               {formatNumber(week.weekTotal)}
                             </td>
-                            <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-50">
-                              {(() => {
-                                const weekCharges = reportData.charges.filter((charge) =>
+                            {["FINE", "DEDUCTION", "PROGRAM_FEE", "FOOD", "MEDICAL_INSURANCE"].map((category) => {
+                              const weekCharges = reportData.charges.filter(
+                                (charge) =>
+                                  charge.category === category &&
                                   isDateInRange(charge.date, week.startDate, week.endDate),
-                                )
-                                const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
-                                return chargeTotal > 0 ? `-${formatNumber(chargeTotal)}` : "-"
-                              })()}
-                            </td>
+                              )
+                              const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
+                              return (
+                                <td
+                                  key={category}
+                                  className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-50"
+                                >
+                                  {chargeTotal > 0 ? `-${formatNumber(chargeTotal)}` : "-"}
+                                </td>
+                              )
+                            })}
                             <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-purple-50">
                               {(() => {
                                 const weekAdvances = reportData.advances.filter(
@@ -1046,25 +1077,10 @@ const IndividualReports: React.FC = () => {
                         <td className="px-4 py-3 text-sm font-bold text-white bg-[#0052B4] sticky left-0 z-10">
                           {t("common.totals")}
                         </td>
-                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => {
-                          const dayTotal = groupEarningsByWeeks(
-                            reportData.dailyEarnings,
-                            reportData.startDate,
-                            reportData.endDate,
-                          ).reduce((sum, week) => {
-                            const dayData = week.days.find((d) => d.dayName === dayName)
-                            return sum + (dayData ? dayData.amount : 0)
-                          }, 0)
-                          return (
-                            <td key={dayName} className="px-4 py-3 text-sm text-center whitespace-nowrap">
-                              {formatNumber(dayTotal)}
-                            </td>
-                          )
-                        })}
-                        <td className="px-4 py-3 text-sm text-center whitespace-nowrap">
+                        <td colSpan={8} className="px-4 py-3 text-sm text-center whitespace-nowrap">
                           {formatNumber(Number(reportData.totalEarnings))}
                         </td>
-                        <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-100">
+                        <td colSpan={5} className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-100">
                           {(() => {
                             const chargeTotal = reportData.charges.reduce((sum, c) => sum + c.amount, 0)
                             return chargeTotal > 0 ? `-${formatNumber(chargeTotal)}` : "-"
@@ -1082,7 +1098,7 @@ const IndividualReports: React.FC = () => {
                           {t("dashboard.finalAmount")} ({reportData.percentage}% {t("common.of")} {t("dashboard.sales")}{" "}
                           - {t("charges.title")} - {t("cashAdvance.title")})
                         </td>
-                        <td colSpan={3} className="px-4 py-3 text-center text-sm font-bold text-success-800">
+                        <td colSpan={6} className="px-4 py-3 text-center text-sm font-bold text-success-800">
                           {formatNumber(reportData.netAmount)}
                         </td>
                       </tr>
@@ -1103,10 +1119,7 @@ const IndividualReports: React.FC = () => {
                         <th colSpan={8} className="border border-gray-400 px-3 py-2 bg-[#0052B4] text-white text-sm">
                           {t("dashboard.teamEarnings")}
                         </th>
-                        <th
-                          rowSpan={2}
-                          className="border border-gray-400 px-3 py-2 bg-red-700 text-white text-sm align-middle"
-                        >
+                        <th colSpan={5} className="border border-gray-400 px-3 py-2 bg-red-700 text-white text-sm">
                           {t("charges.title")}
                         </th>
                         <th
@@ -1128,6 +1141,14 @@ const IndividualReports: React.FC = () => {
                         <th className="border border-gray-400 px-3 py-2 bg-[#0052B4] text-white text-sm">
                           {t("common.total")}
                         </th>
+                        {["FINE", "DEDUCTION", "PROGRAM_FEE", "FOOD", "MEDICAL_INSURANCE"].map((category) => (
+                          <th
+                            key={category}
+                            className="border border-gray-400 px-3 py-2 bg-red-700 text-white text-sm"
+                          >
+                            {t(`charges.${category.toLowerCase()}`)}
+                          </th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
@@ -1154,15 +1175,22 @@ const IndividualReports: React.FC = () => {
                             <td className="px-4 py-3 text-sm text-center font-medium whitespace-nowrap">
                               {formatNumber(week.weekTotal)}
                             </td>
-                            <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-50">
-                              {(() => {
-                                const weekCharges = reportData.charges.filter((charge) =>
+                            {["FINE", "DEDUCTION", "PROGRAM_FEE", "FOOD", "MEDICAL_INSURANCE"].map((category) => {
+                              const weekCharges = reportData.charges.filter(
+                                (charge) =>
+                                  charge.category === category &&
                                   isDateInRange(charge.date, week.startDate, week.endDate),
-                                )
-                                const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
-                                return chargeTotal > 0 ? `-${formatNumber(chargeTotal)}` : "-"
-                              })()}
-                            </td>
+                              )
+                              const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
+                              return (
+                                <td
+                                  key={category}
+                                  className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-50"
+                                >
+                                  {chargeTotal > 0 ? `-${formatNumber(chargeTotal)}` : "-"}
+                                </td>
+                              )
+                            })}
                             <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-purple-50">
                               {(() => {
                                 const weekAdvances = reportData.advances.filter((advance) =>
@@ -1179,25 +1207,10 @@ const IndividualReports: React.FC = () => {
                         <td className="px-4 py-3 text-sm font-bold text-white bg-[#0052B4] sticky left-0 z-10">
                           {t("common.totals")}
                         </td>
-                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => {
-                          const dayTotal = groupEarningsByWeeks(
-                            reportData.dailyEarnings,
-                            reportData.startDate,
-                            reportData.endDate,
-                          ).reduce((sum, week) => {
-                            const dayData = week.days.find((d) => d.dayName === dayName)
-                            return sum + (dayData ? dayData.amount : 0)
-                          }, 0)
-                          return (
-                            <td key={dayName} className="px-4 py-3 text-sm text-center whitespace-nowrap">
-                              {formatNumber(dayTotal)}
-                            </td>
-                          )
-                        })}
-                        <td className="px-4 py-3 text-sm text-center whitespace-nowrap">
-                          {Number(reportData.totalEarnings).toFixed(2)}
+                        <td colSpan={8} className="px-4 py-3 text-sm text-center whitespace-nowrap">
+                          {formatNumber(Number(reportData.totalEarnings))}
                         </td>
-                        <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-100">
+                        <td colSpan={5} className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-100">
                           {(() => {
                             const chargeTotal = reportData.charges.reduce((sum, c) => sum + c.amount, 0)
                             return chargeTotal > 0 ? `-${formatNumber(chargeTotal)}` : "-"
@@ -1215,7 +1228,7 @@ const IndividualReports: React.FC = () => {
                           {t("dashboard.finalAmount")} ({reportData.percentage}% {t("common.of")}{" "}
                           {t("reports.teamSales")} - {t("charges.title")} - {t("cashAdvance.title")})
                         </td>
-                        <td colSpan={3} className="px-4 py-3 text-center text-sm font-bold text-success-800">
+                        <td colSpan={6} className="px-4 py-3 text-center text-sm font-bold text-success-800">
                           {formatNumber(reportData.netAmount)}
                         </td>
                       </tr>
@@ -1238,6 +1251,9 @@ const IndividualReports: React.FC = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         {t("charges.reason")}
                       </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t("charges.category")}
+                      </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                         {t("charges.amount")}
                       </th>
@@ -1250,13 +1266,16 @@ const IndividualReports: React.FC = () => {
                           {formatDateSafe(charge.date)}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{charge.reason}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {t(`charges.${charge.category.toLowerCase()}`)}
+                        </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-red-600">
                           -${formatNumber(charge.amount)}
                         </td>
                       </tr>
                     ))}
                     <tr className="bg-gray-100">
-                      <td colSpan={2} className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
+                      <td colSpan={3} className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
                         {t("charges.totalCharges")}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-red-600">
@@ -1534,4 +1553,4 @@ const IndividualReports: React.FC = () => {
   )
 }
 
-export default IndividualReports
+export default IndividualReports;

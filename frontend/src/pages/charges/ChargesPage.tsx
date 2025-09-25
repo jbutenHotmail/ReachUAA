@@ -128,10 +128,22 @@ const ChargesPage: React.FC = () => {
       'FINE': 'danger',
       'DEDUCTION': 'warning',
       'PENALTY': 'danger',
+      'PROGRAM_FEE': 'primary',
+      'FOOD': 'success',
+      'MEDICAL_INSURANCE': 'info',
       'OTHER': 'secondary'
     } as const;
     
-    return <Badge variant={variants[category as keyof typeof variants] || 'secondary'}>{t(`charges.${category.toLowerCase()}`)}</Badge>;
+    const getCategoryLabel = (cat: string) => {
+      switch (cat) {
+        case 'PROGRAM_FEE': return 'Program Fee';
+        case 'FOOD': return 'Food';
+        case 'MEDICAL_INSURANCE': return 'Medical Insurance';
+        default: return t(`charges.${cat.toLowerCase()}`);
+      }
+    };
+    
+    return <Badge variant={variants[category as keyof typeof variants] || 'secondary'}>{getCategoryLabel(category)}</Badge>;
   };
 
   // Calculate totals - ONLY APPLIED AND PENDING CHARGES

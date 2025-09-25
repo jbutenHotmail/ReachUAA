@@ -62,7 +62,6 @@ const Transactions: React.FC = () => {
       setActiveTab(newTab)
     }
   }, [location.pathname, activeTab])
-  console.log("location.pathname", location.pathname)
   useEffect(() => {
     const formattedDate = formatDateToString(selectedDate)
     fetchTransactions(formattedDate)

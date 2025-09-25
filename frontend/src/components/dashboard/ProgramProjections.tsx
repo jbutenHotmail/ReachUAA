@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -65,7 +63,6 @@ const ProgramProjections: React.FC = () => {
         const totalSales = validTransactions.reduce((sum, t) => Number(sum) + Number(t.total), 0)
         const startDate = new Date(program.start_date)
         const endDate = new Date(program.end_date)
-        const today = new Date()
 
         // Calculate total working days using program configuration (including custom days)
         const calculateWorkingDays = (startDate: Date, endDate: Date) => {

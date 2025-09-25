@@ -118,6 +118,12 @@ export const createCharge = async (req, res) => {
     const userId = req.user.id;
     const currentProgramId = programId || req.user.currentProgramId;
     
+    // Validate category
+    const validCategories = ['FINE', 'DEDUCTION', 'PENALTY', 'PROGRAM_FEE', 'FOOD', 'MEDICAL_INSURANCE', 'OTHER'];
+    if (!validCategories.includes(category)) {
+      return res.status(400).json({ message: 'Invalid category' });
+    }
+    
     // Check if person exists
     const person = await db.getOne(
       'SELECT * FROM people WHERE id = ?',

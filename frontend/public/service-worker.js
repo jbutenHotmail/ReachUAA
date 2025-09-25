@@ -32,7 +32,6 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (!cacheWhitelist.includes(cacheName)) {
-            console.log('Eliminando caché antiguo:', cacheName);
             return caches.delete(cacheName);
           }
         })
