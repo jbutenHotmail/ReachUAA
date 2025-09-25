@@ -10,6 +10,7 @@ import { useTransactionStore } from "../../stores/transactionStore"
 import { useLeaderPercentageStore } from "../../stores/leaderPercentageStore"
 import { useUserStore } from "../../stores/userStore"
 import { formatNumber } from "../../utils/numberUtils"
+import { isColportableDay } from "../../utils/programUtils"
 
 const ProgramProjections: React.FC = () => {
   const { t } = useTranslation()
@@ -36,6 +37,12 @@ const ProgramProjections: React.FC = () => {
       customLeadersPercentage: 0,
       totalLeaderPercentage: 0,
     },
+    workingDaysInfo: {
+      totalWorkingDays: 0,
+      actualWorkingDays: 0,
+      remainingWorkingDays: 0,
+      progressPercentage: 0
+    }
   })
 
   // Fetch required data
@@ -60,10 +67,61 @@ const ProgramProjections: React.FC = () => {
         const endDate = new Date(program.end_date)
         const today = new Date()
 
-        const daysElapsed = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
-        const totalProgramDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
-        const dailyAverage = totalSales / Math.max(daysElapsed, 1)
-        const endOfProgramProjection = dailyAverage * totalProgramDays
+        // Calculate total working days using program configuration (including custom days)
+        const calculateWorkingDays = (startDate: Date, endDate: Date) => {
+          let workingDaysCount = 0
+          const currentDate = new Date(startDate)
+          
+          while (currentDate <= endDate) {
+            if (isColportableDay(currentDate)) {
+              workingDaysCount++
+            }
+            currentDate.setDate(currentDate.getDate() + 1)
+          }
+          
+          return workingDaysCount
+        }
+        
+        // Calculate actual working days (only days with transactions that are colportable)
+        const calculateActualWorkingDays = () => {
+          const transactionDates = new Set(validTransactions.map(t => t.date))
+          
+          let actualDays = 0
+          transactionDates.forEach(dateStr => {
+            const transactionDate = new Date(dateStr + 'T12:00:00')
+            if (isColportableDay(transactionDate)) {
+              actualDays++
+            }
+          })
+          
+          return actualDays
+        }
+        
+        // Calculate remaining working days from today to end of program
+        const calculateRemainingWorkingDays = () => {
+          const today = new Date()
+          let remainingDays = 0
+          const currentDate = new Date(today)
+          
+          while (currentDate <= endDate) {
+            if (isColportableDay(currentDate)) {
+              remainingDays++
+            }
+            currentDate.setDate(currentDate.getDate() + 1)
+          }
+          
+          return remainingDays
+        }
+        
+        const totalWorkingDays = calculateWorkingDays(startDate, endDate)
+        const actualWorkingDays = calculateActualWorkingDays()
+        const remainingWorkingDays = calculateRemainingWorkingDays()
+        
+        // Calculate effective working days (only days that will actually be worked)
+        const effectiveWorkingDays = actualWorkingDays + remainingWorkingDays
+        
+        const dailyAverage = actualWorkingDays > 0 ? totalSales / actualWorkingDays : 0
+        const endOfProgramProjection = actualWorkingDays > 0 ? (dailyAverage * effectiveWorkingDays) : 0
 
         const studentPercentage = program.financialConfig?.colporter_percentage
           ? Number.parseFloat(program.financialConfig.colporter_percentage)
@@ -158,6 +216,12 @@ const ProgramProjections: React.FC = () => {
             customLeadersPercentage: customLeaderPercentage,
             totalLeaderPercentage,
           },
+          workingDaysInfo: {
+            totalWorkingDays,
+            actualWorkingDays,
+            remainingWorkingDays,
+            progressPercentage: Math.min(100, (actualWorkingDays / totalWorkingDays) * 100)
+          }
         })
 
         setIsCalculating(false)
@@ -261,6 +325,9 @@ const ProgramProjections: React.FC = () => {
                   <p className="text-lg sm:text-2xl font-bold text-green-900 truncate">
                     {formatCurrency(projectionData.totalMayJuneJuly)}
                   </p>
+                  <p className="text-xs text-green-600">
+                    {projectionData.workingDaysInfo.actualWorkingDays} días colportables trabajados
+                  </p>
                 </div>
               </div>
             </div>
@@ -276,6 +343,9 @@ const ProgramProjections: React.FC = () => {
                   <p className="text-xs sm:text-sm font-medium text-blue-800 truncate">{t("dashboard.dailyAverage")}</p>
                   <p className="text-lg sm:text-2xl font-bold text-blue-900 truncate">
                     {formatCurrency(projectionData.dailyAverage)}
+                  </p>
+                  <p className="text-xs text-blue-600">
+                    Por día colportable trabajado
                   </p>
                 </div>
               </div>
@@ -299,7 +369,7 @@ const ProgramProjections: React.FC = () => {
               </div>
             </div>
           </div>
-
+          
           <div className="space-y-3">
             <h4 className="text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wide">
               {t("dashboard.projectionDistribution")}
