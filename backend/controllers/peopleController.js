@@ -6,7 +6,7 @@ export const getPeople = async (req, res) => {
   try {
     const { programId } = req.query;
     
-    let query = `SELECT p.id, p.first_name as name, p.last_name as apellido, p.email, p.phone, 
+    let query = `SELECT p.id, p.first_name as name, p.last_name as apellido, p.email, p.student_id as studentId, p.phone, 
               p.address, p.profile_image_url as profileImage, p.status, p.person_type as personType,
               p.school, p.age, p.institution, p.program_id as programId, p.profile_image_url, p.created_at as createdAt, 
               p.updated_at as updatedAt, 
@@ -37,7 +37,7 @@ export const getColporters = async (req, res) => {
   try {
     const { programId } = req.query;
     
-    let query = `SELECT id, first_name as name, last_name as apellido, email, phone, 
+    let query = `SELECT id, first_name as name, last_name as apellido, email, student_id as studentId, phone, 
        address, profile_image_url as profileImage, status, school, age, program_id as programId,
        profile_image_url, created_at as createdAt, updated_at as updatedAt, 'COLPORTER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
@@ -67,7 +67,7 @@ export const getColporterById = async (req, res) => {
   try {
     const { id } = req.params;
     const colporter = await db.getOne(
-      `SELECT id, first_name as name, last_name as apellido, email, phone, 
+      `SELECT id, first_name as name, last_name as apellido, email, student_id as studentId, phone, 
        address, profile_image_url as profileImage, status, school, age, program_id as programId,
        created_at as createdAt, updated_at as updatedAt, 'COLPORTER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
@@ -95,6 +95,7 @@ export const createColporter = async (req, res) => {
       apellido,
       email,
       phone,
+      studentId,
       school,
       address,
       age,
@@ -118,8 +119,8 @@ export const createColporter = async (req, res) => {
     const result = await db.transaction(async (connection) => {
       // Insert person
       const [personResult] = await connection.execute(
-        'INSERT INTO people (first_name, last_name, email, phone, address, profile_image_url, person_type, status, school, age, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [name, apellido, email, phone, address, profile_image_url || null, 'COLPORTER', 'ACTIVE', school, age, programId || null]
+        'INSERT INTO people (first_name, last_name, email, student_id, phone, address, profile_image_url, person_type, status, school, age, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [name, apellido, email, studentId, phone, address, profile_image_url || null, 'COLPORTER', 'ACTIVE', school, age, programId || null]
       );
       
       const personId = personResult.insertId;
@@ -180,7 +181,7 @@ export const createColporter = async (req, res) => {
     
     // Get the created colporter
     const colporter = await db.getOne(
-      `SELECT id, first_name as name, last_name as apellido, email, phone, 
+      `SELECT id, first_name as name, last_name as apellido, email, student_id as studentId, phone, 
        address, profile_image_url, status, school, age, program_id as programId,
        created_at as createdAt, updated_at as updatedAt, 'COLPORTER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
@@ -205,6 +206,7 @@ export const updateColporter = async (req, res) => {
       apellido,
       email,
       phone,
+      studentId,
       school,
       address,
       age,
@@ -230,8 +232,8 @@ export const updateColporter = async (req, res) => {
     if (existingColporter.hasUser) {
       // Update person
       await db.update(
-        'UPDATE people SET phone = ?, address = ?, profile_image_url = ?, status = ?, school = ?, age = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
-        [phone, address, profile_image_url || existingColporter.profile_image_url, status || 'ACTIVE', school, age, programId || existingColporter.program_id, id]
+        'UPDATE people SET student_id = ?, phone = ?, address = ?, profile_image_url = ?, status = ?, school = ?, age = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
+        [studentId, phone, address, profile_image_url || existingColporter.profile_image_url, status || 'ACTIVE', school, age, programId || existingColporter.program_id, id]
       );
     } else {
       // Check if email already exists (if changing email)
@@ -245,17 +247,17 @@ export const updateColporter = async (req, res) => {
           return res.status(400).json({ message: 'Email already in use for a colporter in this program' });
         }
       }
-      
+      console.log(name, apellido, email, studentId, phone, address, profile_image_url || existingColporter.profile_image_url, status, school, age, programId || existingColporter.program_id, id)
       // Update person
       await db.update(
-        'UPDATE people SET first_name = ?, last_name = ?, email = ?, phone = ?, address = ?, profile_image_url = ?, status = ?, school = ?, age = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
-        [name, apellido, email, phone, address, profile_image_url || existingColporter.profile_image_url, status, school, age, programId || existingColporter.program_id, id]
+        'UPDATE people SET first_name = ?, last_name = ?, email = ?, student_id = ?, phone = ?, address = ?, profile_image_url = ?, status = ?, school = ?, age = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
+        [name, apellido, email, studentId, phone, address, profile_image_url || existingColporter.profile_image_url, status || 'ACTIVE', school, age, programId || existingColporter.program_id, id]
       );
     }
     
     // Get the updated colporter
     const updatedColporter = await db.getOne(
-      `SELECT id, first_name as name, last_name as apellido, email, phone, 
+      `SELECT id, first_name as name, last_name as apellido, email, student_id as studentId, phone, 
        address, profile_image_url as profileImage, status, school, age, program_id as programId,
        created_at as createdAt, updated_at as updatedAt, 'COLPORTER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
@@ -329,7 +331,7 @@ export const getLeaders = async (req, res) => {
   try {
     const { programId } = req.query;
     
-    let query = `SELECT id, first_name as name, last_name as apellido, email, phone, 
+    let query = `SELECT id, first_name as name, last_name as apellido, email, student_id as studentId, phone, 
        address, profile_image_url as profileImage, status, institution, program_id as programId,
        created_at as createdAt, updated_at as updatedAt, 'LEADER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
@@ -360,7 +362,7 @@ export const getLeaderById = async (req, res) => {
     const { id } = req.params;
     
     const leader = await db.getOne(
-      `SELECT id, first_name as name, last_name as apellido, email, phone, 
+      `SELECT id, first_name as name, last_name as apellido, email, student_id as studentId, phone, 
        address, profile_image_url as profileImage, status, institution, program_id as programId,
        created_at as createdAt, updated_at as updatedAt, 'LEADER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
@@ -388,6 +390,7 @@ export const createLeader = async (req, res) => {
       apellido,
       email,
       phone,
+      studentId,
       institution,
       address,
       createUser,
@@ -410,8 +413,8 @@ export const createLeader = async (req, res) => {
     const result = await db.transaction(async (connection) => {
       // Insert person
       const [personResult] = await connection.execute(
-        'INSERT INTO people (first_name, last_name, email, phone, address, profile_image_url, person_type, status, institution, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [name, apellido, email, phone, address, profile_image_url || null, 'LEADER', 'ACTIVE', institution, programId || null]
+        'INSERT INTO people (first_name, last_name, email, student_id, phone, address, profile_image_url, person_type, status, institution, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [name, apellido, email, studentId, phone, address, profile_image_url || null, 'LEADER', 'ACTIVE', institution, programId || null]
       );
       
       const personId = personResult.insertId;
@@ -472,7 +475,7 @@ export const createLeader = async (req, res) => {
     
     // Get the created leader
     const leader = await db.getOne(
-      `SELECT id, first_name as name, last_name as apellido, email, phone, 
+      `SELECT id, first_name as name, last_name as apellido, email, student_id as studentId, phone, 
        address, profile_image_url, status, institution, program_id as programId,
        created_at as createdAt, updated_at as updatedAt, 'LEADER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser
@@ -497,6 +500,7 @@ export const updateLeader = async (req, res) => {
       apellido,
       email,
       phone,
+      studentId,
       institution,
       address,
       status,
@@ -521,8 +525,8 @@ export const updateLeader = async (req, res) => {
     if (existingLeader.hasUser) {
       // Update person
       await db.update(
-        'UPDATE people SET phone = ?, address = ?, profile_image_url = ?, status = ?, institution = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
-        [phone, address, profile_image_url || existingLeader.profile_image_url, status || existingLeader.status, institution, programId || existingLeader.program_id, id]
+        'UPDATE people SET student_id = ?, phone = ?, address = ?, profile_image_url = ?, status = ?, institution = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
+        [studentId, phone, address, profile_image_url || existingLeader.profile_image_url, status || existingLeader.status, institution, programId || existingLeader.program_id, id]
       );
     } else {
       // Check if email already exists (if changing email)
@@ -539,14 +543,14 @@ export const updateLeader = async (req, res) => {
       
       // Update person
       await db.update(
-        'UPDATE people SET first_name = ?, last_name = ?, email = ?, phone = ?, address = ?, profile_image_url = ?, status = ?, institution = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
-        [name, apellido, email, phone, address, profile_image_url || existingLeader.profile_image_url, status, institution, programId || existingLeader.program_id, id]
+        'UPDATE people SET first_name = ?, last_name = ?, email = ?, student_id = ?, phone = ?, address = ?, profile_image_url = ?, status = ?, institution = ?, program_id = ?, updated_at = NOW() WHERE id = ?',
+        [name, apellido, email, studentId, phone, address, profile_image_url || existingLeader.profile_image_url, status, institution, programId || existingLeader.program_id, id]
       );
     }
     
     // Get the updated leader
     const updatedLeader = await db.getOne(
-      `SELECT id, first_name as name, last_name as apellido, email, phone, 
+      `SELECT id, first_name as name, last_name as apellido, email, student_id as studentId, phone, 
        address, profile_image_url as profileImage, status, institution, program_id as programId,
        profile_image_url, created_at as createdAt, updated_at as updatedAt, 'LEADER' as personType,
        (SELECT COUNT(*) > 0 FROM users u WHERE u.person_id = id) as hasUser

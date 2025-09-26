@@ -26,6 +26,7 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
     apellido: initialData?.apellido || '',
     email: initialData?.email || '',
     phone: initialData?.phone || '',
+    studentId: initialData?.studentId || '',
     institution: initialData?.institution || '',
     address: initialData?.address || '',
     createUser: !initialData,
@@ -190,6 +191,14 @@ const AddLeaderForm: React.FC<AddLeaderFormProps> = ({
                 value={formData.phone}
                 onChange={handleChange}
                 required
+              />
+
+              <Input
+                label="Número de Estudiante"
+                name="studentId"
+                value={formData.studentId}
+                onChange={handleChange}
+                placeholder="Ej: 2024-001, EST-123, etc."
               />
 
               <Input

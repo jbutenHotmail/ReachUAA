@@ -26,6 +26,7 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
     apellido: initialData?.apellido || '',
     email: initialData?.email || '',
     phone: initialData?.phone || '',
+    studentId: initialData?.studentId || '',
     school: initialData?.school || '',
     address: initialData?.address || '',
     age: initialData?.age || '',
@@ -202,6 +203,14 @@ const AddColporterForm: React.FC<AddColporterFormProps> = ({
                 value={formData.phone}
                 onChange={handleChange}
                 required
+              />
+
+              <Input
+                label="Número de Estudiante"
+                name="studentId"
+                value={formData.studentId}
+                onChange={handleChange}
+                placeholder="Ej: 2024-001, EST-123, etc."
               />
 
               <Input

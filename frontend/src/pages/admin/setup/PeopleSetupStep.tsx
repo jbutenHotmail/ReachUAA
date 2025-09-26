@@ -323,8 +323,15 @@ const PeopleSetupStep: React.FC<PeopleSetupStepProps> = ({
                           <div className="h-8 w-8 rounded-full bg-success-100 flex items-center justify-center text-success-700 mr-3">
                             <UserCog size={16} />
                           </div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {leader.name} {leader.apellido}
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {leader.name} {leader.apellido}
+                            </div>
+                            {leader.studentId && (
+                              <div className="text-xs text-success-600 font-medium">
+                                ID: {leader.studentId}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>

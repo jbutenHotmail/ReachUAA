@@ -169,7 +169,9 @@ const AllPeoplePage: React.FC = () => {
           )}
           <div>
             <div className="font-medium text-gray-900">{`${info.getValue()} ${info.row.original.apellido}`}</div>
-            <div className="text-sm text-gray-500">{info.row.original.email}</div>
+            <div className="text-sm text-gray-500">
+              {info.row.original.email}
+            </div>
           </div>
         </div>
       ),

@@ -41,6 +41,7 @@ export interface Person {
   email: string;
   phone: string;
   address: string;
+  studentId?: string; // Student ID or identification number
   status: 'ACTIVE' | 'INACTIVE';
   hasUser: boolean;
   profile_image_url?: string;
@@ -246,6 +247,7 @@ export interface Colporter {
   school: string;
   address?: string;
   age: string;
+  studentId?: string; // Student ID or identification number
   status: 'ACTIVE' | 'INACTIVE';
   hasUser: boolean;
   createdAt: string;
@@ -262,6 +264,7 @@ export interface Leader {
   phone?: string;
   institution: string;
   address?: string;
+  studentId?: string; // Student ID or identification number
   status: 'ACTIVE' | 'INACTIVE';
   hasUser: boolean;
   createdAt: string;

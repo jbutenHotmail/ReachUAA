@@ -111,7 +111,12 @@ const LeadersPage: React.FC = () => {
           )}
           <div>
             <div className="font-medium text-gray-900">{`${info.getValue()} ${info.row.original.apellido}`}</div>
-            <div className="text-sm text-gray-500">{info.row.original.email}</div>
+            <div className="text-sm text-gray-500">
+              {info.row.original.studentId && (
+                <div className="text-xs text-success-600 font-medium">ID: {info.row.original.studentId}</div>
+              )}
+              {info.row.original.email}
+            </div>
           </div>
         </div>
       ),
