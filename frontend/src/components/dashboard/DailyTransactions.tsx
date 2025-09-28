@@ -191,11 +191,12 @@ const DailyTransactions: React.FC<DailyTransactionsProps> = ({
 
   return (
     <Card
+      className="mt-8"
       title={t("dashboard.dailyTransactions")}
       subtitle={date}
       icon={<DollarSign size={20} />}
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
