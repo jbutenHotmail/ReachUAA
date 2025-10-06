@@ -12,6 +12,7 @@ import AddChargeForm from './AddChargeForm';
 import { UserRole, Charge } from '../../types';
 import LoadingScreen from '../../components/ui/LoadingScreen';
 import { RefreshCw } from 'lucide-react';
+import { formatNumber } from '../../utils/numberUtils';
 
 const ChargesPage: React.FC = () => {
   const { t } = useTranslation();
@@ -149,8 +150,8 @@ const ChargesPage: React.FC = () => {
   // Calculate totals - ONLY APPLIED AND PENDING CHARGES
   const appliedCharges = finalFilteredCharges.filter(c => c.status === 'APPLIED');
   const pendingCharges = finalFilteredCharges.filter(c => c.status === 'PENDING');  
-  const appliedTotal = appliedCharges.reduce((sum, charge) => sum + charge.amount, 0);
-  const pendingTotal = pendingCharges.reduce((sum, charge) => sum + charge.amount, 0);
+  const appliedTotal = appliedCharges.reduce((sum, charge) => Number(sum) + Number(charge.amount), 0);
+  const pendingTotal = pendingCharges.reduce((sum, charge) => Number(sum) + Number(charge.amount), 0);
   const totalAmount = appliedTotal + pendingTotal;
 
   if (isLoading) {
@@ -207,7 +208,7 @@ const ChargesPage: React.FC = () => {
               <DollarSign className="text-red-500" size={24} />
             </div>
             <p className="text-sm font-medium text-gray-500">{t('charges.totalCharges')}</p>
-            <p className="mt-1 text-2xl font-bold text-red-600">${totalAmount.toFixed(2)}</p>
+            <p className="mt-1 text-2xl font-bold text-red-600">${formatNumber(totalAmount)}</p>
             <p className="text-xs text-gray-500">{t('charges.allTime')}</p>
           </div>
         </Card>
@@ -218,7 +219,7 @@ const ChargesPage: React.FC = () => {
               <CheckCircle className="text-success-500" size={24} />
             </div>
             <p className="text-sm font-medium text-gray-500">{t('charges.applied')}</p>
-            <p className="mt-1 text-2xl font-bold text-success-600">${appliedTotal.toFixed(2)}</p>
+            <p className="mt-1 text-2xl font-bold text-success-600">${formatNumber(appliedTotal)}</p>
             <p className="text-xs text-gray-500">{t('charges.processed')}</p>
           </div>
         </Card>
@@ -229,7 +230,7 @@ const ChargesPage: React.FC = () => {
               <AlertTriangle className="text-warning-500" size={24} />
             </div>
             <p className="text-sm font-medium text-gray-500">{t('charges.pending')}</p>
-            <p className="mt-1 text-2xl font-bold text-warning-600">${Number(pendingTotal).toFixed(2)}</p>
+            <p className="mt-1 text-2xl font-bold text-warning-600">${formatNumber(pendingTotal)}</p>
             <p className="text-xs text-gray-500">{t('charges.awaiting')}</p>
           </div>
         </Card>
@@ -330,7 +331,7 @@ const ChargesPage: React.FC = () => {
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-red-600">
                       <div className="flex items-center gap-1 justify-end">
                         <DollarSign size={14} />
-                        {charge.amount.toFixed(2)}
+                        {formatNumber(charge.amount)}
                       </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
