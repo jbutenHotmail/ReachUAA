@@ -24,7 +24,7 @@ import setupRoutes from './routes/setup.js';
 import leadersRoutes from './routes/leaders.js';
 import bonificationsRoutes from './routes/bonifications.js';
 import achievementsRoutes from './routes/achievements.js';
-
+import bonusesRoutes from './routes/bonuses.js';
 // Get current directory
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -77,6 +77,7 @@ app.use('/api/setup', setupRoutes);
 app.use('/api/leaders', leadersRoutes);
 app.use('/api/bonifications', bonificationsRoutes);
 app.use('/api/achievements', achievementsRoutes);
+app.use('/api/bonuses', bonusesRoutes);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);

@@ -7,11 +7,6 @@ import { UserRole } from './types';
 import Layout from './components/layout/Layout';
 import LoadingScreen from './components/ui/LoadingScreen';
 import BonificationsPage from './pages/bonifications/BonificationPage';
-import SnacksExpenses from './pages/expenses/SnacksExpenses';
-import IncentivosExpenses from './pages/expenses/IncentivosExpenses';
-import CleaningExpenses from './pages/expenses/CleaningExpenses';
-import ActivitiesExpenses from './pages/expenses/ActivitiesExpenses';
-import AchievementsPage from './pages/achievements/AchievementsPage';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/auth/Login'));
@@ -56,6 +51,7 @@ const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
 const ChangePasswordPage = lazy(() => import('./pages/profile/ChangePasswordPage'));
 const BibleStudiesPage = lazy(() => import('./pages/bible-studies/BibleStudiesPage'));
 const BibleStudyDetails = lazy(() => import('./pages/bible-studies/BibleStudyDetails'));
+const BonusesPage = lazy(() => import('./pages/bonuses/BonusesPage'));
 const VersionChecker = lazy(() => import('./components/layout/VersionChecker'));
 const DailyReportPage = lazy(() => import('./pages/dashboard/DailyReportPage'));
 
@@ -73,6 +69,10 @@ function App() {
       fetchProgram();
     }
     
+    // Si el usuario no es ADMIN pero hay un programa en localStorage, resetear el store
+    if (isAuthenticated && user?.role !== UserRole.ADMIN && program) {
+      resetStore();
+    }
   }, [isAuthenticated, fetchProgram, wasProgramFetched, user, program, resetStore]);
 
   // Try to refresh token on app load
@@ -255,12 +255,8 @@ function App() {
             <Route path="supplies" element={<Suspense fallback={<LoadingScreen />}><SuppliesExpenses /></Suspense>} />
             <Route path="maintenance" element={<Suspense fallback={<LoadingScreen />}><MaintenanceExpenses /></Suspense>} />
             <Route path="fuel" element={<Suspense fallback={<LoadingScreen />}><FuelExpenses /></Suspense>} />
-            <Route path="snacks" element={<Suspense fallback={<LoadingScreen />}><SnacksExpenses /></Suspense>} />
-            <Route path="incentives" element={<Suspense fallback={<LoadingScreen />}><IncentivosExpenses /></Suspense>} />
-            <Route path="cleaning" element={<Suspense fallback={<LoadingScreen />}><CleaningExpenses /></Suspense>} />
-            <Route path="activities" element={<Suspense fallback={<LoadingScreen />}><ActivitiesExpenses /></Suspense>} />
           </Route>
-          <Route path="charges" element={<Suspense fallback={<LoadingScreen />}><ChargesPage /></Suspense>} />
+
           {/* Cash Advance - Restricted for Viewer role */}
           <Route 
             path="cash-advance" 
@@ -276,18 +272,7 @@ function App() {
             <Route path="overview" element={<Suspense fallback={<LoadingScreen />}><CashAdvanceOverview /></Suspense>} />
             <Route path="new" element={<Suspense fallback={<LoadingScreen />}><AdminCashAdvance /></Suspense>} />
           </Route>
-            {/* Achievements - Restricted for Viewer role */}
-            <Route 
-              path="achievements" 
-              element={
-                <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.SUPERVISOR]}>
-                  <Suspense fallback={<LoadingScreen message="Loading achievements..." />}>
-                    <AchievementsPage />
-                  </Suspense>
-                </ProtectedRoute>
-              }
-              />
-              
+
           {/* Charges - Restricted for Viewer role */}
           <Route 
             path="charges" 
@@ -320,6 +305,18 @@ function App() {
               <BonificationsPage />
             </Suspense>
           } />
+
+          {/* Bonuses - Admin only */}
+          <Route
+            path="bonuses"
+            element={
+              <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                <Suspense fallback={<LoadingScreen message="Loading bonuses..." />}>
+                  <BonusesPage />
+                </Suspense>
+              </ProtectedRoute>
+            }
+          />
 
           <Route path="reports">
             {/* Access control for reports - only ADMIN can access reports */}

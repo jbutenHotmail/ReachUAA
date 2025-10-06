@@ -9,12 +9,12 @@ export const authenticateToken = async (req, res, next) => {
     const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
+      console.error('[authenticateToken] No token provided');
       return res.status(401).json({ message: 'Access token is required' });
     }
 
     // Verify token
     const decoded = jwt.verify(token, config.ACCESS_TOKEN_SECRET);
-    
     // Get user details
     const user = await db.getOne(
       'SELECT id, role FROM users WHERE id = ? AND status = ?',
@@ -22,6 +22,7 @@ export const authenticateToken = async (req, res, next) => {
     );
 
     if (!user) {
+      console.error('[authenticateToken] User not found or inactive');
       return res.status(401).json({ message: 'Invalid token or user not found' });
     }
 
@@ -37,6 +38,7 @@ export const authenticateToken = async (req, res, next) => {
       role: user.role,
       currentProgramId: currentProgram?.program_id || null
     };
+
 
     next();
   } catch (error) {
