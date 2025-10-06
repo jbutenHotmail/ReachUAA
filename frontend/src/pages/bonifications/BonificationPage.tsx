@@ -836,9 +836,6 @@ const BonificationsPage: React.FC = () => {
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {t("bonifications.gold")}
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t("bonifications.totalEarned")}
-                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -916,15 +913,6 @@ const BonificationsPage: React.FC = () => {
                                 %
                               </div>
                             </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-center">
-                          {colporter.goldStatus.achieved ? (
-                            <Badge variant="warning" size="lg">${formatNumber(2160)}</Badge>
-                          ) : colporter.silverStatus.achieved ? (
-                            <Badge variant="success" size="lg">${formatNumber(1496)}</Badge>
-                          ) : (
-                            <Badge variant="secondary" size="lg">$0</Badge>
                           )}
                         </td>
                       </tr>

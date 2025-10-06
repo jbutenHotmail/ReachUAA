@@ -357,6 +357,7 @@ export const getBonificationStatus = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 // Get all colporter bonifications
 export const getAllColporterBonifications = async (req, res) => {
   try {
@@ -457,6 +458,17 @@ export const getAllColporterBonifications = async (req, res) => {
     const bonificationStatuses = [];
 
     for (const [email, colporterData] of colporterDataMap) {
+      if (colporterData.allIds.length === 0) {
+        const bonificationStatus = calculateBonificationStatus(
+          0,
+          0,
+          colporterData.name,
+          colporterData.currentProgramId
+        );
+        bonificationStatuses.push(bonificationStatus);
+        continue;
+      }
+
       const colporterIdsPlaceholders = colporterData.allIds.map(() => "?").join(",");
 
       // Get total hours worked across all instances of this colporter in selected programs
@@ -469,8 +481,8 @@ export const getAllColporterBonifications = async (req, res) => {
         [...colporterData.allIds, ...selectedProgramIds]
       );
 
-      // Get total net amount across all instances of this colporter in selected programs
-      const netAmountResult = await db.getOne(
+      // Get total sales across all instances of this colporter in selected programs
+      const salesResult = await db.getOne(
         `SELECT COALESCE(SUM(t.total), 0) as total_sales
          FROM transactions t
          WHERE t.student_id IN (${colporterIdsPlaceholders})
@@ -479,9 +491,44 @@ export const getAllColporterBonifications = async (req, res) => {
         [...colporterData.allIds, ...selectedProgramIds]
       );
 
+      // Get total cash advances across all instances of this colporter in selected programs
+      const cashAdvanceResult = await db.getOne(
+        `SELECT COALESCE(SUM(ca.advance_amount), 0) as total_cash_advances
+         FROM cash_advances ca
+         WHERE ca.person_id IN (${colporterIdsPlaceholders})
+         AND ca.program_id IN (${programPlaceholders})
+         AND ca.status = 'APPROVED'`,
+        [...colporterData.allIds, ...selectedProgramIds]
+      );
+
+      // Get total charges (fines) across all instances of this colporter in selected programs
+      const chargesResult = await db.getOne(
+        `SELECT COALESCE(SUM(c.amount), 0) as total_charges
+         FROM charges c
+         WHERE c.person_id IN (${colporterIdsPlaceholders})
+         AND c.program_id IN (${programPlaceholders})
+         AND c.status = 'APPLIED'`,
+        [...colporterData.allIds, ...selectedProgramIds]
+      );
+
+      // Get total bonuses across all instances of this colporter in selected programs
+      const bonusesResult = await db.getOne(
+        `SELECT COALESCE(SUM(b.amount), 0) as total_bonuses
+         FROM bonuses b
+         WHERE b.person_id IN (${colporterIdsPlaceholders})
+         AND b.program_id IN (${programPlaceholders})`,
+        [...colporterData.allIds, ...selectedProgramIds]
+      );
+
       const totalHours = hoursResult.total_hours;
-      const totalSales = netAmountResult.total_sales;
-      const totalNetAmount = totalSales * (colporterPercentage / 100);
+      const totalSales = salesResult.total_sales;
+      const colporterEarnings = Number(totalSales) * (Number(colporterPercentage) / 100);
+
+      // Calculate true net amount: earnings - cash advances - charges + bonuses
+      const totalNetAmount = colporterEarnings
+        - Number(cashAdvanceResult.total_cash_advances)
+        - Number(chargesResult.total_charges)
+        + Number(bonusesResult.total_bonuses);
 
       // Calculate bonification status
       const bonificationStatus = calculateBonificationStatus(
