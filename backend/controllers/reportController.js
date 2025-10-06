@@ -1095,7 +1095,7 @@ export const getIndividualEarningsReport = async (req, res) => {
     const totalCharges = formattedCharges.reduce((sum, c) => sum + Number(c.amount), 0)
 
     const advances = await db.query(
-      `SELECT ca.id, ca.advance_amount as amount, ca.week_start_date, ca.week_end_date, ca.status, ca.request_date as date FROM cash_advances ca WHERE ca.person_id = ? AND ca.week_start_date BETWEEN ? AND ? AND ca.status = 'APPROVED' ORDER BY ca.week_start_date DESC`,
+      `SELECT ca.id, ca.advance_amount as amount, ca.week_start_date, ca.week_end_date, ca.status, ca.request_date as date FROM cash_advances ca WHERE ca.person_id = ? AND ca.week_end_date BETWEEN ? AND ? AND ca.status = 'APPROVED' ORDER BY ca.week_end_date DESC`,
       [person.id, reportStartDate, reportEndDate],
     )
 
@@ -1106,7 +1106,7 @@ export const getIndividualEarningsReport = async (req, res) => {
       week_end_date: formatDateToYYYYMMDD(advance.week_end_date),
       date: formatDateToYYYYMMDD(advance.date),
     }))
-
+    console.log('formattedAdvances', reportStartDate, reportEndDate, person)
     const totalAdvances = formattedAdvances.reduce((sum, a) => sum + Number(a.amount), 0)
 
     let expenses = []

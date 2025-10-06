@@ -9,7 +9,7 @@ interface ColporterState {
 }
 
 interface ColporterStore extends ColporterState {
-  fetchColporters: () => Promise<void>;
+  fetchColporters: (programId?: number) => Promise<void>;
   createColporter: (colporter: Omit<Colporter, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'hasUser'>) => Promise<void>;
   updateColporter: (id: string, colporter: Partial<Colporter>) => Promise<void>;
   deleteColporter: (id: string) => Promise<void>;
@@ -20,15 +20,16 @@ export const useColporterStore = create<ColporterStore>((set) => ({
   isLoading: false,
   error: null,
 
-  fetchColporters: async () => {
+  fetchColporters: async (programId?: number) => {
     set({ isLoading: true, error: null });
     try {
-      const colporters = await api.get<Colporter[]>('/people/colporters');
+      const params = programId ? { programId } : {};
+      const colporters = await api.get<Colporter[]>('/people/colporters', { params });
       set({ colporters, isLoading: false });
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'An unknown error occurred',
-        isLoading: false 
+        isLoading: false
       });
     }
   },
@@ -76,7 +77,7 @@ export const useColporterStore = create<ColporterStore>((set) => ({
     try {
       await api.delete(`/people/colporters/${id}`);
       set(state => ({
-        colporters: state.colporters.filter(c => c.id !== id),
+        colporters: state.colporters.filter(c => Number(c.id) !== Number(id)),
         isLoading: false,
       }));
     } catch (error) {

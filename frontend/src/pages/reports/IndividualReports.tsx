@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
@@ -511,14 +509,14 @@ const IndividualReports: React.FC = () => {
                     const weekCharges = reportData.charges.filter(
                       (charge) => charge.category === category && isDateInRange(charge.date, week.startDate, week.endDate)
                     );
-                    const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0);
+                    const chargeTotal = weekCharges.reduce((sum, c) => Number(sum) + Number(c.amount), 0);
                     return `<td class="charges-cell">${chargeTotal > 0 ? `-${formatNumber(chargeTotal)}` : "-"}</td>`;
                   })
                   .join("")}
                 <td class="advances-cell">${
                   (() => {
-                    const weekAdvances = reportData.advances.filter((a) => isDateInRange(a.date, week.startDate, week.endDate));
-                    const advanceTotal = weekAdvances.reduce((sum, a) => sum + a.amount, 0);
+                    const weekAdvances = reportData.advances.filter((a) => isDateInRange(a.weekEndDate, week.startDate, week.endDate));
+                    const advanceTotal = weekAdvances.reduce((sum, a) => Number(sum) + Number(a.amount), 0);
                     return advanceTotal > 0 ? `-${formatNumber(advanceTotal)}` : "-";
                   })()
                 }</td>
@@ -531,13 +529,13 @@ const IndividualReports: React.FC = () => {
             <td colspan="8">${formatNumber(Number(reportData.totalEarnings))}</td>
             <td colspan="5" class="charges-cell">${
               (() => {
-                const chargeTotal = reportData.charges.reduce((sum, c) => sum + c.amount, 0);
+                const chargeTotal = reportData.charges.reduce((sum, c) => Number(sum) + Number(c.amount), 0);
                 return chargeTotal > 0 ? `-${formatNumber(chargeTotal)}` : "-";
               })()
             }</td>
             <td class="advances-cell">${
               (() => {
-                const advanceTotal = reportData.advances.reduce((sum, a) => sum + a.amount, 0);
+                const advanceTotal = reportData.advances.reduce((sum, a) => Number(sum) + Number(a.amount), 0);
                 return advanceTotal > 0 ? `-${formatNumber(advanceTotal)}` : "-";
               })()
             }</td>
@@ -579,7 +577,7 @@ const IndividualReports: React.FC = () => {
                   .join("")}
                 <tr class="total-row">
                   <td colspan="3">${t("charges.totalCharges")}</td>
-                  <td>$${formatNumber(reportData.charges.reduce((sum, c) => sum + c.amount, 0))}</td>
+                  <td>$${formatNumber(reportData.charges.reduce((sum, c) => Number(sum) + Number(c.amount), 0))}</td>
                 </tr>
               </tbody>
             </table>
@@ -614,7 +612,7 @@ const IndividualReports: React.FC = () => {
                   .join("")}
                 <tr class="total-row">
                   <td colspan="2">${t("cashAdvance.totalAdvances")}</td>
-                  <td>$${formatNumber(reportData.advances.reduce((sum, a) => sum + a.amount, 0))}</td>
+                  <td>$${formatNumber(reportData.advances.reduce((sum, a) => Number(sum) + Number(a.amount), 0))}</td>
                 </tr>
               </tbody>
             </table>
@@ -675,49 +673,38 @@ const IndividualReports: React.FC = () => {
     csvContent += `${t("common.type")},${t(`personForm.${reportData.personType.toLowerCase()}`)}\r\n`
     csvContent += `${t("reports.period")},${formatDateSafe(reportData.startDate)} - ${formatDateSafe(reportData.endDate)}\r\n\r\n`
 
-    if (reportData.personType === "COLPORTER") {
-      csvContent += `${t("individualReports.weeklyBreakdown")}\r\n`
-      csvContent += `${t("common.week")},${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => t(`programSettings.days.${day.toLowerCase()}`)).join(",")},${t("common.total")},${["FINE", "DEDUCTION", "PROGRAM_FEE", "FOOD", "MEDICAL_INSURANCE"].map((category) => t(`charges.${category.toLowerCase()}`)).join(",")},${t("cashAdvance.title")}\r\n`
+    csvContent += `${t("individualReports.weeklyBreakdown")}\r\n`
+    csvContent += `${t("common.week")},${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => t(`programSettings.days.${day.toLowerCase()}`)).join(",")},${t("common.total")},${["FINE", "DEDUCTION", "PROGRAM_FEE", "FOOD", "MEDICAL_INSURANCE"].map((category) => t(`charges.${category.toLowerCase()}`)).join(",")},${t("cashAdvance.title")}\r\n`
 
-      const weeks = groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate)
-      weeks.forEach((week, i) => {
-        csvContent += `${i + 1}) ${week.weekLabel},`
-        ;["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].forEach((dayName) => {
-          const dayData = week.days.find((d) => d.dayName === dayName)
-          csvContent += `${dayData ? formatNumber(dayData.amount) : "0.00"},`
-        })
-        csvContent += `${formatNumber(week.weekTotal)},`
-        ;["FINE", "DEDUCTION", "PROGRAM_FEE", "FOOD", "MEDICAL_INSURANCE"].forEach((category) => {
-          const weekCharges = reportData.charges.filter(
-            (charge) => charge.category === category && isDateInRange(charge.date, week.startDate, week.endDate)
-          )
-          const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
-          csvContent += `${chargeTotal > 0 ? "-" + formatNumber(chargeTotal) : "-"},`
-        })
-        const weekAdvances = reportData.advances
-        const advanceTotal = weekAdvances.reduce((sum, a) => sum + a.amount, 0)
-        csvContent += `${advanceTotal > 0 ? "-" + formatNumber(advanceTotal) : "-"}\r\n`
+    const weeks = groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate)
+    weeks.forEach((week, i) => {
+      csvContent += `${i + 1}) ${week.weekLabel},`
+      ;["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].forEach((dayName) => {
+        const dayData = week.days.find((d) => d.dayName === dayName)
+        csvContent += `${dayData ? formatNumber(dayData.amount) : "0.00"},`
       })
+      csvContent += `${formatNumber(week.weekTotal)},`
+      ;["FINE", "DEDUCTION", "PROGRAM_FEE", "FOOD", "MEDICAL_INSURANCE"].forEach((category) => {
+        const weekCharges = reportData.charges.filter(
+          (charge) => charge.category === category && isDateInRange(charge.date, week.startDate, week.endDate)
+        )
+        const chargeTotal = weekCharges.reduce((sum, c) => Number(sum) + Number(c.amount), 0)
+        csvContent += `${chargeTotal > 0 ? "-" + formatNumber(chargeTotal) : "-"},`
+      })
+      const weekAdvances = reportData.advances.filter((a) => isDateInRange(a.weekEndDate, week.startDate, week.endDate))
+      const advanceTotal = weekAdvances.reduce((sum, a) => Number(sum) + Number(a.amount), 0)
+      csvContent += `${advanceTotal > 0 ? "-" + formatNumber(advanceTotal) : "-"}\r\n`
+    })
 
-      csvContent += `${t("common.totals")},`
-      csvContent += `${Array(8).fill("").join(",")},${formatNumber(Number(reportData.totalEarnings))},`
-      const totalCharges = reportData.charges.reduce((sum, c) => sum + c.amount, 0)
-      csvContent += `${Array(5).fill("").join(",")},${totalCharges > 0 ? "-" + formatNumber(totalCharges) : "-"},`
-      const totalAdvances = reportData.advances.reduce((sum, a) => sum + a.amount, 0)
-      csvContent += `${totalAdvances > 0 ? "-" + formatNumber(totalAdvances) : "-"}\r\n`
-      csvContent += `${t("dashboard.finalAmount")} (${reportData.percentage}% ${t("common.of")} ${t("dashboard.sales")} - ${t("charges.title")} - ${t("cashAdvance.title")}),,,,,,,,${formatNumber(reportData.netAmount)}\r\n\r\n`
-    } else {
-      csvContent += `${t("dashboard.teamSales")}\r\n`
-      csvContent += `${t("reports.teamSales")},${formatNumber(Number(reportData.totalEarnings))}\r\n`
-      csvContent += `${t("individualReports.percentageEarnings", { personType: t(`personForm.leader`), percentage: reportData.percentage })},${formatNumber(reportData.totalEarnings * (reportData.percentage / 100))}\r\n`
-      csvContent += `${t("common.totals")},`
-      csvContent += `${Array(8).fill("").join(",")},${formatNumber(Number(reportData.totalEarnings))},`
-      const totalCharges = reportData.charges.reduce((sum, c) => sum + c.amount, 0)
-      csvContent += `${Array(5).fill("").join(",")},${totalCharges > 0 ? "-" + formatNumber(totalCharges) : "-"},`
-      const totalAdvances = reportData.advances.reduce((sum, a) => sum + a.amount, 0)
-      csvContent += `${totalAdvances > 0 ? "-" + formatNumber(totalAdvances) : "-"}\r\n`
-      csvContent += `${t("dashboard.finalAmount")} (${reportData.percentage}% ${t("common.of")} ${t("reports.teamSales")} - ${t("charges.title")} - ${t("cashAdvance.title")}),,,,,,,,${formatNumber(reportData.netAmount)}\r\n\r\n`
-    }
+    csvContent += `${t("common.totals")},`
+    csvContent += `${Array(8).fill("").join(",")},${formatNumber(Number(reportData.totalEarnings))},`
+    const totalCharges = reportData.charges.reduce((sum, c) => Number(sum) + Number(c.amount), 0)
+    csvContent += `${Array(5).fill("").join(",")},${totalCharges > 0 ? "-" + formatNumber(totalCharges) : "-"},`
+    const totalAdvances = reportData.advances.reduce((sum, a) => Number(sum) + Number(a.amount), 0)
+    csvContent += `${totalAdvances > 0 ? "-" + formatNumber(totalAdvances) : "-"}\r\n`
+    csvContent += `${t("dashboard.finalAmount")} (${reportData.percentage}% ${t("common.of")} ${
+      reportData.personType === "COLPORTER" ? t("dashboard.sales") : t("reports.teamSales")
+    } - ${t("charges.title")} - ${t("cashAdvance.title")}),,,,,,,,${formatNumber(reportData.netAmount)}\r\n\r\n`
 
     if (reportData.charges.length > 0) {
       csvContent += `${t("charges.title")}\r\n`
@@ -726,7 +713,7 @@ const IndividualReports: React.FC = () => {
         csvContent += `${formatDateSafe(charge.date)},${charge.reason},${t(`charges.${charge.category.toLowerCase()}`)},${formatNumber(charge.amount)}\r\n`
       })
       csvContent += `${t("charges.totalCharges")},,,${formatNumber(
-        reportData.charges.reduce((sum, c) => sum + c.amount, 0),
+        reportData.charges.reduce((sum, c) => Number(sum) + Number(c.amount), 0),
       )}\r\n`
       csvContent += "\r\n"
     }
@@ -738,7 +725,7 @@ const IndividualReports: React.FC = () => {
         csvContent += `${formatDateSafe(advance.date)},${formatDateSafe(advance.weekStartDate)} - ${formatDateSafe(advance.weekEndDate)},${formatNumber(advance.amount)}\r\n`
       })
       csvContent += `${t("cashAdvance.totalAdvances")},,${formatNumber(
-        reportData.advances.reduce((sum, a) => sum + a.amount, 0),
+        reportData.advances.reduce((sum, a) => Number(sum) + Number(a.amount), 0),
       )}\r\n`
       csvContent += "\r\n"
     }
@@ -746,7 +733,7 @@ const IndividualReports: React.FC = () => {
     csvContent += `${t("dashboard.financialSummary")}\r\n`
     csvContent += `${reportData.personType === "LEADER" ? t("reports.teamSales") : t("dashboard.totalSales")},,${formatNumber(Number(reportData.totalEarnings))}\r\n`
     csvContent += `${t("individualReports.percentageEarnings", { personType: t(`personForm.${reportData.personType.toLowerCase()}`), percentage: reportData.percentage })},,${formatNumber(reportData.totalEarnings * (reportData.percentage / 100))}\r\n`
-    csvContent += `${t("charges.totalCharges")},,${formatNumber(reportData.charges.reduce((sum, c) => sum + c.amount, 0))}\r\n`
+    csvContent += `${t("charges.totalCharges")},,${formatNumber(reportData.charges.reduce((sum, c) => Number(sum) + Number(c.amount), 0))}\r\n`
     csvContent += `${t("cashAdvance.totalAdvances")},,${formatNumber(reportData.advances.reduce((sum, a) => Number(sum) + Number(a.amount), 0))}\r\n`
     csvContent += `${t("dashboard.finalAmount")},,${formatNumber(reportData.netAmount)}\r\n`
 
@@ -1050,7 +1037,7 @@ const IndividualReports: React.FC = () => {
                                   charge.category === category &&
                                   isDateInRange(charge.date, week.startDate, week.endDate),
                               )
-                              const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
+                              const chargeTotal = weekCharges.reduce((sum, c) => Number(sum) + Number(c.amount), 0)
                               return (
                                 <td
                                   key={category}
@@ -1062,11 +1049,10 @@ const IndividualReports: React.FC = () => {
                             })}
                             <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-purple-50">
                               {(() => {
-                                const weekAdvances = reportData.advances.filter(
-                                  (advance) =>
-                                    parseDate(advance.weekStartDate).toISOString().split("T")[0] === week.startDate,
+                                const weekAdvances = reportData.advances.filter((advance) =>
+                                  isDateInRange(advance.weekEndDate, week.startDate, week.endDate)
                                 )
-                                const advanceTotal = weekAdvances.reduce((sum, a) => sum + a.amount, 0)
+                                const advanceTotal = weekAdvances.reduce((sum, a) => Number(sum) + Number(a.amount), 0)
                                 return advanceTotal > 0 ? `-${formatNumber(advanceTotal)}` : "-"
                               })()}
                             </td>
@@ -1082,13 +1068,13 @@ const IndividualReports: React.FC = () => {
                         </td>
                         <td colSpan={5} className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-100">
                           {(() => {
-                            const chargeTotal = reportData.charges.reduce((sum, c) => sum + c.amount, 0)
+                            const chargeTotal = reportData.charges.reduce((sum, c) => Number(sum) + Number(c.amount), 0)
                             return chargeTotal > 0 ? `-${formatNumber(chargeTotal)}` : "-"
                           })()}
                         </td>
                         <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-purple-100">
                           {(() => {
-                            const advanceTotal = reportData.advances.reduce((sum, a) => sum + a.amount, 0)
+                            const advanceTotal = reportData.advances.reduce((sum, a) => Number(sum) + Number(a.amount), 0)
                             return advanceTotal > 0 ? `-${formatNumber(advanceTotal)}` : "-"
                           })()}
                         </td>
@@ -1181,7 +1167,7 @@ const IndividualReports: React.FC = () => {
                                   charge.category === category &&
                                   isDateInRange(charge.date, week.startDate, week.endDate),
                               )
-                              const chargeTotal = weekCharges.reduce((sum, c) => sum + c.amount, 0)
+                              const chargeTotal = weekCharges.reduce((sum, c) => Number(sum) + Number(c.amount), 0)
                               return (
                                 <td
                                   key={category}
@@ -1194,9 +1180,9 @@ const IndividualReports: React.FC = () => {
                             <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-purple-50">
                               {(() => {
                                 const weekAdvances = reportData.advances.filter((advance) =>
-                                  isDateInRange(advance.date, week.startDate, week.endDate),
+                                  isDateInRange(advance.weekEndDate, week.startDate, week.endDate)
                                 )
-                                const advanceTotal = weekAdvances.reduce((sum, a) => sum + a.amount, 0)
+                                const advanceTotal = weekAdvances.reduce((sum, a) => Number(sum) + Number(a.amount), 0)
                                 return advanceTotal > 0 ? `-${formatNumber(advanceTotal)}` : "-"
                               })()}
                             </td>
@@ -1212,13 +1198,13 @@ const IndividualReports: React.FC = () => {
                         </td>
                         <td colSpan={5} className="px-4 py-3 text-sm text-center whitespace-nowrap bg-red-100">
                           {(() => {
-                            const chargeTotal = reportData.charges.reduce((sum, c) => sum + c.amount, 0)
+                            const chargeTotal = reportData.charges.reduce((sum, c) => Number(sum) + Number(c.amount), 0)
                             return chargeTotal > 0 ? `-${formatNumber(chargeTotal)}` : "-"
                           })()}
                         </td>
                         <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-purple-100">
                           {(() => {
-                            const advanceTotal = reportData.advances.reduce((sum, a) => sum + a.amount, 0)
+                            const advanceTotal = reportData.advances.reduce((sum, a) => Number(sum) + Number(a.amount), 0)
                             return advanceTotal > 0 ? `-${formatNumber(advanceTotal)}` : "-"
                           })()}
                         </td>
@@ -1279,7 +1265,7 @@ const IndividualReports: React.FC = () => {
                         {t("charges.totalCharges")}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-red-600">
-                        -${formatNumber(reportData.charges.reduce((sum, c) => sum + c.amount, 0))}
+                        -${formatNumber(reportData.charges.reduce((sum, c) => Number(sum) + Number(c.amount), 0))}
                       </td>
                     </tr>
                   </tbody>
@@ -1330,7 +1316,7 @@ const IndividualReports: React.FC = () => {
                         {t("cashAdvance.totalAdvances")}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-purple-600">
-                        -${formatNumber(reportData.advances.reduce((sum, a) => sum + a.amount, 0))}
+                        -${formatNumber(reportData.advances.reduce((sum, a) => Number(sum) + Number(a.amount), 0))}
                       </td>
                     </tr>
                   </tbody>
@@ -1368,7 +1354,7 @@ const IndividualReports: React.FC = () => {
                       <div className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
                         <span className="text-sm font-medium text-gray-600">{t("charges.totalCharges")}</span>
                         <span className="text-lg font-bold text-red-600">
-                          -${formatNumber(reportData.charges.reduce((sum, c) => sum + c.amount, 0))}
+                          -${formatNumber(reportData.charges.reduce((sum, c) => Number(sum) + Number(c.amount), 0))}
                         </span>
                       </div>
                     )}
