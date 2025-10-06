@@ -7,6 +7,10 @@ import { UserRole } from './types';
 import Layout from './components/layout/Layout';
 import LoadingScreen from './components/ui/LoadingScreen';
 import BonificationsPage from './pages/bonifications/BonificationPage';
+import SnacksExpenses from './pages/expenses/SnacksExpenses';
+import CleaningExpenses from './pages/expenses/CleaningExpenses';
+import IncentivosExpenses from './pages/expenses/IncentivosExpenses';
+import ActivitiesExpenses from './pages/expenses/ActivitiesExpenses';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/auth/Login'));
@@ -255,6 +259,10 @@ function App() {
             <Route path="supplies" element={<Suspense fallback={<LoadingScreen />}><SuppliesExpenses /></Suspense>} />
             <Route path="maintenance" element={<Suspense fallback={<LoadingScreen />}><MaintenanceExpenses /></Suspense>} />
             <Route path="fuel" element={<Suspense fallback={<LoadingScreen />}><FuelExpenses /></Suspense>} />
+            <Route path="snacks" element={<Suspense fallback={<LoadingScreen />}><SnacksExpenses /></Suspense>} />
+            <Route path="incentives" element={<Suspense fallback={<LoadingScreen />}><IncentivosExpenses /></Suspense>} />
+            <Route path="cleaning" element={<Suspense fallback={<LoadingScreen />}><CleaningExpenses /></Suspense>} />
+            <Route path="activities" element={<Suspense fallback={<LoadingScreen />}><ActivitiesExpenses /></Suspense>} />
           </Route>
 
           {/* Cash Advance - Restricted for Viewer role */}
