@@ -11,7 +11,7 @@ interface LeaderPercentageState {
 }
 
 interface LeaderPercentageStore extends LeaderPercentageState {
-  fetchLeaderPercentages: () => Promise<void>;
+  fetchLeaderPercentages: (programId?: number) => Promise<void>;
   createLeaderPercentage: (percentage: Omit<LeaderPercentage, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateLeaderPercentage: (id: string, percentage: Partial<LeaderPercentage>) => Promise<void>;
   deleteLeaderPercentage: (id: string) => Promise<void>;
@@ -26,25 +26,26 @@ export const useLeaderPercentageStore = create<LeaderPercentageStore>((set, get)
   error: null,
   werePercentagesFetched: false,
 
-  fetchLeaderPercentages: async () => {
+  fetchLeaderPercentages: async (programId?: number) => {
     set({ isLoading: true, error: null });
     try {
-      // Get current program ID
-      const { program } = useProgramStore.getState();
-      const programId = program?.id;
-      
-      // Add program filter if available
       const params: Record<string, string | number> = {};
+
       if (programId) {
         params.programId = programId;
+      } else {
+        const { program } = useProgramStore.getState();
+        if (program?.id) {
+          params.programId = program.id;
+        }
       }
-      
+
       const percentages = await api.get<LeaderPercentage[]>('/leaders/percentages', { params });
       set({ leaderPercentages: percentages, isLoading: false, werePercentagesFetched: true });
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'An unknown error occurred',
-        isLoading: false 
+        isLoading: false
       });
     }
   },

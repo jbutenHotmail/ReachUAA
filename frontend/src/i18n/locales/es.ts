@@ -1371,6 +1371,14 @@ export default {
       description: "Gestionar todos los logros del programa"
     }
   },
+  bonuses: 
+  {
+    title: "Bonus",
+    description: "Sistema de recompensas",
+    loading: "Cargando Bonus...",
+    totalBonuses: "Total de Bonus",
+    amount: "Monto",
+  },
   expenses: {
     title: "Gastos",
     amount: "Monto",
@@ -1381,6 +1389,7 @@ export default {
     snacks: "Snacks",
     cleaning: "Limpieza",
     activities: "Actividades",
+    bonuses: "Bonificaciones",
     incentivos: "Incentivos",
     category: "Categoría",
     addExpense: "Agregar Gasto",

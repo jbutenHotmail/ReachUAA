@@ -5,7 +5,6 @@ import { useProgramStore } from "../../stores/programStore";
 import { useBonusStore } from "../../stores/bonusStore";
 import { useUserStore } from "../../stores/userStore";
 import { useTransactionStore } from "../../stores/transactionStore";
-import { useLeaderPercentageStore } from "../../stores/leaderPercentageStore";
 import { useExpenseStore } from "../../stores/expenseStore";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
@@ -21,7 +20,7 @@ interface AddBonusFormProps {
 interface LeaderShare {
   leaderId: string;
   leaderName: string;
-  totalEarnings: number;
+  totalSales: number;
   percentage: number;
   shareAmount: number;
 }
@@ -31,7 +30,6 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
   const { createBonus } = useBonusStore();
   const { fetchPeople, getColporters, getLeaders, werePeopleFetched } = useUserStore();
   const { transactions, fetchTransactions, wereTransactionsFetched } = useTransactionStore();
-  const { leaderPercentages, fetchLeaderPercentages, wereLeaderPercentagesFetched } = useLeaderPercentageStore();
   const { createExpense } = useExpenseStore();
 
   const [formData, setFormData] = useState({
@@ -53,19 +51,12 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
     if (program && !wereTransactionsFetched) {
       fetchTransactions({ programId: program.id });
     }
-    if (program && !wereLeaderPercentagesFetched) {
-      fetchLeaderPercentages(program.id);
-    }
-  }, [werePeopleFetched, fetchPeople, wereTransactionsFetched, fetchTransactions, program, wereLeaderPercentagesFetched, fetchLeaderPercentages]);
+  }, [werePeopleFetched, fetchPeople, wereTransactionsFetched, fetchTransactions, program]);
 
   const colporters = getColporters(program?.id);
   const leaders = getLeaders(program?.id);
 
   const availablePeople = formData.person_type === "COLPORTER" ? colporters : leaders;
-
-  const defaultLeaderPercentage = program?.financialConfig?.leader_percentage
-    ? parseFloat(program.financialConfig.leader_percentage)
-    : 15;
 
   const leaderShares = useMemo<LeaderShare[]>(() => {
     if (!program || !formData.amount || parseFloat(formData.amount) <= 0 || formData.distribution_type !== "SHARED") {
@@ -76,7 +67,7 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
       (t) => t.status === "APPROVED" && t.programId === program.id
     );
 
-    const leaderEarningsMap = new Map<string, LeaderShare>();
+    const leaderSalesMap = new Map<string, LeaderShare>();
 
     approvedTransactions.forEach((transaction) => {
       const leaderId = transaction.leaderId;
@@ -84,46 +75,41 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
 
       if (!leaderId || !leaderName) return;
 
-      const customPercentage = leaderPercentages.find(
-        (lp) => lp.leaderId === leaderId && lp.isActive && lp.programId === program.id
-      );
+      const sales = Number(transaction.total);
 
-      const percentage = customPercentage ? customPercentage.percentage : defaultLeaderPercentage;
-      const earnings = Number(transaction.total) * (percentage / 100);
-
-      if (!leaderEarningsMap.has(leaderId)) {
-        leaderEarningsMap.set(leaderId, {
+      if (!leaderSalesMap.has(leaderId)) {
+        leaderSalesMap.set(leaderId, {
           leaderId,
           leaderName,
-          totalEarnings: 0,
+          totalSales: 0,
           percentage: 0,
           shareAmount: 0,
         });
       }
 
-      const leader = leaderEarningsMap.get(leaderId)!;
-      leader.totalEarnings += earnings;
+      const leader = leaderSalesMap.get(leaderId)!;
+      leader.totalSales += sales;
     });
 
-    const totalEarnings = Array.from(leaderEarningsMap.values()).reduce(
-      (sum, leader) => sum + leader.totalEarnings,
+    const totalSales = Array.from(leaderSalesMap.values()).reduce(
+      (sum, leader) => sum + leader.totalSales,
       0
     );
 
-    if (totalEarnings === 0) {
+    if (totalSales === 0) {
       return [];
     }
 
     const bonusTotal = parseFloat(formData.amount);
 
-    const leadersList = Array.from(leaderEarningsMap.values()).map((leader) => ({
+    const leadersList = Array.from(leaderSalesMap.values()).map((leader) => ({
       ...leader,
-      percentage: (leader.totalEarnings / totalEarnings) * 100,
-      shareAmount: (leader.totalEarnings / totalEarnings) * bonusTotal,
+      percentage: (leader.totalSales / totalSales) * 100,
+      shareAmount: (leader.totalSales / totalSales) * bonusTotal,
     }));
 
-    return leadersList.sort((a, b) => b.totalEarnings - a.totalEarnings);
-  }, [program, transactions, leaderPercentages, defaultLeaderPercentage, formData.amount, formData.distribution_type]);
+    return leadersList.sort((a, b) => b.totalSales - a.totalSales);
+  }, [program, transactions, formData.amount, formData.distribution_type]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,7 +131,7 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
     }
 
     if (formData.distribution_type === "SHARED" && leaderShares.length === 0) {
-      setError("No hay líderes con ganancias para compartir el costo del bono");
+      setError("No hay líderes con ventas para compartir el costo del bono");
       return;
     }
 
@@ -166,9 +152,9 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
             leaderId: leader.leaderId,
             leaderName: leader.leaderName,
             amount: leader.shareAmount,
-            motivo: `Bono compartido - ${formData.description || "Sin descripción"}`,
-            category: "program",
-            notes: `Pago proporcional del bono (${leader.percentage.toFixed(1)}%)`,
+            motivo: `Bono compartido`,
+            category: "bonuses",
+            notes: `Pago proporcional del bono`,
             date: formData.bonus_date,
             status: "APPROVED",
             programId: program.id,
@@ -217,104 +203,31 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tipo de Pago <span className="text-danger-500">*</span>
-            </label>
-            <select
-              name="distribution_type"
-              value={formData.distribution_type}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              required
-            >
-              <option value="DIRECT">Directo - Sale del programa</option>
-              <option value="SHARED">Compartido - Los líderes pagan proporcionalmente</option>
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              {formData.distribution_type === "DIRECT"
-                ? "El bono sale directamente de los fondos del programa"
-                : "El costo del bono se divide proporcionalmente entre los líderes según sus ganancias"}
-            </p>
-          </div>
-
-          {formData.distribution_type === "SHARED" && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Monto Total del Bono <span className="text-danger-500">*</span>
-                </label>
-                <Input
-                  type="number"
-                  name="amount"
-                  value={formData.amount}
-                  onChange={handleChange}
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0.01"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Ingrese el monto para ver cómo se distribuirá entre los líderes
-                </p>
-              </div>
-
-              {leaderShares.length > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Users className="text-amber-600" size={18} />
-                    <h3 className="font-semibold text-gray-900">Distribución del Costo entre Líderes</h3>
-                  </div>
-
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {leaderShares.map((leader) => (
-                      <div key={leader.leaderId} className="bg-white rounded-lg p-3 border border-gray-200">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900">{leader.leaderName}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="info" size="sm">
-                                <TrendingUp size={12} className="mr-1" />
-                                {leader.percentage.toFixed(1)}%
-                              </Badge>
-                              <Badge variant="secondary" size="sm">
-                                <DollarSign size={12} className="mr-1" />
-                                {formatNumber(leader.totalEarnings)} ganado
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs text-gray-500">Paga</p>
-                            <p className="text-lg font-bold text-danger-600">
-                              -${formatNumber(leader.shareAmount)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-amber-200">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-700">Total Compartido:</span>
-                      <span className="text-lg font-bold text-danger-600">-${formatNumber(totalShared)}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {formData.amount && leaderShares.length === 0 && (
-                <div className="p-3 bg-warning-50 border border-warning-200 rounded-lg text-warning-700 text-sm">
-                  No hay líderes con ganancias para compartir el costo del bono
-                </div>
-              )}
-            </>
-          )}
-
-          {formData.distribution_type === "DIRECT" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Monto <span className="text-danger-500">*</span>
+                Tipo de Pago <span className="text-danger-500">*</span>
+              </label>
+              <select
+                name="distribution_type"
+                value={formData.distribution_type}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                required
+              >
+                <option value="DIRECT">Directo - Sale del programa</option>
+                <option value="SHARED">Compartido - Los líderes pagan proporcionalmente</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.distribution_type === "DIRECT"
+                  ? "El bono sale directamente de los fondos del programa"
+                  : "El costo del bono se divide proporcionalmente entre los líderes según sus ventas"}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {formData.distribution_type === "SHARED" ? "Monto Total del Bono" : "Monto"} <span className="text-danger-500">*</span>
               </label>
               <Input
                 type="number"
@@ -326,43 +239,97 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
                 min="0.01"
                 required
               />
+              {formData.distribution_type === "SHARED" && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Ingrese el monto para ver cómo se distribuirá entre los líderes
+                </p>
+              )}
             </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tipo de Persona <span className="text-danger-500">*</span>
-            </label>
-            <select
-              name="person_type"
-              value={formData.person_type}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              required
-            >
-              <option value="COLPORTER">Colportor</option>
-              <option value="LEADER">Líder</option>
-            </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {formData.person_type === "COLPORTER" ? "Colportor" : "Líder"} que recibirá el bono <span className="text-danger-500">*</span>
-            </label>
-            <select
-              name="person_id"
-              value={formData.person_id}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              required
-            >
-              <option value="">Seleccione {formData.person_type === "COLPORTER" ? "un colportor" : "un líder"}</option>
-              {availablePeople.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.firstName} {person.lastName}
-                </option>
-              ))}
-            </select>
+          {formData.distribution_type === "SHARED" && (
+            <>
+              {leaderShares.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="text-amber-600" size={16} />
+                    <h3 className="font-semibold text-gray-900 text-sm">Distribución del Costo entre Líderes</h3>
+                  </div>
+
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {leaderShares.map((leader) => (
+                      <div key={leader.leaderId} className="bg-white rounded p-2 border border-gray-200 text-sm">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{leader.leaderName}</p>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Badge variant="info" size="xs">
+                                <TrendingUp size={10} className="mr-0.5" />
+                                {leader.percentage.toFixed(1)}%
+                              </Badge>
+                              <Badge variant="secondary" size="xs">
+                                <DollarSign size={10} className="mr-0.5" />
+                                {formatNumber(leader.totalSales)} en ventas
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="text-right ml-2">
+                            <p className="text-xs text-gray-500">Paga</p>
+                            <p className="text-sm font-bold text-danger-600">
+                              -${formatNumber(leader.shareAmount)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {formData.amount && leaderShares.length === 0 && (
+                <div className="p-3 bg-warning-50 border border-warning-200 rounded-lg text-warning-700 text-sm">
+                  No hay líderes con ventas para compartir el costo del bono
+                </div>
+              )}
+            </>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tipo de Persona <span className="text-danger-500">*</span>
+              </label>
+              <select
+                name="person_type"
+                value={formData.person_type}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                required
+              >
+                <option value="COLPORTER">Colportor</option>
+                <option value="LEADER">Líder</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {formData.person_type === "COLPORTER" ? "Colportor" : "Líder"} que recibirá el bono <span className="text-danger-500">*</span>
+              </label>
+              <select
+                name="person_id"
+                value={formData.person_id}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                required
+              >
+                <option value="">Seleccione {formData.person_type === "COLPORTER" ? "un colportor" : "un líder"}</option>
+                {availablePeople.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name} {person.apellido}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>

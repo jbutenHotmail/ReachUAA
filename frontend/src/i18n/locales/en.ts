@@ -912,6 +912,13 @@ export default {
     "completed": "Completed",
     "totalBonifications": "Total Bonifications"
   },
+  bonuses: {
+    title: "Bonus",
+    description: "System of rewards",
+    loading: "Loading Bonus...",
+    totalBonuses: "Total Bonuses",
+    amount: "Amount",
+  },
   dashboard: {
     title: "Dashboard",
     welcome: "Welcome back",
@@ -1487,6 +1494,7 @@ export default {
     snacks: "Snacks",
     maintenance: "Vehicle Maintenance",
     fuel: "Fuel",
+    bonuses: "Bonuses",
     incentivos: "Incentives",
     vehicle: "Vehicle",
     programCosts: "Program Costs",

@@ -196,6 +196,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onCollapse }) => {
           }
         ],
       },
+      //Bonuses
+      {
+        path: '/bonuses',
+        label: t('bonuses.title'),
+        icon: <Gift size={20} />,
+      },
       // Charges 
           {
             path: '/charges',

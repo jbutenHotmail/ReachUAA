@@ -38,6 +38,12 @@ interface ReportData {
     weekEndDate: string
     amount: number
   }>
+  bonuses: Array<{
+    id: string
+    date: string
+    description: string
+    amount: number
+  }>
   netAmount: number
   percentage: number
   expenses?: Array<{
@@ -49,6 +55,7 @@ interface ReportData {
     notes?: string
   }>
   earnings?: {
+    bonuses: number
     expenses: number
     final: number
   }
@@ -203,6 +210,12 @@ const IndividualReports: React.FC = () => {
           weekEndDate: a.week_end_date,
           amount: a.amount,
         })),
+        bonuses: data.bonuses?.map((b: any) => ({
+          id: b.id,
+          date: b.date,
+          description: b.description,
+          amount: b.amount,
+        })) || [],
         netAmount: data.earnings?.final || 0,
         percentage: data.earnings?.percentage || 0,
         expenses:
@@ -215,6 +228,7 @@ const IndividualReports: React.FC = () => {
             notes: e.notes,
           })) || [],
         earnings: {
+          bonuses: data.earnings?.bonuses || 0,
           expenses: data.earnings?.expenses || 0,
           final: data.earnings?.final || 0,
         },
@@ -388,6 +402,10 @@ const IndividualReports: React.FC = () => {
           background-color: #6f42c1;
           color: white;
         }
+        .bonuses-header {
+          background-color: #198754;
+          color: white;
+        }
         .week-row:nth-child(even) {
           background-color: #fffaf0;
         }
@@ -399,6 +417,9 @@ const IndividualReports: React.FC = () => {
         }
         .advances-cell {
           background-color: #ede9fe;
+        }
+        .bonuses-cell {
+          background-color: #d1eddc;
         }
         .total-row {
           background-color: #f3f4f6;
@@ -421,10 +442,10 @@ const IndividualReports: React.FC = () => {
           margin: 10px 0;
           border-radius: 4px;
         }
-        .charges-section, .advances-section {
+        .charges-section, .advances-section, .bonuses-section {
           margin-top: 20px;
         }
-        .charges-section h2, .advances-section h2 {
+        .charges-section h2, .advances-section h2, .bonuses-section h2 {
           font-size: 12pt;
           margin-bottom: 8px;
           color: #0052B4;
@@ -477,6 +498,7 @@ const IndividualReports: React.FC = () => {
             <th colspan="8">${reportData.personType === "COLPORTER" ? t("dashboard.earningsBreakdown") : t("dashboard.teamEarnings")}</th>
             <th colspan="5" class="charges-header">${t("charges.title")}</th>
             <th rowspan="2" class="advances-header">${t("cashAdvance.title")}</th>
+            <th rowspan="2" class="bonuses-header">${t("bonuses.title")}</th>
           </tr>
           <tr>
             ${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -520,6 +542,13 @@ const IndividualReports: React.FC = () => {
                     return advanceTotal > 0 ? `-${formatNumber(advanceTotal)}` : "-";
                   })()
                 }</td>
+                <td class="bonuses-cell">${
+                  (() => {
+                    const weekBonuses = reportData.bonuses.filter((b) => isDateInRange(b.date, week.startDate, week.endDate));
+                    const bonusTotal = weekBonuses.reduce((sum, b) => Number(sum) + Number(b.amount), 0);
+                    return bonusTotal > 0 ? `+${formatNumber(bonusTotal)}` : "-";
+                  })()
+                }</td>
               </tr>
             `
             )
@@ -539,12 +568,18 @@ const IndividualReports: React.FC = () => {
                 return advanceTotal > 0 ? `-${formatNumber(advanceTotal)}` : "-";
               })()
             }</td>
+            <td class="bonuses-cell">${
+              (() => {
+                const bonusTotal = reportData.bonuses.reduce((sum, b) => Number(sum) + Number(b.amount), 0);
+                return bonusTotal > 0 ? `+${formatNumber(bonusTotal)}` : "-";
+              })()
+            }</td>
           </tr>
           <tr class="net-row">
-            <td colspan="9">${t("dashboard.finalAmount")} (${reportData.percentage}% ${t("common.of")} ${
+            <td colspan="10">${t("dashboard.finalAmount")} (${reportData.percentage}% ${t("common.of")} ${
               reportData.personType === "COLPORTER" ? t("dashboard.sales") : t("reports.teamSales")
-            } - ${t("charges.title")} - ${t("cashAdvance.title")})</td>
-            <td colspan="6">${formatNumber(reportData.netAmount)}</td>
+            } + ${t("bonuses.title")} - ${t("charges.title")} - ${t("cashAdvance.title")})</td>
+            <td colspan="5">${formatNumber(reportData.netAmount)}</td>
           </tr>
         </tbody>
       </table>
@@ -620,6 +655,41 @@ const IndividualReports: React.FC = () => {
         `
           : ""
       }
+      ${
+        reportData.bonuses.length > 0
+          ? `
+          <div class="bonuses-section">
+            <h2>${t("bonuses.title")}</h2>
+            <table style="font-size: 7pt;">
+              <thead>
+                <tr>
+                  <th>${t("bonuses.date")}</th>
+                  <th>${t("bonuses.description")}</th>
+                  <th>${t("bonuses.amount")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${reportData.bonuses
+                  .map(
+                    (bonus) => `
+                    <tr>
+                      <td>${formatDateSafe(bonus.date)}</td>
+                      <td>${bonus.description}</td>
+                      <td>$${formatNumber(bonus.amount)}</td>
+                    </tr>
+                  `
+                  )
+                  .join("")}
+                <tr class="total-row">
+                  <td colspan="2">${t("bonuses.totalBonuses")}</td>
+                  <td>$${formatNumber(reportData.bonuses.reduce((sum, b) => Number(sum) + Number(b.amount), 0))}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        `
+          : ""
+      }
       <div class="summary-section">
         <h2>${t("dashboard.financialSummary")}</h2>
         <div class="summary-item">
@@ -634,6 +704,7 @@ const IndividualReports: React.FC = () => {
           <span>${t("individualReports.percentageLabel", { personType: t(`personForm.${reportData.personType.toLowerCase()}`), percentage: reportData.percentage })}:</span>
           <span>$${formatNumber(reportData.totalEarnings * (reportData.percentage / 100))}</span>
         </div>
+        ${reportData.bonuses.length > 0 ? `<div class="summary-item"><span>${t("bonuses.totalBonuses")}:</span><span>+$${formatNumber(reportData.bonuses.reduce((sum, b) => Number(sum) + Number(b.amount), 0))}</span></div>` : ""}
         <div class="summary-item">
           <span>${t("charges.totalCharges")}:</span>
           <span>$${formatNumber(reportData.charges.reduce((sum, c) => Number(sum) + Number(c.amount), 0))}</span>
@@ -674,7 +745,7 @@ const IndividualReports: React.FC = () => {
     csvContent += `${t("reports.period")},${formatDateSafe(reportData.startDate)} - ${formatDateSafe(reportData.endDate)}\r\n\r\n`
 
     csvContent += `${t("individualReports.weeklyBreakdown")}\r\n`
-    csvContent += `${t("common.week")},${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => t(`programSettings.days.${day.toLowerCase()}`)).join(",")},${t("common.total")},${["FINE", "DEDUCTION", "PROGRAM_FEE", "FOOD", "MEDICAL_INSURANCE"].map((category) => t(`charges.${category.toLowerCase()}`)).join(",")},${t("cashAdvance.title")}\r\n`
+    csvContent += `${t("common.week")},${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => t(`programSettings.days.${day.toLowerCase()}`)).join(",")},${t("common.total")},${["FINE", "DEDUCTION", "PROGRAM_FEE", "FOOD", "MEDICAL_INSURANCE"].map((category) => t(`charges.${category.toLowerCase()}`)).join(",")},${t("cashAdvance.title")},${t("bonuses.title")}\r\n`
 
     const weeks = groupEarningsByWeeks(reportData.dailyEarnings, reportData.startDate, reportData.endDate)
     weeks.forEach((week, i) => {
@@ -693,7 +764,10 @@ const IndividualReports: React.FC = () => {
       })
       const weekAdvances = reportData.advances.filter((a) => isDateInRange(a.weekEndDate, week.startDate, week.endDate))
       const advanceTotal = weekAdvances.reduce((sum, a) => Number(sum) + Number(a.amount), 0)
-      csvContent += `${advanceTotal > 0 ? "-" + formatNumber(advanceTotal) : "-"}\r\n`
+      csvContent += `${advanceTotal > 0 ? "-" + formatNumber(advanceTotal) : "-"},`
+      const weekBonuses = reportData.bonuses.filter((b) => isDateInRange(b.date, week.startDate, week.endDate))
+      const bonusTotal = weekBonuses.reduce((sum, b) => Number(sum) + Number(b.amount), 0)
+      csvContent += `${bonusTotal > 0 ? "+" + formatNumber(bonusTotal) : "-"}\r\n`
     })
 
     csvContent += `${t("common.totals")},`
@@ -701,10 +775,12 @@ const IndividualReports: React.FC = () => {
     const totalCharges = reportData.charges.reduce((sum, c) => Number(sum) + Number(c.amount), 0)
     csvContent += `${Array(5).fill("").join(",")},${totalCharges > 0 ? "-" + formatNumber(totalCharges) : "-"},`
     const totalAdvances = reportData.advances.reduce((sum, a) => Number(sum) + Number(a.amount), 0)
-    csvContent += `${totalAdvances > 0 ? "-" + formatNumber(totalAdvances) : "-"}\r\n`
+    csvContent += `${totalAdvances > 0 ? "-" + formatNumber(totalAdvances) : "-"},`
+    const totalBonuses = reportData.bonuses.reduce((sum, b) => Number(sum) + Number(b.amount), 0)
+    csvContent += `${totalBonuses > 0 ? "+" + formatNumber(totalBonuses) : "-"}\r\n`
     csvContent += `${t("dashboard.finalAmount")} (${reportData.percentage}% ${t("common.of")} ${
       reportData.personType === "COLPORTER" ? t("dashboard.sales") : t("reports.teamSales")
-    } - ${t("charges.title")} - ${t("cashAdvance.title")}),,,,,,,,${formatNumber(reportData.netAmount)}\r\n\r\n`
+    } + ${t("bonuses.title")} - ${t("charges.title")} - ${t("cashAdvance.title")}),,,,,,,,${formatNumber(reportData.netAmount)}\r\n\r\n`
 
     if (reportData.charges.length > 0) {
       csvContent += `${t("charges.title")}\r\n`
@@ -730,9 +806,22 @@ const IndividualReports: React.FC = () => {
       csvContent += "\r\n"
     }
 
+    if (reportData.bonuses.length > 0) {
+      csvContent += `${t("bonuses.title")}\r\n`
+      csvContent += `${t("bonuses.date")},${t("bonuses.description")},${t("bonuses.amount")}\r\n`
+      reportData.bonuses.forEach((bonus) => {
+        csvContent += `${formatDateSafe(bonus.date)},${bonus.description},${formatNumber(bonus.amount)}\r\n`
+      })
+      csvContent += `${t("bonuses.totalBonuses")},,${formatNumber(
+        reportData.bonuses.reduce((sum, b) => Number(sum) + Number(b.amount), 0),
+      )}\r\n`
+      csvContent += "\r\n"
+    }
+
     csvContent += `${t("dashboard.financialSummary")}\r\n`
     csvContent += `${reportData.personType === "LEADER" ? t("reports.teamSales") : t("dashboard.totalSales")},,${formatNumber(Number(reportData.totalEarnings))}\r\n`
     csvContent += `${t("individualReports.percentageEarnings", { personType: t(`personForm.${reportData.personType.toLowerCase()}`), percentage: reportData.percentage })},,${formatNumber(reportData.totalEarnings * (reportData.percentage / 100))}\r\n`
+    {reportData.bonuses.length > 0 ? `csvContent += \`${t("bonuses.totalBonuses")},,${formatNumber(reportData.bonuses.reduce((sum, b) => Number(sum) + Number(b.amount), 0))}\r\n\`` : ""}
     csvContent += `${t("charges.totalCharges")},,${formatNumber(reportData.charges.reduce((sum, c) => Number(sum) + Number(c.amount), 0))}\r\n`
     csvContent += `${t("cashAdvance.totalAdvances")},,${formatNumber(reportData.advances.reduce((sum, a) => Number(sum) + Number(a.amount), 0))}\r\n`
     csvContent += `${t("dashboard.finalAmount")},,${formatNumber(reportData.netAmount)}\r\n`
@@ -973,6 +1062,12 @@ const IndividualReports: React.FC = () => {
                         >
                           {t("cashAdvance.title")}
                         </th>
+                        <th
+                          rowSpan={2}
+                          className="border border-gray-400 px-3 py-2 bg-green-700 text-white text-sm align-middle"
+                        >
+                          {t("bonuses.title")}
+                        </th>
                       </tr>
                       <tr>
                         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => (
@@ -1056,6 +1151,15 @@ const IndividualReports: React.FC = () => {
                                 return advanceTotal > 0 ? `-${formatNumber(advanceTotal)}` : "-"
                               })()}
                             </td>
+                            <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-green-50">
+                              {(() => {
+                                const weekBonuses = reportData.bonuses.filter((bonus) =>
+                                  isDateInRange(bonus.date, week.startDate, week.endDate)
+                                )
+                                const bonusTotal = weekBonuses.reduce((sum, b) => Number(sum) + Number(b.amount), 0)
+                                return bonusTotal > 0 ? `+${formatNumber(bonusTotal)}` : "-"
+                              })()}
+                            </td>
                           </tr>
                         ),
                       )}
@@ -1078,13 +1182,19 @@ const IndividualReports: React.FC = () => {
                             return advanceTotal > 0 ? `-${formatNumber(advanceTotal)}` : "-"
                           })()}
                         </td>
+                        <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-green-100">
+                          {(() => {
+                            const bonusTotal = reportData.bonuses.reduce((sum, b) => Number(sum) + Number(b.amount), 0)
+                            return bonusTotal > 0 ? `+${formatNumber(bonusTotal)}` : "-"
+                          })()}
+                        </td>
                       </tr>
                       <tr className="bg-success-100 font-bold">
-                        <td colSpan={8} className="px-4 py-3 text-sm font-bold text-success-800">
+                        <td colSpan={9} className="px-4 py-3 text-sm font-bold text-success-800">
                           {t("dashboard.finalAmount")} ({reportData.percentage}% {t("common.of")} {t("dashboard.sales")}{" "}
-                          - {t("charges.title")} - {t("cashAdvance.title")})
+                          + {t("bonuses.title")} - {t("charges.title")} - {t("cashAdvance.title")})
                         </td>
-                        <td colSpan={6} className="px-4 py-3 text-center text-sm font-bold text-success-800">
+                        <td colSpan={7} className="px-4 py-3 text-center text-sm font-bold text-success-800">
                           {formatNumber(reportData.netAmount)}
                         </td>
                       </tr>
@@ -1113,6 +1223,12 @@ const IndividualReports: React.FC = () => {
                           className="border border-gray-400 px-3 py-2 bg-purple-700 text-white text-sm align-middle"
                         >
                           {t("cashAdvance.title")}
+                        </th>
+                        <th
+                          rowSpan={2}
+                          className="border border-gray-400 px-3 py-2 bg-green-700 text-white text-sm align-middle"
+                        >
+                          {t("bonuses.title")}
                         </th>
                       </tr>
                       <tr>
@@ -1186,6 +1302,15 @@ const IndividualReports: React.FC = () => {
                                 return advanceTotal > 0 ? `-${formatNumber(advanceTotal)}` : "-"
                               })()}
                             </td>
+                            <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-green-50">
+                              {(() => {
+                                const weekBonuses = reportData.bonuses?.filter((bonus) =>
+                                  isDateInRange(bonus.date, week.startDate, week.endDate)
+                                )
+                                const bonusTotal = weekBonuses.reduce((sum, b) => Number(sum) + Number(b.amount), 0)
+                                return bonusTotal > 0 ? `+${formatNumber(bonusTotal)}` : "-"
+                              })()}
+                            </td>
                           </tr>
                         ),
                       )}
@@ -1208,13 +1333,19 @@ const IndividualReports: React.FC = () => {
                             return advanceTotal > 0 ? `-${formatNumber(advanceTotal)}` : "-"
                           })()}
                         </td>
+                        <td className="px-4 py-3 text-sm text-center whitespace-nowrap bg-green-100">
+                          {(() => {
+                            const bonusTotal = reportData.bonuses.reduce((sum, b) => Number(sum) + Number(b.amount), 0)
+                            return bonusTotal > 0 ? `+${formatNumber(bonusTotal)}` : "-"
+                          })()}
+                        </td>
                       </tr>
                       <tr className="bg-success-100 font-bold">
-                        <td colSpan={8} className="px-4 py-3 text-sm font-bold text-success-800">
+                        <td colSpan={9} className="px-4 py-3 text-sm font-bold text-success-800">
                           {t("dashboard.finalAmount")} ({reportData.percentage}% {t("common.of")}{" "}
-                          {t("reports.teamSales")} - {t("charges.title")} - {t("cashAdvance.title")})
+                          {t("reports.teamSales")} + {t("bonuses.title")} - {t("charges.title")} - {t("cashAdvance.title")})
                         </td>
-                        <td colSpan={6} className="px-4 py-3 text-center text-sm font-bold text-success-800">
+                        <td colSpan={7} className="px-4 py-3 text-center text-sm font-bold text-success-800">
                           {formatNumber(reportData.netAmount)}
                         </td>
                       </tr>
@@ -1226,7 +1357,7 @@ const IndividualReports: React.FC = () => {
           </Card>
 
           {reportData.charges.length > 0 && reportData.personType === "COLPORTER" && (
-            <Card title={t("charges.applied")} icon={<AlertTriangle size={20} />}>
+            <Card title={t("charges.title")} icon={<AlertTriangle size={20} />}>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead>
@@ -1325,6 +1456,49 @@ const IndividualReports: React.FC = () => {
             </Card>
           )}
 
+          {reportData.bonuses.length > 0 && (
+            <Card title={t("bonuses.title")} icon={<Receipt size={20} />}>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t("bonuses.date")}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t("bonuses.description")}
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t("bonuses.amount")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {reportData.bonuses.map((bonus) => (
+                      <tr key={bonus.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {formatDateSafe(bonus.date)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{bonus.description}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-green-600">
+                          +${formatNumber(bonus.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="bg-gray-100">
+                      <td colSpan={2} className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
+                        {t("bonuses.totalBonuses")}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-green-600">
+                        +${formatNumber(reportData.bonuses.reduce((sum, b) => Number(sum) + Number(b.amount), 0))}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+
           <Card title={t("individualReports.reportSummary")} icon={<FileText size={20} />}>
             <div className="bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg p-6 border border-primary-200">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1350,6 +1524,14 @@ const IndividualReports: React.FC = () => {
                         ${formatNumber(reportData.totalEarnings * (reportData.percentage / 100))}
                       </span>
                     </div>
+                    {reportData.bonuses.length > 0 && (
+                      <div className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
+                        <span className="text-sm font-medium text-gray-600">{t("bonuses.totalBonuses")}</span>
+                        <span className="text-lg font-bold text-green-600">
+                          +${formatNumber(reportData.bonuses.reduce((sum, b) => Number(sum) + Number(b.amount), 0))}
+                        </span>
+                      </div>
+                    )}
                     {reportData.charges.length > 0 && (
                       <div className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
                         <span className="text-sm font-medium text-gray-600">{t("charges.totalCharges")}</span>
