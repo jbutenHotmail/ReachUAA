@@ -31,6 +31,11 @@ interface BonusStore extends BonusState {
     amount: number;
     description?: string;
     bonus_date: string;
+    distributions?: Array<{
+      leader_id: number | null;
+      amount: number;
+      percentage: number;
+    }>;
   }) => Promise<Bonus>;
   updateBonus: (
     id: number,
@@ -51,7 +56,7 @@ const initialState: BonusState = {
   wereBonusesFetched: false,
 };
 
-export const useBonusStore = create<BonusStore>((set, get) => ({
+export const useBonusStore = create<BonusStore>((set) => ({
   ...initialState,
 
   fetchBonuses: async (programId?: number) => {
