@@ -28,7 +28,7 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
   const { program } = useProgramStore();
   const { createBonus } = useBonusStore();
   const { fetchPeople, getColporters, getLeaders, werePeopleFetched, isLoading: isLoadingPeople } = useUserStore();
-  const { transactions, fetchTransactions, wereTransactionsFetched } = useTransactionStore();
+  const { transactions, fetchAllTransactions, wereTransactionsFetched } = useTransactionStore();
 
   const [formData, setFormData] = useState({
     distribution_type: "SHARED" as "DIRECT" | "SHARED",
@@ -47,9 +47,9 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
       fetchPeople(program.id);
     }
     if (program && !wereTransactionsFetched) {
-      fetchTransactions();
+      fetchAllTransactions();
     }
-  }, [werePeopleFetched, fetchPeople, wereTransactionsFetched, fetchTransactions, program]);
+  }, [werePeopleFetched, wereTransactionsFetched,, program]);
 
   const colporters = getColporters(program?.id);
   const leaders = getLeaders(program?.id);
@@ -174,8 +174,6 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
       ...(name === "person_type" && { person_id: "" }),
     }));
   };
-
-  const totalShared = leaderShares.reduce((sum, leader) => sum + leader.shareAmount, 0);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
