@@ -918,6 +918,7 @@ export default {
     loading: "Loading Bonus...",
     totalBonuses: "Total Bonuses",
     amount: "Amount",
+    date: "Date"
   },
   dashboard: {
     title: "Dashboard",

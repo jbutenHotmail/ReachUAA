@@ -15,4 +15,6 @@ router.put("/:id", authenticateToken, authorizeRoles(["ADMIN"]), bonusController
 
 router.delete("/:id", authenticateToken, authorizeRoles(["ADMIN"]), bonusController.deleteBonus);
 
+router.get("/:id/distributions", authenticateToken, bonusController.getBonusDistributions);
+
 export default router;

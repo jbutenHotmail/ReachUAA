@@ -1373,11 +1373,12 @@ export default {
   },
   bonuses: 
   {
-    title: "Bonus",
+    title: "Bonos",
     description: "Sistema de recompensas",
-    loading: "Cargando Bonus...",
-    totalBonuses: "Total de Bonus",
+    loading: "Cargando Bonos...",
+    totalBonuses: "Total de Bonos",
     amount: "Monto",
+    date: "Fecha"
   },
   expenses: {
     title: "Gastos",

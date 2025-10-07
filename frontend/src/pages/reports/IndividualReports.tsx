@@ -10,7 +10,7 @@ import Badge from "../../components/ui/Badge"
 import { useUserStore } from "../../stores/userStore"
 import { useProgramStore } from "../../stores/programStore"
 import { isColportableDay } from "../../utils/programUtils"
-import { getEndOfMonth, getStartOfMonth, isDateInRange, parseDate } from "../../utils/dateUtils"
+import { getStartOfMonth, isDateInRange, parseDate } from "../../utils/dateUtils"
 import { formatNumber } from "../../utils/numberUtils"
 import api from "../../api"
 
@@ -133,11 +133,13 @@ const IndividualReports: React.FC = () => {
 
       try {
         await Promise.all(dataToFetch)
-        // Set default date range to current month using consistent date utilities
-        const startOfMonth = getStartOfMonth()
-        const endOfMonth = getEndOfMonth()
-        setStartDate(startOfMonth)
-        setEndDate(endOfMonth)
+        // Set default date range from program start date to today
+        const programStartDate = program?.start_date
+          ? new Date(program.start_date).toISOString().split('T')[0]
+          : getStartOfMonth()
+        const today = new Date().toISOString().split('T')[0]
+        setStartDate(programStartDate)
+        setEndDate(today)
       } catch (error) {
         console.error("Error loading initial data:", error)
         setError(t("common.error"))
@@ -147,7 +149,7 @@ const IndividualReports: React.FC = () => {
     }
 
     loadInitialData()
-  }, [wereUsersFetched, werePeopleFetched, wasProgramFetched, fetchUsers, fetchPeople, fetchProgram, getLeaders, t])
+  }, [wereUsersFetched, werePeopleFetched, wasProgramFetched, fetchUsers, fetchPeople, fetchProgram, getLeaders, t, program])
 
   // Handle outside clicks to close dropdown
   useEffect(() => {
@@ -1356,7 +1358,7 @@ const IndividualReports: React.FC = () => {
             </div>
           </Card>
 
-          {reportData.charges.length > 0 && reportData.personType === "COLPORTER" && (
+          {reportData.charges.length > 0 &&(
             <Card title={t("charges.title")} icon={<AlertTriangle size={20} />}>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -1498,7 +1500,62 @@ const IndividualReports: React.FC = () => {
               </div>
             </Card>
           )}
-
+  {/* Leader Expenses Details - Only for leaders */}
+          {reportData.person?.personType === "LEADER" && reportData.expenses && reportData.expenses.length > 0 && (
+            <Card title={t("expenses.title")} icon={<Receipt size={20} />} className="mt-6">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t("expenses.date")}
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t("expenses.motivo")}
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t("expenses.category")}
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {t("expenses.amount")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {reportData.expenses.map((expense: any) => (
+                      <tr key={expense.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {new Date(expense.date).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          {expense.motivo}
+                          {expense.notes && <div className="text-xs text-gray-500 mt-1">{expense.notes}</div>}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center">
+                          <Badge variant="warning" size="sm">
+                            {t(`expenses.${expense.category}`)}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-orange-600">
+                          -${formatNumber(expense.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-orange-50">
+                      <td colSpan={3} className="px-4 py-3 whitespace-nowrap text-sm font-bold text-orange-800">
+                        {t("expenses.totalExpenses")}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-orange-700">
+                        -${formatNumber(reportData.earnings?.expenses || 0)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </Card>
+          )}
           <Card title={t("individualReports.reportSummary")} icon={<FileText size={20} />}>
             <div className="bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg p-6 border border-primary-200">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1659,62 +1716,6 @@ const IndividualReports: React.FC = () => {
             </div>
           </Card>
 
-          {/* Leader Expenses Details - Only for leaders */}
-          {reportData.person?.personType === "LEADER" && reportData.expenses && reportData.expenses.length > 0 && (
-            <Card title={t("expenses.title")} icon={<Receipt size={20} />} className="mt-6">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead>
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t("expenses.date")}
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t("expenses.motivo")}
-                      </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t("expenses.category")}
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {t("expenses.amount")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {reportData.expenses.map((expense: any) => (
-                      <tr key={expense.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                          {new Date(expense.date).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                          {expense.motivo}
-                          {expense.notes && <div className="text-xs text-gray-500 mt-1">{expense.notes}</div>}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-center">
-                          <Badge variant="warning" size="sm">
-                            {t(`expenses.${expense.category}`)}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-orange-600">
-                          -${formatNumber(expense.amount)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-orange-50">
-                      <td colSpan={3} className="px-4 py-3 whitespace-nowrap text-sm font-bold text-orange-800">
-                        {t("expenses.totalExpenses")}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-orange-700">
-                        -${formatNumber(reportData.earnings?.expenses || 0)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </Card>
-          )}
         </div>
       )}
     </div>

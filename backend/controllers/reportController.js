@@ -1094,6 +1094,36 @@ export const getIndividualEarningsReport = async (req, res) => {
 
     const totalCharges = formattedCharges.reduce((sum, c) => sum + Number(c.amount), 0)
 
+    let bonusDistributions = []
+    let totalBonusDistributions = 0
+    if (person.person_type === "LEADER") {
+      bonusDistributions = await db.query(
+        `SELECT
+          bd.id,
+          bd.amount,
+          bd.percentage,
+          b.bonus_date as date,
+          b.description,
+          CONCAT(p.first_name, ' ', p.last_name) as person_name
+         FROM bonus_distributions bd
+         JOIN bonuses b ON bd.bonus_id = b.id
+         JOIN people p ON b.person_id = p.id
+         WHERE bd.leader_id = ? AND b.bonus_date BETWEEN ? AND ?
+         ORDER BY b.bonus_date DESC`,
+        [person.id, reportStartDate, reportEndDate],
+      )
+
+      bonusDistributions = bonusDistributions.map((dist) => ({
+        ...dist,
+        date: formatDateToYYYYMMDD(dist.date),
+        reason: 'Bono compartido',
+        category: 'DEDUCTION',
+        description: `${dist.percentage}% del bono para ${dist.person_name}${dist.description ? ': ' + dist.description : ''}`,
+      }))
+
+      totalBonusDistributions = bonusDistributions.reduce((sum, d) => sum + Number(d.amount), 0)
+    }
+
     const advances = await db.query(
       `SELECT ca.id, ca.advance_amount as amount, ca.week_start_date, ca.week_end_date, ca.status, ca.request_date as date FROM cash_advances ca WHERE ca.person_id = ? AND ca.week_end_date BETWEEN ? AND ? AND ca.status = 'APPROVED' ORDER BY ca.week_end_date DESC`,
       [person.id, reportStartDate, reportEndDate],
@@ -1141,7 +1171,7 @@ export const getIndividualEarningsReport = async (req, res) => {
 
     const totalBonuses = formattedBonuses.reduce((sum, b) => sum + Number(b.amount), 0)
 
-    const finalEarnings = earnings + totalBonuses - totalCharges - totalAdvances - totalExpenses
+    const finalEarnings = earnings + totalBonuses - totalCharges - totalAdvances - totalExpenses - totalBonusDistributions
 
     const dailyEarnings = {}
     const dailyHours = {}
@@ -1264,9 +1294,10 @@ export const getIndividualEarningsReport = async (req, res) => {
         charges: totalCharges,
         advances: totalAdvances,
         expenses: totalExpenses,
+        bonusDistributions: totalBonusDistributions,
         final: finalEarnings,
       },
-      charges: formattedCharges,
+      charges: [...formattedCharges, ...bonusDistributions],
       advances: formattedAdvances,
       expenses,
       bonuses: formattedBonuses,

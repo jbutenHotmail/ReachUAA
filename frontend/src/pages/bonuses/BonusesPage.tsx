@@ -1,6 +1,6 @@
-import type React from "react";
+import React from "react";
 import { useState, useEffect } from "react";
-import { Plus, Gift, Trash2, Calendar, DollarSign, User, RefreshCw, Info } from "lucide-react";
+import { Plus, Gift, Trash2, Calendar, DollarSign, User, RefreshCw, Info, ChevronDown, ChevronRight, TrendingUp } from "lucide-react";
 import { useAuthStore } from "../../stores/authStore";
 import { useProgramStore } from "../../stores/programStore";
 import { useBonusStore } from "../../stores/bonusStore";
@@ -12,6 +12,8 @@ import AddBonusForm from "./AddBonusForm";
 import { formatNumber } from "../../utils/numberUtils";
 import { format } from "date-fns";
 import { UserRole } from "../../types";
+import { api } from "../../api";
+import clsx from "clsx";
 
 const BonusesPage: React.FC = () => {
   const { user } = useAuthStore();
@@ -20,6 +22,9 @@ const BonusesPage: React.FC = () => {
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [expandedBonuses, setExpandedBonuses] = useState<Set<number>>(new Set());
+  const [bonusDistributions, setBonusDistributions] = useState<Record<number, any[]>>({});
+  const [loadingDistributions, setLoadingDistributions] = useState<Set<number>>(new Set());
 
   const isAdmin = user?.role === UserRole.ADMIN;
 
@@ -59,6 +64,37 @@ const BonusesPage: React.FC = () => {
   };
 
   const totalBonuses = bonuses.reduce((sum, bonus) => sum + bonus.amount, 0);
+
+  const toggleBonusExpansion = async (bonusId: number) => {
+    const newExpanded = new Set(expandedBonuses);
+    if (expandedBonuses.has(bonusId)) {
+      newExpanded.delete(bonusId);
+      setExpandedBonuses(newExpanded);
+    } else {
+      newExpanded.add(bonusId);
+      setExpandedBonuses(newExpanded);
+      if (!bonusDistributions[bonusId]) {
+        setLoadingDistributions((prev) => new Set(prev).add(bonusId));
+        try {
+          const distributions = await api.get(`/bonuses/${bonusId}/distributions`, {
+            params: { programId: program?.id },
+          });
+          setBonusDistributions((prev) => ({
+            ...prev,
+            [bonusId]: distributions,
+          }));
+        } catch (error) {
+          console.error("Error fetching bonus distributions:", error);
+        } finally {
+          setLoadingDistributions((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(bonusId);
+            return newSet;
+          });
+        }
+      }
+    }
+  };
 
   if (!isAdmin) {
     return (
@@ -194,12 +230,37 @@ const BonusesPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {bonuses.map((bonus) => (
-                  <tr key={bonus.id} className="hover:bg-gray-50 transition-colors">
+                {bonuses.map((bonus) => {
+                  const hasDistribution = bonusDistributions[bonus.id] && bonusDistributions[bonus.id].length > 0;
+                  const canExpand = hasDistribution || (!bonusDistributions[bonus.id] && !loadingDistributions.has(bonus.id));
+
+                  return (
+                  <React.Fragment key={bonus.id}>
+                  <tr
+                    className={clsx(
+                      "hover:bg-gray-50 transition-colors",
+                      canExpand && "cursor-pointer"
+                    )}
+                    onClick={() => canExpand && toggleBonusExpansion(bonus.id)}
+                  >
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-2">
+                        {canExpand && (
+                          <div className="text-primary-600">
+                            {expandedBonuses.has(bonus.id) ? (
+                              <ChevronDown size={16} />
+                            ) : (
+                              <ChevronRight size={16} />
+                            )}
+                          </div>
+                        )}
                         <User className="text-gray-400" size={16} />
-                        <span className="font-medium text-gray-900">{bonus.person_name}</span>
+                        <div>
+                          <span className="font-medium text-gray-900">{bonus.person_name}</span>
+                          {hasDistribution && (
+                            <div className="text-xs text-primary-600 font-medium">Costo Compartido</div>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
@@ -226,13 +287,65 @@ const BonusesPage: React.FC = () => {
                         variant="danger"
                         size="sm"
                         leftIcon={<Trash2 size={14} />}
-                        onClick={() => handleDelete(bonus.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(bonus.id);
+                        }}
                       >
                         Eliminar
                       </Button>
                     </td>
                   </tr>
-                ))}
+                  {expandedBonuses.has(bonus.id) && (
+                    <>
+                      {loadingDistributions.has(bonus.id) ? (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-3 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <RefreshCw size={16} className="animate-spin text-primary-600" />
+                              <span className="text-sm text-gray-500">Cargando distribución...</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        bonusDistributions[bonus.id]?.map((dist) => (
+                          <tr key={dist.id} className="bg-amber-50/50 border-l-4 border-amber-300">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                              <div className="pl-6 flex items-center gap-2">
+                                <User className="text-gray-400" size={14} />
+                                {dist.leader_name}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              <Badge variant="danger" size="sm">
+                                -${formatNumber(dist.amount)}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600">
+                              <div className="pl-6 flex items-center gap-1">
+                                <TrendingUp size={14} className="text-amber-600" />
+                                <span>Pago proporcional ({formatNumber(dist.percentage)}%)</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              <Badge variant="secondary" size="sm">
+                                Parte del costo
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              <span className="text-xs text-gray-500">-</span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              <span className="text-xs text-gray-400 italic">Distribución automática</span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </>
+                  )}
+                  </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

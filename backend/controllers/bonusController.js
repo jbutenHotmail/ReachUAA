@@ -245,10 +245,55 @@ export const deleteBonus = async (req, res) => {
   }
 };
 
+export const getBonusDistributions = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { programId } = req.query;
+
+    const bonus = await db.getOne("SELECT id FROM bonuses WHERE id = ?", [id]);
+
+    if (!bonus) {
+      return res.status(404).json({ message: "Bonus not found" });
+    }
+
+    let sql = `
+      SELECT
+        bd.id,
+        bd.bonus_id,
+        bd.leader_id,
+        bd.amount,
+        bd.percentage,
+        CASE
+          WHEN bd.leader_id IS NULL THEN 'Program'
+          ELSE CONCAT(p.first_name, ' ', p.last_name)
+        END as leader_name
+      FROM bonus_distributions bd
+      LEFT JOIN people p ON bd.leader_id = p.id
+      WHERE bd.bonus_id = ?
+    `;
+
+    const params = [id];
+
+    if (programId) {
+      sql += " AND EXISTS (SELECT 1 FROM bonuses b WHERE b.id = bd.bonus_id AND b.program_id = ?)";
+      params.push(programId);
+    }
+
+    sql += " ORDER BY bd.amount DESC";
+
+    const distributions = await db.query(sql, params);
+    res.json(distributions);
+  } catch (error) {
+    console.error("Error getting bonus distributions:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 export default {
   getAllBonuses,
   getBonusesByPerson,
   createBonus,
   updateBonus,
   deleteBonus,
+  getBonusDistributions,
 };

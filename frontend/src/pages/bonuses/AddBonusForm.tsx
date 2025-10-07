@@ -5,7 +5,6 @@ import { useProgramStore } from "../../stores/programStore";
 import { useBonusStore } from "../../stores/bonusStore";
 import { useUserStore } from "../../stores/userStore";
 import { useTransactionStore } from "../../stores/transactionStore";
-import { useExpenseStore } from "../../stores/expenseStore";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Card from "../../components/ui/Card";
@@ -28,9 +27,8 @@ interface LeaderShare {
 const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
   const { program } = useProgramStore();
   const { createBonus } = useBonusStore();
-  const { fetchPeople, getColporters, getLeaders, werePeopleFetched } = useUserStore();
-  const { transactions, fetchTransactions, wereTransactionsFetched } = useTransactionStore();
-  const { createExpense } = useExpenseStore();
+  const { fetchPeople, getColporters, getLeaders, werePeopleFetched, isLoading: isLoadingPeople } = useUserStore();
+  const { transactions, fetchAllTransactions, wereTransactionsFetched } = useTransactionStore();
 
   const [formData, setFormData] = useState({
     distribution_type: "DIRECT" as "DIRECT" | "SHARED",
@@ -45,13 +43,13 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!werePeopleFetched) {
-      fetchPeople();
+    if (!werePeopleFetched && program) {
+      fetchPeople(program.id);
     }
-    if (program && !wereTransactionsFetched) {
-      fetchTransactions({ programId: program.id });
+    if (!wereTransactionsFetched) {
+      fetchAllTransactions();
     }
-  }, [werePeopleFetched, fetchPeople, wereTransactionsFetched, fetchTransactions, program]);
+  }, [werePeopleFetched, wereTransactionsFetched, program]);
 
   const colporters = getColporters(program?.id);
   const leaders = getLeaders(program?.id);
@@ -70,7 +68,7 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
     const leaderSalesMap = new Map<string, LeaderShare>();
 
     approvedTransactions.forEach((transaction) => {
-      const leaderId = transaction.leaderId;
+      const leaderId = JSON.stringify(transaction.leaderId);
       const leaderName = transaction.leaderName;
 
       if (!leaderId || !leaderName) return;
@@ -138,29 +136,22 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
     setIsSubmitting(true);
 
     try {
+      const distributions = formData.distribution_type === "SHARED"
+        ? leaderShares.map(leader => ({
+            leader_id: leader.leaderId === 'program' ? null : parseInt(leader.leaderId),
+            amount: leader.shareAmount,
+            percentage: leader.percentage
+          }))
+        : undefined;
+
       await createBonus({
         program_id: program.id,
         person_id: parseInt(formData.person_id),
         amount: parseFloat(formData.amount),
         description: formData.description || undefined,
         bonus_date: formData.bonus_date,
+        distributions,
       });
-
-      if (formData.distribution_type === "SHARED") {
-        for (const leader of leaderShares) {
-          await createExpense({
-            leaderId: leader.leaderId,
-            leaderName: leader.leaderName,
-            amount: leader.shareAmount,
-            motivo: `Bono compartido`,
-            category: "bonuses",
-            notes: `Pago proporcional del bono`,
-            date: formData.bonus_date,
-            status: "APPROVED",
-            programId: program.id,
-          });
-        }
-      }
 
       onSuccess();
       onClose();
@@ -183,8 +174,6 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
       ...(name === "person_type" && { person_id: "" }),
     }));
   };
-
-  const totalShared = leaderShares.reduce((sum, leader) => sum + leader.shareAmount, 0);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -249,7 +238,12 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
 
           {formData.distribution_type === "SHARED" && (
             <>
-              {leaderShares.length > 0 && (
+              {!wereTransactionsFetched && formData.amount && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
+                  Cargando distribución de costos...
+                </div>
+              )}
+              {wereTransactionsFetched && leaderShares.length > 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <Users className="text-amber-600" size={16} />
@@ -263,11 +257,11 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-gray-900 truncate">{leader.leaderName}</p>
                             <div className="flex items-center gap-1 mt-0.5">
-                              <Badge variant="info" size="xs">
+                              <Badge variant="info">
                                 <TrendingUp size={10} className="mr-0.5" />
                                 {leader.percentage.toFixed(1)}%
                               </Badge>
-                              <Badge variant="secondary" size="xs">
+                              <Badge variant="secondary">
                                 <DollarSign size={10} className="mr-0.5" />
                                 {formatNumber(leader.totalSales)} en ventas
                               </Badge>
@@ -286,7 +280,7 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
                 </div>
               )}
 
-              {formData.amount && leaderShares.length === 0 && (
+              {formData.amount && leaderShares.length === 0 && wereTransactionsFetched && (
                 <div className="p-3 bg-warning-50 border border-warning-200 rounded-lg text-warning-700 text-sm">
                   No hay líderes con ventas para compartir el costo del bono
                 </div>
@@ -319,10 +313,15 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
                 name="person_id"
                 value={formData.person_id}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                 required
+                disabled={isLoadingPeople}
               >
-                <option value="">Seleccione {formData.person_type === "COLPORTER" ? "un colportor" : "un líder"}</option>
+                <option value="">
+                  {isLoadingPeople
+                    ? "Cargando..."
+                    : `Seleccione ${formData.person_type === "COLPORTER" ? "un colportor" : "un líder"}`}
+                </option>
                 {availablePeople.map((person) => (
                   <option key={person.id} value={person.id}>
                     {person.name} {person.apellido}
