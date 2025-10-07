@@ -28,10 +28,10 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
   const { program } = useProgramStore();
   const { createBonus } = useBonusStore();
   const { fetchPeople, getColporters, getLeaders, werePeopleFetched, isLoading: isLoadingPeople } = useUserStore();
-  const { transactions, fetchAllTransactions, wereTransactionsFetched } = useTransactionStore();
+  const { transactions, fetchTransactions, wereTransactionsFetched } = useTransactionStore();
 
   const [formData, setFormData] = useState({
-    distribution_type: "DIRECT" as "DIRECT" | "SHARED",
+    distribution_type: "SHARED" as "DIRECT" | "SHARED",
     person_id: "",
     person_type: "COLPORTER" as "COLPORTER" | "LEADER",
     amount: "",
@@ -46,10 +46,10 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
     if (!werePeopleFetched && program) {
       fetchPeople(program.id);
     }
-    if (!wereTransactionsFetched) {
-      fetchAllTransactions();
+    if (program && !wereTransactionsFetched) {
+      fetchTransactions();
     }
-  }, [werePeopleFetched, wereTransactionsFetched, program]);
+  }, [werePeopleFetched, fetchPeople, wereTransactionsFetched, fetchTransactions, program]);
 
   const colporters = getColporters(program?.id);
   const leaders = getLeaders(program?.id);
@@ -175,6 +175,8 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
     }));
   };
 
+  const totalShared = leaderShares.reduce((sum, leader) => sum + leader.shareAmount, 0);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -204,7 +206,7 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 required
               >
-                <option value="DIRECT">Directo - Sale del programa</option>
+                {/* <option value="DIRECT">Directo - Sale del programa</option> */}
                 <option value="SHARED">Compartido - Los líderes pagan proporcionalmente</option>
               </select>
               <p className="text-xs text-gray-500 mt-1">
@@ -243,6 +245,7 @@ const AddBonusForm: React.FC<AddBonusFormProps> = ({ onClose, onSuccess }) => {
                   Cargando distribución de costos...
                 </div>
               )}
+
               {wereTransactionsFetched && leaderShares.length > 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-2">
