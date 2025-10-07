@@ -11,6 +11,7 @@ import SnacksExpenses from './pages/expenses/SnacksExpenses';
 import CleaningExpenses from './pages/expenses/CleaningExpenses';
 import IncentivosExpenses from './pages/expenses/IncentivosExpenses';
 import ActivitiesExpenses from './pages/expenses/ActivitiesExpenses';
+import AchievementsPage from './pages/achievements/AchievementsPage';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/auth/Login'));
@@ -313,7 +314,11 @@ function App() {
               <BonificationsPage />
             </Suspense>
           } />
-
+          <Route path='achievements' element={
+            <Suspense fallback={<LoadingScreen message="Loading achievements..." />}>
+              <AchievementsPage />
+            </Suspense>
+          } />
           {/* Bonuses - Admin only */}
           <Route
             path="bonuses"
