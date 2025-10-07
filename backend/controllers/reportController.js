@@ -1128,7 +1128,20 @@ export const getIndividualEarningsReport = async (req, res) => {
       totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
     }
 
-    const finalEarnings = earnings - totalCharges - totalAdvances - totalExpenses
+    const bonuses = await db.query(
+      `SELECT b.id, b.amount, b.description, b.bonus_date as date FROM bonuses b WHERE b.person_id = ? AND b.bonus_date BETWEEN ? AND ? ORDER BY b.bonus_date DESC`,
+      [person.id, reportStartDate, reportEndDate],
+    )
+
+    // Format bonus_date in bonuses
+    const formattedBonuses = bonuses.map((bonus) => ({
+      ...bonus,
+      date: formatDateToYYYYMMDD(bonus.date),
+    }))
+
+    const totalBonuses = formattedBonuses.reduce((sum, b) => sum + Number(b.amount), 0)
+
+    const finalEarnings = earnings + totalBonuses - totalCharges - totalAdvances - totalExpenses
 
     const dailyEarnings = {}
     const dailyHours = {}
@@ -1247,6 +1260,7 @@ export const getIndividualEarningsReport = async (req, res) => {
         gross: totals.total,
         percentage,
         net: earnings,
+        bonuses: totalBonuses,
         charges: totalCharges,
         advances: totalAdvances,
         expenses: totalExpenses,
@@ -1255,6 +1269,7 @@ export const getIndividualEarningsReport = async (req, res) => {
       charges: formattedCharges,
       advances: formattedAdvances,
       expenses,
+      bonuses: formattedBonuses,
       dailyEarnings,
       dailyHours,
       totalHours,
